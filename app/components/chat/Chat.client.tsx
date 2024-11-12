@@ -4,7 +4,7 @@ import { useStore } from '@nanostores/react';
 import type { Message } from 'ai';
 import { useChat } from 'ai/react';
 import { useAnimate } from 'framer-motion';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { cssTransition, toast, ToastContainer } from 'react-toastify';
 import { useMessageParser, usePromptEnhancer, useShortcuts, useSnapScroll } from '~/lib/hooks';
 import { useChatHistory } from '~/lib/persistence';
@@ -16,6 +16,8 @@ import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
 import { BaseChat } from './BaseChat';
 import Cookies from 'js-cookie';
+import { useWaveRenderer } from './utils/useWaveRenderer';
+import { useRealtimeClient } from './utils/useRealtimeClient';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -36,7 +38,7 @@ export function Chat() {
         closeButton={({ closeToast }) => {
           return (
             <button className="Toastify__close-button" onClick={closeToast}>
-              <div className="i-ph:x text-lg" />
+              <div className="text-lg i-ph:x" />
             </button>
           );
         }}
@@ -46,10 +48,10 @@ export function Chat() {
            */
           switch (type) {
             case 'success': {
-              return <div className="i-ph:check-bold text-bolt-elements-icon-success text-2xl" />;
+              return <div className="text-2xl i-ph:check-bold text-bolt-elements-icon-success" />;
             }
             case 'error': {
-              return <div className="i-ph:warning-circle-bold text-bolt-elements-icon-error text-2xl" />;
+              return <div className="text-2xl i-ph:warning-circle-bold text-bolt-elements-icon-error" />;
             }
           }
 
@@ -72,6 +74,88 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   useShortcuts();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { clientCanvasRef, serverCanvasRef, wavRecorderRef, wavStreamPlayerRef } = useWaveRenderer();
+  const apiKey = localStorage.getItem('tmp::voice_api_key') || prompt('OpenAI API Key') || '';
+
+  if (apiKey !== '') {
+    localStorage.setItem('tmp::voice_api_key', apiKey);
+  }
+
+  const startTimeRef = useRef<string>(new Date().toISOString());
+  const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({
+    userName: 'swyx',
+    todaysDate: new Date().toISOString().split('T')[0],
+  });
+  const {
+    // client,
+    isConnected,
+    connectConversation,
+    disconnectConversation,
+  } = useRealtimeClient(
+    apiKey,
+    startTimeRef,
+    () => {}, // setRealtimeEvents
+    wavStreamPlayerRef,
+    wavRecorderRef,
+    'You are a helpful AI assistant. Where possible use one of the tools given to you, particularly when asked to write code for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool.' +
+      ' Memory: ' +
+      JSON.stringify(memoryKv, null, 2),
+    [
+      {
+        schema: {
+          name: 'set_memory',
+          description:
+            'Saves important data about the user into memory. If keys are close, prefer overwriting keys rather than creating new keys.',
+          parameters: {
+            type: 'object',
+            properties: {
+              key: {
+                type: 'string',
+                description: 'The key of the memory value. Always use lowercase and underscores, no other characters.',
+              },
+              value: {
+                type: 'string',
+                description: 'Value can be anything represented as a string',
+              },
+            },
+            required: ['key', 'value'],
+          },
+        },
+        async fn({ key, value }: { key: string; value: string }) {
+          setMemoryKv((prev) => ({ ...prev, [key]: value }));
+        },
+      },
+      {
+        schema: {
+          name: 'prompt_code_for_app',
+          description:
+            'Prompts an AI agent to write code for an app, using specific technical language and outlining high level architecture first before mentioning lower level details',
+          parameters: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'The app prompt',
+              },
+            },
+            required: ['key', 'value'],
+          },
+        },
+        async fn({ prompt }: { prompt: string }) {
+          console.log({ prompt });
+          sendMessage({ unused_event: 'null' }, prompt);
+        },
+      },
+    ],
+  );
+
+  const handleVoiceToggle = useCallback(() => {
+    if (isConnected) {
+      disconnectConversation();
+    } else {
+      connectConversation();
+    }
+  }, [isConnected, connectConversation, disconnectConversation]);
 
   const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);
   const [model, setModel] = useState(() => {
@@ -92,7 +176,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
     api: '/api/chat',
     body: {
-      apiKeys
+      apiKeys,
     },
     onError: (error) => {
       logger.error('Request failed\n\n', error);
@@ -217,6 +301,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   useEffect(() => {
     const storedApiKeys = Cookies.get('apiKeys');
+
     if (storedApiKeys) {
       setApiKeys(JSON.parse(storedApiKeys));
     }
@@ -236,6 +321,10 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     <BaseChat
       ref={animationScope}
       textareaRef={textareaRef}
+      messageRef={messageRef}
+      scrollRef={scrollRef}
+      clientCanvasRef={clientCanvasRef}
+      serverCanvasRef={serverCanvasRef}
       input={input}
       showChat={showChat}
       chatStarted={chatStarted}
@@ -247,10 +336,10 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       setModel={handleModelChange}
       provider={provider}
       setProvider={handleProviderChange}
-      messageRef={messageRef}
-      scrollRef={scrollRef}
       handleInputChange={handleInputChange}
       handleStop={abort}
+      isVoiceConnected={isConnected}
+      onVoiceToggle={handleVoiceToggle}
       messages={messages.map((message, i) => {
         if (message.role === 'user') {
           return message;
@@ -263,14 +352,14 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       })}
       enhancePrompt={() => {
         enhancePrompt(
-          input, 
+          input,
           (input) => {
             setInput(input);
             scrollTextArea();
           },
           model,
           provider,
-          apiKeys
+          apiKeys,
         );
       }}
     />

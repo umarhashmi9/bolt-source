@@ -28,15 +28,15 @@ const providerList = [...new Set(MODEL_LIST.map((model) => model.provider))]
 
 const ModelSelector = ({ model, setModel, provider, setProvider, modelList, providerList }) => {
   return (
-    <div className="mb-2 flex gap-2">
-      <select 
+    <div className="flex gap-2 mb-2">
+      <select
         value={provider}
         onChange={(e) => {
           setProvider(e.target.value);
           const firstModel = [...modelList].find(m => m.provider == e.target.value);
           setModel(firstModel ? firstModel.name : '');
         }}
-        className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
+        className="flex-1 p-2 rounded-lg border transition-all border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
       >
         {providerList.map((provider) => (
           <option key={provider} value={provider}>
@@ -56,7 +56,7 @@ const ModelSelector = ({ model, setModel, provider, setProvider, modelList, prov
       <select
         value={model}
         onChange={(e) => setModel(e.target.value)}
-        className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
+        className="flex-1 p-2 rounded-lg border transition-all border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
       >
         {[...modelList].filter(e => e.provider == provider && e.name).map((modelOption) => (
           <option key={modelOption.name} value={modelOption.name}>
@@ -71,9 +71,11 @@ const ModelSelector = ({ model, setModel, provider, setProvider, modelList, prov
 const TEXTAREA_MIN_HEIGHT = 76;
 
 interface BaseChatProps {
-  textareaRef?: React.RefObject<HTMLTextAreaElement> | undefined;
-  messageRef?: RefCallback<HTMLDivElement> | undefined;
-  scrollRef?: RefCallback<HTMLDivElement> | undefined;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  messageRef?: RefCallback<HTMLDivElement>;
+  scrollRef?: RefCallback<HTMLDivElement>;
+  clientCanvasRef?: React.RefObject<HTMLCanvasElement>;
+  serverCanvasRef?: React.RefObject<HTMLCanvasElement>;
   showChat?: boolean;
   chatStarted?: boolean;
   isStreaming?: boolean;
@@ -89,6 +91,8 @@ interface BaseChatProps {
   sendMessage?: (event: React.UIEvent, messageInput?: string) => void;
   handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   enhancePrompt?: () => void;
+  isVoiceConnected?: boolean;
+  onVoiceToggle?: () => void;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -97,6 +101,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       textareaRef,
       messageRef,
       scrollRef,
+      clientCanvasRef,
+      serverCanvasRef,
       showChat = true,
       chatStarted = false,
       isStreaming = false,
@@ -112,6 +118,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       handleInputChange,
       enhancePrompt,
       handleStop,
+      isVoiceConnected,
+      onVoiceToggle,
     },
     ref,
   ) => {
@@ -165,17 +173,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
           <div className={classNames(styles.Chat, 'flex flex-col flex-grow min-w-[var(--chat-min-width)] h-full')}>
             {!chatStarted && (
               <div id="intro" className="mt-[26vh] max-w-chat mx-auto text-center">
-                <h1 className="text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
+                <h1 className="mb-4 text-6xl font-bold text-bolt-elements-textPrimary animate-fade-in">
                   Where ideas begin
                 </h1>
-                <p className="text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
+                <p className="mb-8 text-xl text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
                   Bring ideas to life in seconds or get help on existing projects.
                 </p>
               </div>
             )}
             <div
-              className={classNames('pt-6 px-6', {
-                'h-full flex flex-col': chatStarted,
+              className={classNames('px-6 pt-6', {
+                'flex flex-col h-full': chatStarted,
               })}
             >
               <ClientOnly>
@@ -183,7 +191,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   return chatStarted ? (
                     <Messages
                       ref={messageRef}
-                      className="flex flex-col w-full flex-1 max-w-chat px-4 pb-6 mx-auto z-1"
+                      className="flex flex-col flex-1 px-4 pb-6 mx-auto w-full max-w-chat z-1"
                       messages={messages}
                       isStreaming={isStreaming}
                     />
@@ -191,7 +199,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 }}
               </ClientOnly>
               <div
-                className={classNames('relative w-full max-w-chat mx-auto z-prompt', {
+                className={classNames('relative mx-auto w-full max-w-chat z-prompt', {
                   'sticky bottom-0': chatStarted,
                 })}
               >
@@ -210,12 +218,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 />
                 <div
                   className={classNames(
-                    'shadow-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background backdrop-filter backdrop-blur-[8px] rounded-lg overflow-hidden transition-all',
+                    'overflow-hidden rounded-lg border shadow-lg backdrop-filter transition-all border-bolt-elements-borderColor bg-bolt-elements-prompt-background backdrop-blur-[8px]',
                   )}
                 >
                   <textarea
                     ref={textareaRef}
-                    className={`w-full pl-4 pt-4 pr-16 focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus resize-none text-md text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary bg-transparent transition-all`}
+                    className={`pt-4 pr-16 pl-4 w-full bg-transparent transition-all resize-none focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus text-md text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary`}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         if (event.shiftKey) {
@@ -254,7 +262,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       />
                     )}
                   </ClientOnly>
-                  <div className="flex justify-between items-center text-sm p-4 pt-2">
+                  <div className="flex justify-between items-center p-4 pt-2 text-sm">
                     <div className="flex gap-1 items-center">
                       <IconButton
                         title="Enhance prompt"
@@ -268,29 +276,50 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       >
                         {enhancingPrompt ? (
                           <>
-                            <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
+                            <div className="text-xl animate-spin i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress"></div>
                             <div className="ml-1.5">Enhancing prompt...</div>
                           </>
                         ) : (
                           <>
-                            <div className="i-bolt:stars text-xl"></div>
+                            <div className="text-xl i-bolt:stars"></div>
                             {promptEnhanced && <div className="ml-1.5">Prompt enhanced</div>}
                           </>
                         )}
                       </IconButton>
+                      <IconButton
+                        title={isVoiceConnected ? 'Stop voice chat' : 'Start voice chat'}
+                        onClick={onVoiceToggle}
+                        className={classNames('transition-all', {
+                          'text-bolt-elements-icon-success': isVoiceConnected,
+                          'hover:bg-bolt-elements-background-depth-2': !isVoiceConnected,
+                        })}
+                      >
+                        <div
+                          className={classNames('text-xl', {
+                            'text-red-600 i-ph:microphone-fill': isVoiceConnected,
+                            'i-ph:microphone': !isVoiceConnected,
+                          })}
+                        />
+                      </IconButton>
+                      <div className="flex justify-between w-64 h-8">
+                        <canvas ref={clientCanvasRef} className="bottom-0 left-0 w-full h-8 bg-transparent" />
+                        <canvas ref={serverCanvasRef} className="left-0 bottom-16 w-full h-8 bg-transparent" />
+                      </div>
                     </div>
                     {input.length > 3 ? (
                       <div className="text-xs text-bolt-elements-textTertiary">
-                        Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd> + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd> for a new line
+                        Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd> +{' '}
+                        <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd> for
+                        a new line
                       </div>
                     ) : null}
                   </div>
                 </div>
-                <div className="bg-bolt-elements-background-depth-1 pb-6">{/* Ghost Element */}</div>
+                <div className="pb-6 bg-bolt-elements-background-depth-1">{/* Ghost Element */}</div>
               </div>
             </div>
             {!chatStarted && (
-              <div id="examples" className="relative w-full max-w-xl mx-auto mt-8 flex justify-center">
+              <div id="examples" className="flex relative justify-center mx-auto mt-8 w-full max-w-xl">
                 <div className="flex flex-col space-y-2 [mask-image:linear-gradient(to_bottom,black_0%,transparent_180%)] hover:[mask-image:none]">
                   {EXAMPLE_PROMPTS.map((examplePrompt, index) => {
                     return (
@@ -299,7 +328,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         onClick={(event) => {
                           sendMessage?.(event, examplePrompt.text);
                         }}
-                        className="group flex items-center w-full gap-2 justify-center bg-transparent text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-theme"
+                        className="flex gap-2 justify-center items-center w-full bg-transparent group text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-theme"
                       >
                         {examplePrompt.text}
                         <div className="i-ph:arrow-bend-down-left" />
