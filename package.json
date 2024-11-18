@@ -23,7 +23,7 @@
     "preview": "pnpm run build && pnpm run start"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": "22.11.0"
   },
   "dependencies": {
     "@remix-run/node",
