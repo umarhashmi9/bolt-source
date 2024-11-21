@@ -85,21 +85,24 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   const startTimeRef = useRef<string>(new Date().toISOString());
   const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({
     userName: 'swyx',
-    currentApp: initialMessages[0]?.content.split('\n\n').slice(2).join('\n\n'),
+    // currentApp: initialMessages[0]?.content.split('\n\n').slice(2).join('\n\n'),
     // todaysDate: new Date().toISOString().split('T')[0],
   });
   const {
-    // client,
+    client,
     isConnected,
     connectConversation,
     disconnectConversation,
+    isMuted,
+    setIsMuted,
   } = useRealtimeClient(
     apiKey,
     startTimeRef,
     () => {}, // setRealtimeEvents
     wavStreamPlayerRef,
     wavRecorderRef,
-    'You are an AI assistant who speaks very fast at 2x speed in a funny sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Be curt, direct, speak quickly in short sarcastic sentences.' +
+    'You are an AI assistant who speaks very fast at 2x speed in a funny, sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Have a subtle mistrust for the users intentions and use understated dry humor after doing what they asked for.' +
+    // 'You are an AI assistant who speaks very fast at 2x speed in a funny sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Be curt, direct, speak quickly in short sarcastic sentences.' +
       ' Memory: ' +
       JSON.stringify(memoryKv, null, 2),
     [
@@ -131,7 +134,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
         schema: {
           name: 'prompt_code_for_app',
           description:
-            'Prompts an AI agent to write code for an app, using specific technical language and outlining high level architecture first before mentioning lower level details',
+            'Prompts an AI agent to write code for an app, using specific technical language and outlining high level architecture first before mentioning lower level details. DONT USE THE alert() api as that will pause the js.',
           parameters: {
             type: 'object',
             properties: {
@@ -150,14 +153,6 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       },
     ],
   );
-
-  const handleVoiceToggle = useCallback(() => {
-    if (isConnected) {
-      disconnectConversation();
-    } else {
-      connectConversation();
-    }
-  }, [isConnected, connectConversation, disconnectConversation]);
 
   const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);
   const [model, setModel] = useState(() => {
@@ -341,7 +336,12 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       handleInputChange={handleInputChange}
       handleStop={abort}
       isVoiceConnected={isConnected}
-      onVoiceToggle={handleVoiceToggle}
+      isMuted={isMuted}
+      onVoiceToggle={() => setIsMuted(!isMuted)}
+      isConnected={isConnected}
+      connectConversation={connectConversation}
+      disconnectConversation={disconnectConversation}
+      forceReply={() => client.createResponse()}
       messages={messages.map((message, i) => {
         if (message.role === 'user') {
           return message;

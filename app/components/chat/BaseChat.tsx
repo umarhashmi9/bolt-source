@@ -90,6 +90,10 @@ interface BaseChatProps {
   isVoiceConnected?: boolean;
   isMuted?: boolean;
   onVoiceToggle?: () => void;
+  disconnectConversation?: () => void;
+  connectConversation?: () => void;
+  isConnected?: boolean;
+  forceReply?: () => void;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -118,6 +122,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       isVoiceConnected,
       isMuted,
       onVoiceToggle,
+      disconnectConversation,
+      connectConversation,
+      isConnected,
+      forceReply,
     },
     ref,
   ) => {
@@ -205,7 +213,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 className={classNames(
                   'bg-bolt-elements-background-depth-2 border-y border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt',
                   {
-                    'sticky bottom-0': chatStarted
+                    'sticky bottom-0': chatStarted,
                   })}
               >
                 <ModelSelector
@@ -271,29 +279,28 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     )}
                   </ClientOnly>
                   <div className="flex justify-between items-center p-4 pt-2 text-sm">
-                    <div className="flex gap-1 items-center">
-                      <IconButton
-                        title="Enhance prompt"
-                        disabled={input.length === 0 || enhancingPrompt}
-                        className={classNames('transition-all', {
-                          'opacity-100!': enhancingPrompt,
-                          'text-bolt-elements-item-contentAccent! pr-1.5 enabled:hover:bg-bolt-elements-item-backgroundAccent!':
-                            promptEnhanced,
-                        })}
-                        onClick={() => enhancePrompt?.()}
+                    <div className="flex gap-4 items-center">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        <span className="text-sm text-bolt-elements-textSecondary">
+                          {isConnected ? 'On' : 'Off'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={isConnected ? disconnectConversation : connectConversation}
+                        className="px-3 py-1 text-sm rounded-md border border-bolt-elements-borderColor hover:bg-bolt-elements-background-depth-2 transition-colors"
                       >
-                        {enhancingPrompt ? (
-                          <>
-                            <div className="text-xl animate-spin i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress"></div>
-                            <div className="ml-1.5">Enhancing prompt...</div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-xl i-bolt:stars"></div>
-                            {promptEnhanced && <div className="ml-1.5">Prompt enhanced</div>}
-                          </>
-                        )}
-                      </IconButton>
+                        {isConnected ? 'Disconnect' : 'Connect'}
+                      </button>
+                      {isConnected && (
+                        <IconButton
+                          title="Force reply"
+                          onClick={forceReply}
+                          className={classNames('transition-all hover:bg-bolt-elements-background-depth-2')}
+                        >
+                          <div className="text-xl i-ph:chat-circle-dots"></div>
+                        </IconButton>
+                      )}
                       <IconButton
                         title={isVoiceConnected ? (isMuted ? 'Unmute voice chat' : 'Mute voice chat') : 'Start voice chat'}
                         onClick={onVoiceToggle}
@@ -311,7 +318,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           })}
                         />
                       </IconButton>
-                      <div className="flex justify-between w-64 h-8">
+                      <div className="flex justify-between w-32 h-8">
                         <canvas ref={clientCanvasRef} className="bottom-0 left-0 w-full h-8 bg-transparent" />
                         <canvas ref={serverCanvasRef} className="left-0 bottom-16 w-full h-8 bg-transparent" />
                       </div>
