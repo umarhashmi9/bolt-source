@@ -68,7 +68,7 @@ export function useRealtimeClient(
       clientRef.current.sendUserMessageContent([
         {
           type: `input_text`,
-          text: `Hello!`,
+          text: `Checking if this works. Just say 3 words: Hi! Let's begin!`,
         },
       ]);
 

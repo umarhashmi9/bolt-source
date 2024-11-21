@@ -6,12 +6,13 @@ export const WORK_DIR = `/home/${WORK_DIR_NAME}`;
 export const MODIFICATIONS_TAG_NAME = 'bolt_file_modifications';
 export const MODEL_REGEX = /^\[Model: (.*?)\]\n\n/;
 export const PROVIDER_REGEX = /\[Provider: (.*?)\]\n\n/;
-export const DEFAULT_MODEL = 'gpt-4o';
+export const DEFAULT_MODEL = 'gpt-4o-2024-11-20';
 
 const PROVIDER_LIST: ProviderInfo[] = [
   {
     name: 'OpenAI',
     staticModels: [
+      { name: 'gpt-4o-2024-11-20', label: 'GPT-4o (Nov 2024)', provider: 'OpenAI' },
       { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
       { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI' },
       { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI' },
@@ -69,7 +70,7 @@ const PROVIDER_LIST: ProviderInfo[] = [
   {
     name: 'OpenRouter',
     staticModels: [
-      { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
+      // { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
       {
         name: 'anthropic/claude-3.5-sonnet',
         label: 'Anthropic: Claude 3.5 Sonnet (OpenRouter)',
