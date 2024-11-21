@@ -1,4 +1,88 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
-  <rect width="16" height="16" rx="2" fill="#1389fd" />
-  <path d="M7.398 9.091h-3.58L10.364 2 8.602 6.909h3.58L5.636 14l1.762-4.909Z" fill="#fff" />
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 24.0.3, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+  <!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">
+  <!ENTITY ns_ai "http://ns.adobe.com/AdobeIllustrator/10.0/">
+  <!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">
+  <!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">
+  <!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">
+  <!ENTITY ns_sfw "http://ns.adobe.com/SaveForWeb/1.0/">
+  <!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">
+  <!ENTITY ns_adobe_xpath "http://ns.adobe.com/XPath/1.0/">
+  ]>
+<svg version="1.1"
+     id="svg2" xmlns:x="&ns_extend;" xmlns:i="&ns_ai;" xmlns:graph="&ns_graphs;" inkscape:export-filename="C:\joanna\Gfx\drawings_vector\pitr_icons\pitr_chicken.png" inkscape:export-xdpi="90" inkscape:export-ydpi="90" inkscape:output_extension="org.inkscape.output.svg.inkscape" sodipodi:docbase="/Users/Adam/Desktop/Work/Shyla The Cat" sodipodi:version="0.32" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:ns1="http://sozi.baierouge.fr" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:svg="http://www.w3.org/2000/svg"
+     xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 106.6 98.5"
+     enable-background="new 0 0 106.6 98.5" xml:space="preserve">
+<metadata>
+	<rdf:RDF>
+		<cc:Work>
+			<dc:format>image/svg+xml</dc:format>
+      <dc:type  rdf:resource="http://purl.org/dc/dcmitype/StillImage"></dc:type>
+      <cc:license  rdf:resource="http://creativecommons.org/licenses/publicdomain/"></cc:license>
+      <dc:publisher>
+				<cc:Agent  rdf:about="http://openclipart.org/">
+					<dc:title>Openclipart</dc:title>
+				</cc:Agent>
+			</dc:publisher>
+      <dc:title>Kitty icon</dc:title>
+      <dc:date>2009-04-02T20:10:14</dc:date>
+      <dc:description></dc:description>
+      <dc:source>https://openclipart.org/detail/23817/kitty-icon-by-pitr-23817</dc:source>
+      <dc:creator>
+				<cc:Agent>
+					<dc:title>pitr</dc:title>
+				</cc:Agent>
+			</dc:creator>
+      <dc:subject>
+				<rdf:Bag>
+					<rdf:li>animal</rdf:li>
+          <rdf:li>cat</rdf:li>
+          <rdf:li>contour</rdf:li>
+          <rdf:li>grey</rdf:li>
+          <rdf:li>head</rdf:li>
+          <rdf:li>icon</rdf:li>
+          <rdf:li>kitty</rdf:li>
+				</rdf:Bag>
+			</dc:subject>
+		</cc:Work>
+    <cc:License  rdf:about="http://creativecommons.org/licenses/publicdomain/">
+			<cc:permits  rdf:resource="http://creativecommons.org/ns#Reproduction"></cc:permits>
+      <cc:permits  rdf:resource="http://creativecommons.org/ns#Distribution"></cc:permits>
+      <cc:permits  rdf:resource="http://creativecommons.org/ns#DerivativeWorks"></cc:permits>
+		</cc:License>
+	</rdf:RDF>
+  <sfw  xmlns="&ns_sfw;">
+		<slices></slices>
+    <sliceSourceBounds  bottomLeftOrigin="true" height="98.5" width="106.6" x="11.4" y="10.9"></sliceSourceBounds>
+	</sfw>
+</metadata>
+  <sodipodi:namedview  bordercolor="#666666" borderopacity="1.0" gridtolerance="10000" guidetolerance="10000" id="base" inkscape:current-layer="layer2" inkscape:cx="65.737857" inkscape:cy="73.976425" inkscape:document-units="px" inkscape:guide-bbox="true" inkscape:pageopacity="0.0" inkscape:pageshadow="2" inkscape:snap-global="false" inkscape:window-height="744" inkscape:window-width="1280" inkscape:window-x="17" inkscape:window-y="10" inkscape:zoom="1.4887912" objecttolerance="10000" pagecolor="#ffffff" showborder="true" showgrid="true" showguides="true">
+	<inkscape:grid  empspacing="4" enabled="true" id="grid2403" type="xygrid" visible="true"></inkscape:grid>
+    <sodipodi:guide  id="guide3187" orientation="1,0" position="46.070501,71.599258"></sodipodi:guide>
+</sodipodi:namedview>
+  <g id="layer2" inkscape:groupmode="layer" inkscape:label="bg">
+	<path id="path3612" fill="none" stroke="#000000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M4,3
+		l4.9,25.9C5.1,35.2,3,42.5,3,50.2c0,25,22.5,45.3,50.3,45.3s50.3-20.3,50.3-45.3c0-7.5-2.1-14.5-5.6-20.7l4.9-25.8l-20.6,9.5
+		c-8.2-5.2-18.2-8.3-29-8.3c-10.5,0-20.2,2.9-28.3,7.8C25,12.7,4,3,4,3z"/>
+    <path id="path3478" fill="#B3B3B3" stroke="#000000" stroke-width="3.9782" stroke-linecap="round" stroke-linejoin="round" d="
+		M4,3l4.9,25.9C5.1,35.2,3,42.5,3,50.2c0,25,22.5,45.3,50.3,45.3s50.3-20.3,50.3-45.3c0-7.5-2.1-14.5-5.6-20.7l4.9-25.8l-20.6,9.5
+		c-8.2-5.2-18.2-8.3-29-8.3c-10.5,0-20.2,2.9-28.3,7.8C25,12.7,4,3,4,3z"/>
+    <path id="path3590" fill="#FF8080" d="M49.1,59.8c-8.1,0.6-1.5,9.6,1.7,12.7c5.4,3.1,8.6-5.6,9.8-9.6C59.4,58,52.7,60.3,49.1,59.8z
+		"/>
+    <g id="g3518" transform="matrix(1.9388 .87230 -.87230 1.9388 -79.232 -85.902)">
+		<path id="path3183" sodipodi:cx="72" sodipodi:cy="48" sodipodi:rx="4" sodipodi:ry="4" sodipodi:type="arc" d="M78.2,32.7
+			c0,2.2-1.8,4-4,4c-2.2,0-4-1.8-4-4s1.8-4,4-4S78.2,30.5,78.2,32.7z"/>
+      <path id="path3185" sodipodi:cx="72" sodipodi:cy="48" sodipodi:rx="4" sodipodi:ry="4" sodipodi:type="arc" fill="#FFFFFF" d="
+			M76.7,32.1c0,0.9-0.7,1.6-1.6,1.6c-0.9,0-1.6-0.7-1.6-1.6c0-0.9,0.7-1.6,1.6-1.6C76,30.5,76.7,31.2,76.7,32.1z"/>
+      <path id="path3195" sodipodi:cx="72" sodipodi:cy="48" sodipodi:rx="4" sodipodi:ry="4" sodipodi:type="arc" d="M93.1,26
+			c0,2.2-1.8,4-4,4s-4-1.8-4-4s1.8-4,4-4S93.1,23.7,93.1,26z"/>
+      <path id="path3197" sodipodi:cx="72" sodipodi:cy="48" sodipodi:rx="4" sodipodi:ry="4" sodipodi:type="arc" fill="#FFFFFF" d="
+			M91.7,25.3c0,0.9-0.7,1.6-1.6,1.6s-1.6-0.7-1.6-1.6s0.7-1.6,1.6-1.6S91.7,24.4,91.7,25.3z"/>
+	</g>
+
+    <path id="path3588" sodipodi:nodetypes="csccsc" fill="none" stroke="#000000" stroke-width="2.788" stroke-linecap="round" stroke-linejoin="round" d="
+		M29.8,67.6c0.7,5.5,4,11,11.2,11.2c9.6,0.2,17.4-10.3,19.7-17.5c-5.3-0.8-10.5-0.7-15.8-0.2c2.3,6.9,10.4,17.7,18.4,17.8
+		c7.7,0.1,10.3-4.9,11.2-11.2"/>
+</g>
 </svg>
