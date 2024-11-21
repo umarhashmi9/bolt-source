@@ -134,7 +134,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
         schema: {
           name: 'prompt_code_for_app',
           description:
-            'Prompts an AI agent to write code for an app, using specific technical language and outlining high level architecture first before mentioning lower level details. DONT USE THE alert() api as that will pause the js.',
+            'Prompts an AI agent to write code for an app, using specific technical language and outlining high level architecture first before mentioning lower level details. DONT USE THE alert() api as that will pause the JS - instead try to show GAME OVER states on screen.',
           parameters: {
             type: 'object',
             properties: {

@@ -298,9 +298,9 @@ export class WorkbenchStore {
       if (this.selectedFile.value !== fullPath) {
         this.setSelectedFile(fullPath);
       }
-      if (this.currentView.value !== 'code') {
-        this.currentView.set('code');
-      }
+      // if (this.currentView.value !== 'code') {
+      //   this.currentView.set('code');
+      // }
       const doc = this.#editorStore.documents.get()[fullPath];
       if (!doc) {
         await artifact.runner.runAction(data, isStreaming);
