@@ -88,6 +88,7 @@ interface BaseChatProps {
   handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   enhancePrompt?: () => void;
   isVoiceConnected?: boolean;
+  isMuted?: boolean;
   onVoiceToggle?: () => void;
 }
 
@@ -115,6 +116,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       enhancePrompt,
       handleStop,
       isVoiceConnected,
+      isMuted,
       onVoiceToggle,
     },
     ref,
@@ -293,16 +295,18 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         )}
                       </IconButton>
                       <IconButton
-                        title={isVoiceConnected ? 'Stop voice chat' : 'Start voice chat'}
+                        title={isVoiceConnected ? (isMuted ? 'Unmute voice chat' : 'Mute voice chat') : 'Start voice chat'}
                         onClick={onVoiceToggle}
                         className={classNames('transition-all', {
-                          'text-bolt-elements-icon-success': isVoiceConnected,
+                          'text-bolt-elements-icon-success': isVoiceConnected && !isMuted,
+                          'text-red-600': isVoiceConnected && isMuted,
                           'hover:bg-bolt-elements-background-depth-2': !isVoiceConnected,
                         })}
                       >
                         <div
                           className={classNames('text-xl', {
-                            'text-red-600 i-ph:microphone-fill': isVoiceConnected,
+                            'i-ph:microphone-slash': isVoiceConnected && isMuted,
+                            'i-ph:microphone-fill': isVoiceConnected && !isMuted,
                             'i-ph:microphone': !isVoiceConnected,
                           })}
                         />

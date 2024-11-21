@@ -72,6 +72,7 @@ export function useRealtimeClient(
         },
       ]);
 
+      clientRef.current.updateSession({ voice: 'coral' });
       clientRef.current.updateSession({
         turn_detection: {
           type: 'server_vad',

@@ -85,7 +85,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   const startTimeRef = useRef<string>(new Date().toISOString());
   const [memoryKv, setMemoryKv] = useState<{ [key: string]: any }>({
     userName: 'swyx',
-    todaysDate: new Date().toISOString().split('T')[0],
+    // todaysDate: new Date().toISOString().split('T')[0],
   });
   const {
     // client,
@@ -98,7 +98,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     () => {}, // setRealtimeEvents
     wavStreamPlayerRef,
     wavRecorderRef,
-    'You are a helpful AI assistant. Where possible use one of the tools given to you, particularly when asked to write code for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool.' +
+    'You are an AI assistant who speaks very fast at 2x speed in a funny sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Before calling the tool you are encouraged to ask for clarification with up to 2 options suggested. Be curt, direct, speak quickly in short sarcastic sentences.' +
       ' Memory: ' +
       JSON.stringify(memoryKv, null, 2),
     [
