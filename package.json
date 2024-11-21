@@ -26,7 +26,6 @@
     "node": ">=18.18.0"
   },
   "dependencies": {
-    "@openai/realtime-api-beta": "git://github.com/openai/openai-realtime-api-beta",
     "@ai-sdk/anthropic": "^0.0.39",
     "@ai-sdk/google": "^0.0.52",
     "@ai-sdk/mistral": "^0.0.43",
@@ -77,6 +76,7 @@
     "jszip": "^3.10.1",
     "nanostores": "^0.10.3",
     "ollama-ai-provider": "^0.15.2",
+    "openai-realtime-api": "^1.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hotkeys-hook": "^4.5.0",
@@ -89,7 +89,8 @@
     "remix-island": "^0.2.0",
     "remix-utils": "^7.6.0",
     "shiki": "^1.9.1",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "wavtools": "^0.1.5"
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.0",

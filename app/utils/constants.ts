@@ -69,7 +69,7 @@ const PROVIDER_LIST: ProviderInfo[] = [
   {
     name: 'OpenRouter',
     staticModels: [
-      { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
+      // { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
       {
         name: 'anthropic/claude-3.5-sonnet',
         label: 'Anthropic: Claude 3.5 Sonnet (OpenRouter)',

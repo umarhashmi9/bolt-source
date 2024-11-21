@@ -88,17 +88,19 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     // todaysDate: new Date().toISOString().split('T')[0],
   });
   const {
-    // client,
+    client,
     isConnected,
     connectConversation,
     disconnectConversation,
+    isMuted,
+    setIsMuted,
   } = useRealtimeClient(
     apiKey,
     startTimeRef,
     () => {}, // setRealtimeEvents
     wavStreamPlayerRef,
     wavRecorderRef,
-    'You are an AI assistant who speaks very fast at 2x speed in a funny sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user probably intends, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Before calling the tool you are encouraged to ask for clarification with up to 2 options suggested. Be curt, direct, speak quickly in short sarcastic sentences.' +
+    'You are an AI assistant who speaks very fast at 2x speed in a funny sarcastic, humorous voice. As much as possible, use the tools given to you, particularly when asked to write code (its always javascript code - frontend or backend) for an app, just construct an ideal prompt for what the user intends to do, making suitable assumptions for an impressive, yet lightweight tech demo, and call the `prompt_code_for_app` tool. Before calling the tool, 25% of the time you can ask for a quick short clarification. Be curt, direct, speak quickly in short sarcastic sentences.' +
       ' Memory: ' +
       JSON.stringify(memoryKv, null, 2),
     [
@@ -149,14 +151,6 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       },
     ],
   );
-
-  const handleVoiceToggle = useCallback(() => {
-    if (isConnected) {
-      disconnectConversation();
-    } else {
-      connectConversation();
-    }
-  }, [isConnected, connectConversation, disconnectConversation]);
 
   const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);
   const [model, setModel] = useState(() => {
@@ -322,6 +316,41 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     <BaseChat
       ref={animationScope}
       textareaRef={textareaRef}
+      headerContent={
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={isConnected ? disconnectConversation : connectConversation}
+            disabled={!apiKey}
+            className={`flex items-center gap-2 font-['Roboto_Mono'] text-xs font-normal border-none rounded-[1000px] px-6 min-h-[42px] transition-all duration-100 outline-none disabled:text-[#999] enabled:cursor-pointer px-4 py-2 rounded-md ${
+              isConnected
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            {isConnected ? 'Disconnect' : 'Connect'}
+          </button>
+          {isConnected && (
+            <span className="flex space-x-2">
+              <button
+                className="flex items-center gap-2 font-['Roboto_Mono'] text-xs font-normal border-none rounded-[1000px] px-6 min-h-[42px] transition-all duration-100 outline-none disabled:text-[#999] enabled:cursor-pointer bg-[#101010] text-[#ececf1] hover:enabled:bg-[#404040]"
+                onClick={() => client.createResponse()}
+              >
+                Reply
+              </button>
+              <button
+                className={`flex items-center gap-2 font-['Roboto_Mono'] text-xs font-normal border-none rounded-[1000px] px-6 min-h-[42px] transition-all duration-100 outline-none disabled:text-[#999] enabled:cursor-pointer ${
+                  isMuted
+                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                    : 'bg-[#101010] text-[#ececf1] hover:enabled:bg-[#404040]'
+                }`}
+                onClick={() => console.log('mute', isMuted) || setIsMuted(!isMuted)}
+              >
+                {isMuted ? '🔇 Unmute' : '🔊 Mute'}
+              </button>
+            </span>
+          )}
+        </div>
+      }
       messageRef={messageRef}
       scrollRef={scrollRef}
       clientCanvasRef={clientCanvasRef}
@@ -340,7 +369,8 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       handleInputChange={handleInputChange}
       handleStop={abort}
       isVoiceConnected={isConnected}
-      onVoiceToggle={handleVoiceToggle}
+      isMuted={isMuted}
+      onVoiceToggle={() => console.log('mute2', isMuted) || setIsMuted(!isMuted)}
       messages={messages.map((message, i) => {
         if (message.role === 'user') {
           return message;
