@@ -48,6 +48,8 @@ https://thinktank.ottomator.ai
 - ⬜ VSCode Integration with git-like confirmations
 - ⬜ Upload documents for knowledge - UI design templates, a code base to reference coding style, etc.
 - ⬜ Voice prompting
+- ⬜ Supabase Integration (for database, authentication etc)
+- ⬜ "Selector" functionality to be able to select an "element" via point and click in the preview for precise changes/edits.
 
 ## Bolt.new: AI-Powered Full-Stack Web Development in the Browser
 
