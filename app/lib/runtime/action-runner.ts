@@ -76,30 +76,43 @@ export class ActionRunner {
   }
 
   async runAction(data: ActionCallbackData, isStreaming: boolean = false) {
-    const { actionId } = data;
-    const action = this.actions.get()[actionId];
+    const { action } = data;
+    const actionState = this.actions.get()[action.id];
 
-    if (!action) {
-      unreachable(`Action ${actionId} not found`);
+    if (!actionState) {
+      return;
     }
 
-    if (action.executed) {
-      return; // No return value here
+    try {
+      const webcontainer = await this.#webcontainer;
+
+      if (actionState.executed) {
+        return; // No return value here
+      }
+
+      if (isStreaming && action.type !== 'file') {
+        return; // No return value here
+      }
+
+      this.#updateAction(action.id, { ...actionState, ...action, executed: !isStreaming });
+
+      this.#currentExecutionPromise = this.#currentExecutionPromise
+        .then(() => {
+          return this.#executeAction(action.id, isStreaming);
+        })
+        .catch((error) => {
+          console.error('Action failed:', error);
+        });
+
+      // eslint-disable-next-line consistent-return
+      return this.#currentExecutionPromise;
+    } catch (error) {
+      this.#updateAction(action.id, { status: 'failed', error: 'Action failed' });
+      logger.error(`[${action.type}]:Action failed\n\n`, error);
+
+      // re-throw the error to be caught in the promise chain
+      throw error;
     }
-
-    if (isStreaming && action.type !== 'file') {
-      return; // No return value here
-    }
-
-    this.#updateAction(actionId, { ...action, ...data.action, executed: !isStreaming });
-
-    this.#currentExecutionPromise = this.#currentExecutionPromise
-      .then(() => {
-        return this.#executeAction(actionId, isStreaming);
-      })
-      .catch((error) => {
-        console.error('Action failed:', error);
-      });
   }
 
   async #executeAction(actionId: string, isStreaming: boolean = false) {
@@ -220,6 +233,7 @@ export class ActionRunner {
       logger.error('Failed to write file\n\n', error);
     }
   }
+
   #updateAction(id: string, newState: ActionStateUpdate) {
     const actions = this.actions.get();
 
