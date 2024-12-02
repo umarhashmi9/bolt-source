@@ -87,11 +87,11 @@ export class ActionRunner {
       const webcontainer = await this.#webcontainer;
 
       if (actionState.executed) {
-        return; // No return value here
+        return;
       }
 
       if (isStreaming && action.type !== 'file') {
-        return; // No return value here
+        return;
       }
 
       this.#updateAction(action.id, { ...actionState, ...action, executed: !isStreaming });
@@ -104,13 +104,10 @@ export class ActionRunner {
           console.error('Action failed:', error);
         });
 
-      // eslint-disable-next-line consistent-return
       return this.#currentExecutionPromise;
     } catch (error) {
       this.#updateAction(action.id, { status: 'failed', error: 'Action failed' });
       logger.error(`[${action.type}]:Action failed\n\n`, error);
-
-      // re-throw the error to be caught in the promise chain
       throw error;
     }
   }

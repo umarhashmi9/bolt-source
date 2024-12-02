@@ -182,6 +182,76 @@ const response = await model.chat([
 - Temperature: Adjustable per request
 - Response Format: Supports both streaming and non-streaming responses
 
+### GLHF.chat Provider by @ThePsyberSleuth
+
+GLHF.chat is a powerful service that enables seamless access to a wide variety of Hugging Face models through an efficient GPU scheduling system. This provider integration brings the following capabilities to Bolt.new:
+
+#### Key Features
+
+1. Dynamic Model Support
+   - Supports "almost any" open-source LLM from Hugging Face
+   - Automatic GPU resource provisioning (up to 8x H100 80GB)
+   - Multi-tenant infrastructure for cost optimization
+
+2. Implementation Highlights
+   - Custom GPU scheduler integration
+   - vLLM technology for efficient inference
+   - Automatic proxy to existing providers for popular models
+   - On-demand cluster provisioning for specialized models
+
+3. Supported Capabilities
+   - Pre-trained model inference
+   - Model fine-tuning support
+   - 4-bit quantization options
+   - Custom model deployment
+
+#### Implementation
+
+1. Environment Setup:
+```bash
+GLHF_API_KEY=your_api_key_here  # Beta access is currently free
+```
+
+2. Key Files:
+   - `app/utils/constants.ts`: Provider configuration and dynamic model loading
+   - `app/lib/.server/llm/model.ts`: GLHF.chat API integration
+
+3. Usage Example:
+```typescript
+const model = getModel('GLHF', 'meta/llama-2-70b', env);
+const response = await model.chat([
+  { role: 'user', content: 'Hello!' }
+]);
+```
+
+4. Technical Details:
+   - Dynamic model loading via Hugging Face repository
+   - Automatic resource scaling
+   - Cost-effective multi-tenant infrastructure
+
+#### Contributing Changes
+
+1. Adding Models:
+```typescript
+{
+  name: 'huggingface/model-id',
+  label: 'Display Name',
+  provider: 'GLHF',
+  maxTokenAllowed: 8192  // Model specific
+}
+```
+
+2. Testing Requirements:
+   - API key configuration
+   - Model availability on Hugging Face
+   - Resource provisioning verification
+   - Response format validation
+
+3. Error Handling:
+   - Model not found: Check Hugging Face repository
+   - Resource limits: Verify model size and GPU requirements
+   - API authentication: Check key permissions
+
 ## Docker Deployment Documentation
 
 This guide outlines various methods for building and deploying the application using Docker.

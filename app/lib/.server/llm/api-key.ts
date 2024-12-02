@@ -43,6 +43,8 @@ export function getAPIKey(cloudflareEnv: Env, provider: string, userApiKeys?: Re
       return env.AZURE_OPENAI_API_KEY;
     case 'GitHub Models':
       return env.GITHUB_API_KEY || cloudflareEnv.GITHUB_API_KEY;
+    case 'GLHF Models':
+      return env.GLHF_API_KEY || cloudflareEnv.GLHF_API_KEY;
     default:
       return '';
   }
