@@ -1,4 +1,4 @@
-import type { ModelInfo, OllamaApiResponse, OllamaModel } from './types';
+import type { ModelInfo, OllamaApiResponse, OllamaModel, GLHFModel, GLHFApiResponse } from './types';
 import type { ProviderInfo } from '~/types/model';
 
 export const WORK_DIR_NAME = 'project';
@@ -428,6 +428,13 @@ const PROVIDER_LIST: ProviderInfo[] = [
     getApiKeyLink: 'https://github.com/settings/tokens',
     labelForGetApiKey: 'Get GitHub API Token',
   },
+  {
+    name: 'GLHF Models',
+    staticModels: [],
+    getDynamicModels: getGLHFModels,
+    getApiKeyLink: 'https://glhf.chat/users/settings/api',
+    labelForGetApiKey: 'Get GLHF API Key',
+  },
 ];
 
 export const DEFAULT_PROVIDER = PROVIDER_LIST[0];
@@ -554,6 +561,165 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
   }
 }
 
+function formatModelLabel(id: string): string {
+  // Remove 'hf:' prefix and split into parts
+  const parts = id.replace('hf:', '').split('/');
+
+  if (parts.length < 2) {
+    return id;
+  }
+
+  const org = parts[0];
+  const modelName = parts[1];
+
+  // Format organization name using common patterns
+  const orgDisplay = org
+    .split(/[-_]/)
+    .map((part) => {
+      // Handle common abbreviations and special cases
+      const lowerPart = part.toLowerCase();
+
+      if (/^[A-Z]+$/i.test(part)) {
+        return part.toUpperCase();
+      }
+
+      if (['ai', 'aidc'].includes(lowerPart)) {
+        return part.toUpperCase();
+      }
+
+      if (part.match(/^v\d/i)) {
+        return part.toLowerCase();
+      }
+
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join(' ');
+
+  // Extract all components using regex patterns
+  const patterns = {
+    size: /(\d+(?:\.\d+)?(?:x\d+)?[BM])\b/i,
+    version: /[-.]v(\d+(?:\.\d+)?(?:\.\d+)?)/i,
+    flags: /[-_]([A-Z]{2,4})(?:[-_]|$)/gi,
+    suffixes: /(instruct|vision)/gi,
+  };
+
+  // Extract components
+  const size = modelName.match(patterns.size);
+  const sizeStr = size ? ` (${size[0].toUpperCase()})` : '';
+
+  const version = modelName.match(patterns.version);
+  const versionStr = version ? ` (v${version[1]})` : '';
+
+  // Collect all flags
+  const flags = new Set();
+  let flagMatch;
+
+  while ((flagMatch = patterns.flags.exec(modelName)) !== null) {
+    const flag = flagMatch[1].toUpperCase();
+
+    if (['IT', 'DPO'].includes(flag)) {
+      flags.add(flag);
+    }
+  }
+
+  const flagsStr = flags.size ? ` (${Array.from(flags).join(') (')})` : '';
+
+  // Clean up model name
+  let cleanName = modelName
+    // Remove all extracted components
+    .replace(patterns.size, '')
+    .replace(patterns.version, '')
+    .replace(patterns.flags, '')
+    // Remove suffixes first
+    .replace(/\b(instruct|vision)\b/gi, '')
+    // Handle special formatting
+    .replace(/[-_]/g, ' ') // Convert separators to spaces
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space between camelCase
+    .replace(/\s+/g, ' ') // Clean up extra spaces
+    .trim();
+
+  // Remove organization prefix if present
+  const orgLower = org.toLowerCase();
+
+  if (cleanName.toLowerCase().startsWith(orgLower)) {
+    cleanName = cleanName.substring(orgLower.length).trim();
+  }
+
+  // Define and apply model-specific patterns
+  const modelPatterns = {
+    llama: /\b(llama)\s*(\d+(?:\.\d+)?)/i,
+    qwen: /\b(qwen)\s*(\d+(?:\.\d+)?)/i,
+    gemma: /\b(gemma)\s*(\d+(?:\.\d+)?)/i,
+    mixtral: /\b(mixtral)\s*(\d+(?:\.\d+)?)?/i,
+    nous: /\b(nous)\s*(hermes)/i,
+  };
+
+  // Apply model-specific formatting
+  Object.entries(modelPatterns).forEach(([_model, pattern]) => {
+    cleanName = cleanName.replace(pattern, (_, name, version) => {
+      name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      return version ? `${name}${version}` : name;
+    });
+  });
+
+  // Handle special cases
+  cleanName = cleanName
+    .replace(/\bo ?1\b/i, 'o1')
+    .replace(/(\w+)\s+(\d)/g, '$1$2') // Join any remaining model name with numbers
+    .trim();
+
+  // Add suffixes in correct order
+  const suffixes = new Set();
+  let suffixMatch;
+
+  while ((suffixMatch = patterns.suffixes.exec(modelName)) !== null) {
+    suffixes.add(suffixMatch[1].charAt(0).toUpperCase() + suffixMatch[1].slice(1).toLowerCase());
+  }
+
+  if (suffixes.has('Vision') && suffixes.has('Instruct')) {
+    cleanName = `${cleanName} Vision Instruct`;
+  } else if (suffixes.has('Instruct')) {
+    cleanName = `${cleanName} Instruct`;
+  }
+
+  return `${orgDisplay}: ${cleanName}${sizeStr}${versionStr}${flagsStr}`.trim();
+}
+
+async function getGLHFModels(): Promise<ModelInfo[]> {
+  try {
+    const apiKey = import.meta.env.GLHF_API_KEY ?? '';
+
+    if (!apiKey) {
+      console.error('GLHF_API_KEY is not set in environment variables');
+      return [];
+    }
+
+    const response = await fetch('https://glhf.chat/api/openai/v1/models', {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch GLHF models:', response.statusText);
+      return [];
+    }
+
+    const { data }: GLHFApiResponse = await response.json();
+
+    return data.map((model: GLHFModel) => ({
+      name: model.id,
+      label: formatModelLabel(model.id),
+      provider: 'GLHF Models',
+      maxTokenAllowed: 8192, // Default context window, adjust if needed
+    }));
+  } catch (error) {
+    console.error('Error fetching GLHF models:', error);
+    return [];
+  }
+}
+
 async function initializeModelList(): Promise<ModelInfo[]> {
   MODEL_LIST = [
     ...(
@@ -574,5 +740,6 @@ export {
   getLMStudioModels,
   initializeModelList,
   getOpenRouterModels,
+  getGLHFModels,
   PROVIDER_LIST,
 };

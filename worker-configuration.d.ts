@@ -13,4 +13,5 @@ interface Env {
   MISTRAL_API_KEY: string;
   XAI_API_KEY: string;
   GITHUB_API_KEY: string;
+  GLHF_API_KEY: string;
 }
