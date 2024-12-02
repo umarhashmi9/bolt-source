@@ -76,40 +76,33 @@ export class ActionRunner {
   }
 
   async runAction(data: ActionCallbackData, isStreaming: boolean = false) {
-    const { action } = data;
-    const actionState = this.actions.get()[action.id];
+    const { actionId } = data;
+    const action = this.actions.get()[actionId];
 
-    if (!actionState) {
+    if (!action) {
+      unreachable(`Action ${actionId} not found`);
+    }
+
+    if (action.executed) {
       return;
     }
 
-    try {
-      const webcontainer = await this.#webcontainer;
-
-      if (actionState.executed) {
-        return;
-      }
-
-      if (isStreaming && action.type !== 'file') {
-        return;
-      }
-
-      this.#updateAction(action.id, { ...actionState, ...action, executed: !isStreaming });
-
-      this.#currentExecutionPromise = this.#currentExecutionPromise
-        .then(() => {
-          return this.#executeAction(action.id, isStreaming);
-        })
-        .catch((error) => {
-          console.error('Action failed:', error);
-        });
-
-      return this.#currentExecutionPromise;
-    } catch (error) {
-      this.#updateAction(action.id, { status: 'failed', error: 'Action failed' });
-      logger.error(`[${action.type}]:Action failed\n\n`, error);
-      throw error;
+    if (isStreaming && action.type !== 'file') {
+      return;
     }
+
+    this.#updateAction(actionId, { ...action, ...data.action, executed: !isStreaming });
+
+    this.#currentExecutionPromise = this.#currentExecutionPromise
+      .then(() => {
+        return this.#executeAction(actionId, isStreaming);
+      })
+      .catch((error) => {
+        console.error('Action failed:', error);
+      });
+
+    // eslint-disable-next-line consistent-return
+    return this.#currentExecutionPromise;
   }
 
   async #executeAction(actionId: string, isStreaming: boolean = false) {
@@ -230,7 +223,6 @@ export class ActionRunner {
       logger.error('Failed to write file\n\n', error);
     }
   }
-
   #updateAction(id: string, newState: ActionStateUpdate) {
     const actions = this.actions.get();
 

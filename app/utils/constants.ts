@@ -433,8 +433,7 @@ const PROVIDER_LIST: ProviderInfo[] = [
     name: 'GLHF Models',
     staticModels: [],
     getDynamicModels: getGLHFModels,
-    getApiKeyLink: 'https://glhf.chat/users/settings/api',
-    labelForGetApiKey: 'Get GLHF API Key',
+    getApiKeyLink: 'https://glhf.chat',
   },
 ];
 
@@ -462,9 +461,11 @@ const getOllamaBaseUrl = () => {
 async function getOllamaModels(): Promise<ModelInfo[]> {
   try {
     const response = await fetch(`${getOllamaBaseUrl()}/api/tags`);
+
     if (!response.ok) {
       return [];
     }
+
     const data = (await response.json()) as OllamaApiResponse;
 
     return data.models.map((model: OllamaModel) => ({
