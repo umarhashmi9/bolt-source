@@ -155,7 +155,7 @@ GLHF_API_KEY=your_api_key_here
 
 ### Provider-Specific Setup
 
-#### GLHF Models
+#### GLHF Models Provider by @ThePsyberSleuth
 To use GLHF Models:
 1. Sign up at https://glhf.chat
 2. Navigate to your account settings
