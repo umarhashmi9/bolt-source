@@ -156,6 +156,24 @@ GLHF_API_KEY=your_api_key_here
 ### Provider-Specific Setup
 
 #### GLHF Models Provider by @ThePsyberSleuth
+GLHF.chat is a powerful and flexible LLM service that enables users to run virtually any Hugging Face model with minimal setup. Key features include:
+
+- **Universal Model Support**: Run almost any open-source LLM from the Hugging Face repository
+- **Advanced Infrastructure**: 
+  - Custom GPU scheduler with vLLM technology
+  - Support for up to 8 Nvidia H100 80GB GPUs
+  - Automatic resource provisioning and scaling
+  - Multi-tenant infrastructure for cost optimization
+
+- **Capabilities**:
+  - Easy model deployment via Hugging Face model links
+  - Support for full-weight and 4-bit quantized models
+  - Model fine-tuning on custom datasets
+  - Automatic proxying to inference providers for popular models
+  - On-demand cluster provisioning for specialized models
+
+- **Cost-Effective**: Free during beta, with plans to offer competitive pricing through efficient multi-tenant infrastructure
+
 To use GLHF Models:
 1. Sign up at https://glhf.chat
 2. Navigate to your account settings
@@ -164,7 +182,7 @@ To use GLHF Models:
 
 The GLHF Models provider will automatically fetch available models from the GLHF API when initialized.
 
-### GitHub Models Provider by @ThePsyberSleuth
+#### GitHub Models Provider by @ThePsyberSleuth
 
 The GitHub Models provider integrates a comprehensive suite of AI models through Azure ML endpoints, offering access to cutting-edge models from various providers. This integration enables developers to leverage powerful language models while maintaining compatibility with existing OpenAI-style interfaces.
 
