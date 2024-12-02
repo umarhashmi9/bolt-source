@@ -127,6 +127,43 @@ Make sure you have the necessary permissions and Wrangler is correctly configure
 
 ## Model Providers
 
+### Environment Variables
+Each model provider requires specific environment variables to be set in your `.env.local` file:
+
+```env
+# Anthropic
+ANTHROPIC_API_KEY=your_api_key_here
+
+# OpenRouter
+OPENROUTER_API_KEY=your_api_key_here
+
+# Google (Gemini)
+GOOGLE_API_KEY=your_api_key_here
+
+# Groq
+GROQ_API_KEY=your_api_key_here
+
+# HuggingFace
+HUGGINGFACE_API_KEY=your_api_key_here
+
+# GitHub Models
+GITHUB_API_KEY=your_api_key_here
+
+# GLHF Models
+GLHF_API_KEY=your_api_key_here
+```
+
+### Provider-Specific Setup
+
+#### GLHF Models
+To use GLHF Models:
+1. Sign up at https://glhf.chat
+2. Navigate to your account settings
+3. Generate an API key
+4. Add the API key to your `.env.local` file as `GLHF_API_KEY`
+
+The GLHF Models provider will automatically fetch available models from the GLHF API when initialized.
+
 ### GitHub Models Provider by @ThePsyberSleuth
 
 The GitHub Models provider integrates a comprehensive suite of AI models through Azure ML endpoints, offering access to cutting-edge models from various providers. This integration enables developers to leverage powerful language models while maintaining compatibility with existing OpenAI-style interfaces.
