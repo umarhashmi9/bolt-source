@@ -23,6 +23,7 @@ export function getAnthropicModel(apiKey: OptionalApiKey, model: string) {
 
   return anthropic(model);
 }
+
 export function getOpenAILikeModel(baseURL: string, apiKey: OptionalApiKey, model: string) {
   const openai = createOpenAI({
     baseURL,
@@ -127,6 +128,24 @@ export function getXAIModel(apiKey: OptionalApiKey, model: string) {
   return openai(model);
 }
 
+export function getGitHubModel(apiKey: OptionalApiKey, model: string) {
+  const openai = createOpenAI({
+    baseURL: 'https://models.inference.ai.azure.com',
+    apiKey,
+  });
+
+  return openai(model);
+}
+
+export function getGLHFModel(apiKey: OptionalApiKey, model: string) {
+  const openai = createOpenAI({
+    baseURL: 'https://glhf.chat/api/openai/v1',
+    apiKey,
+  });
+
+  return openai(model);
+}
+
 export function getModel(provider: string, model: string, env: Env, apiKeys?: Record<string, string>) {
   const apiKey = getAPIKey(env, provider, apiKeys);
   const baseURL = getBaseURL(env, provider);
@@ -156,6 +175,10 @@ export function getModel(provider: string, model: string, env: Env, apiKeys?: Re
       return getXAIModel(apiKey, model);
     case 'Cohere':
       return getCohereAIModel(apiKey, model);
+    case 'GitHub Models':
+      return getGitHubModel(apiKey, model);
+    case 'GLHF Models':
+      return getGLHFModel(apiKey, model);
     default:
       return getOllamaModel(baseURL, model);
   }

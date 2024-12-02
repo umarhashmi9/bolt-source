@@ -13,6 +13,7 @@ First off, thank you for considering contributing to Bolt.new! This fork aims to
 - [Coding Standards](#coding-standards)
 - [Development Setup](#development-setup)
 - [Deploymnt with Docker](#docker-deployment-documentation)
+- [Model Providers](#model-providers)
 
 ## Code of Conduct
 
@@ -124,7 +125,134 @@ pnpm run deploy
 
 Make sure you have the necessary permissions and Wrangler is correctly configured for your Cloudflare account.
 
-# Docker Deployment Documentation
+## Model Providers
+
+### GitHub Models Provider by @ThePsyberSleuth
+
+The GitHub Models provider integrates a comprehensive suite of AI models through Azure ML endpoints, offering access to cutting-edge models from various providers. This integration enables developers to leverage powerful language models while maintaining compatibility with existing OpenAI-style interfaces.
+
+#### Setup Requirements
+
+1. Obtain a GitHub API Key from https://github.com/settings/tokens
+2. Add the key to your `.env.local`:
+   ```bash
+   GITHUB_API_KEY=your_key_here
+   ```
+
+#### Available Models
+
+1. O1 Series
+   - O1 Preview (Latest cutting-edge model)
+   - O1 Mini (Efficient, smaller model)
+
+2. Meta Llama Series
+   - Llama 3.1 405B Instruct
+   - Llama 3.1 70B Instruct
+   - Llama 3.1 8B Instruct
+
+3. Mistral Series
+   - Mistral Large
+   - Mistral Medium
+   - Mistral Small
+
+4. GPT-4O Series
+   - GPT-4O Advanced
+   - GPT-4O Standard
+
+5. Phi Series
+   - Phi-2
+   - Phi-1.5
+
+#### Usage Example
+
+```typescript
+// Initialize the model
+const model = getModel('GitHub Models', 'mistral-large', env);
+
+// Use the model
+const response = await model.chat([
+  { role: 'system', content: 'You are a helpful AI assistant.' },
+  { role: 'user', content: 'Hello!' }
+]);
+```
+
+#### Configuration Options
+
+- Context Window: Configurable through `DEFAULT_NUM_CTX`
+- Temperature: Adjustable per request
+- Response Format: Supports both streaming and non-streaming responses
+
+### GLHF.chat Provider by @ThePsyberSleuth
+
+GLHF.chat is a powerful service that enables seamless access to a wide variety of Hugging Face models through an efficient GPU scheduling system. This provider integration brings the following capabilities to Bolt.new:
+
+#### Key Features
+
+1. Dynamic Model Support
+   - Supports "almost any" open-source LLM from Hugging Face
+   - Automatic GPU resource provisioning (up to 8x H100 80GB)
+   - Multi-tenant infrastructure for cost optimization
+
+2. Implementation Highlights
+   - Custom GPU scheduler integration
+   - vLLM technology for efficient inference
+   - Automatic proxy to existing providers for popular models
+   - On-demand cluster provisioning for specialized models
+
+3. Supported Capabilities
+   - Pre-trained model inference
+   - Model fine-tuning support
+   - 4-bit quantization options
+   - Custom model deployment
+
+#### Implementation
+
+1. Environment Setup:
+```bash
+GLHF_API_KEY=your_api_key_here  # Beta access is currently free
+```
+
+2. Key Files:
+   - `app/utils/constants.ts`: Provider configuration and dynamic model loading
+   - `app/lib/.server/llm/model.ts`: GLHF.chat API integration
+
+3. Usage Example:
+```typescript
+const model = getModel('GLHF', 'meta/llama-2-70b', env);
+const response = await model.chat([
+  { role: 'user', content: 'Hello!' }
+]);
+```
+
+4. Technical Details:
+   - Dynamic model loading via Hugging Face repository
+   - Automatic resource scaling
+   - Cost-effective multi-tenant infrastructure
+
+#### Contributing Changes
+
+1. Adding Models:
+```typescript
+{
+  name: 'huggingface/model-id',
+  label: 'Display Name',
+  provider: 'GLHF',
+  maxTokenAllowed: 8192  // Model specific
+}
+```
+
+2. Testing Requirements:
+   - API key configuration
+   - Model availability on Hugging Face
+   - Resource provisioning verification
+   - Response format validation
+
+3. Error Handling:
+   - Model not found: Check Hugging Face repository
+   - Resource limits: Verify model size and GPU requirements
+   - API authentication: Check key permissions
+
+## Docker Deployment Documentation
 
 This guide outlines various methods for building and deploying the application using Docker.
 
