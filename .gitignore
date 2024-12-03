@@ -24,6 +24,7 @@ dist-ssr
 /build
 .env.local
 .env
+.dev.vars
 *.vars
 .wrangler
 _worker.bundle
@@ -31,3 +32,6 @@ _worker.bundle
 Modelfile
 modelfiles
 package-lock.json
+
+# docs ignore
+site
