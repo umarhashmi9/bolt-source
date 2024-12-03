@@ -20,6 +20,15 @@ export interface OllamaApiResponse {
   models: OllamaModel[];
 }
 
+export interface GLHFModel {
+  id: string;
+  object: string;
+}
+
+export interface GLHFApiResponse {
+  data: GLHFModel[];
+}
+
 export interface ModelInfo {
   name: string;
   label: string;

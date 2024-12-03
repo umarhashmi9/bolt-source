@@ -84,11 +84,11 @@ export class ActionRunner {
     }
 
     if (action.executed) {
-      return; // No return value here
+      return;
     }
 
     if (isStreaming && action.type !== 'file') {
-      return; // No return value here
+      return;
     }
 
     this.#updateAction(actionId, { ...action, ...data.action, executed: !isStreaming });
@@ -100,6 +100,9 @@ export class ActionRunner {
       .catch((error) => {
         console.error('Action failed:', error);
       });
+
+    // eslint-disable-next-line consistent-return
+    return this.#currentExecutionPromise;
   }
 
   async #executeAction(actionId: string, isStreaming: boolean = false) {
