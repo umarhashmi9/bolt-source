@@ -9,6 +9,7 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useNavigate } from '@remix-run/react';
 
 const menuVariants = {
   closed: {
@@ -39,6 +40,7 @@ export function Menu() {
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+  const navigate = useNavigate();
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
     items: list,
@@ -134,6 +136,16 @@ export function Menu() {
             Start new chat
           </a>
         </div>
+        <div className="p-4 select-none">
+          <button
+            onClick={() => navigate('/projects')}
+            className="flex w-full gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
+          >
+            <span className="inline-block i-ph:shapes-thin scale-110" />
+            Open Projects
+          </button>
+        </div>
+
         <div className="pl-4 pr-4 my-2">
           <div className="relative w-full">
             <input

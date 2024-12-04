@@ -13,6 +13,8 @@ export function ChatDescription() {
       syncWithGlobalStore: true,
     });
 
+  // const { projects } = useProjectHistory();
+
   if (!initialDescription) {
     // doing this to prevent showing edit button until chat description is set
     return null;
