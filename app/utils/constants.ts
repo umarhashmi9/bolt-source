@@ -485,6 +485,8 @@ async function initializeModelList(): Promise<ModelInfo[]> {
     xAI: !!import.meta.env.VITE_XAI_API_KEY,
   };
 
+  console.log('OpenAI API Key:', import.meta.env.VITE_OPENAI_API_KEY);
+
   MODEL_LIST = [
     ...(
       await Promise.all(
