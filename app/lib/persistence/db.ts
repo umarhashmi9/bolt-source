@@ -75,7 +75,7 @@ export async function addProject(db: IDBDatabase, project: Project) {
   });
 }
 
-export async function updateProject(db: IDBDatabase, project: Project,_id:string) {
+export async function updateProject(db: IDBDatabase, project: Project, _id: string) {
   return new Promise<void>((resolve, reject) => {
     const transaction = db.transaction('projects', 'readwrite');
     const store = transaction.objectStore('projects');

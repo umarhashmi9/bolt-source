@@ -30,7 +30,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({ feature, onStatusChang
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ y: -2 }}
-        className="group p-4 cursor-pointer rounded-xl bg-bolt-elements-background-depth-3 hover:bg-bolt-elements-background-depth-4 border border-gray-100 dark:border-dark-700 hover:shadow-lg transition-all relative" 
+        className="group p-4 cursor-pointer rounded-xl bg-bolt-elements-background-depth-3 hover:bg-bolt-elements-background-depth-4 border border-gray-100 dark:border-dark-700 hover:shadow-lg transition-all relative"
         onClick={handleCardClick}
       >
         <div className="flex items-center justify-between">

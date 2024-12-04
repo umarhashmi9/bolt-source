@@ -16,10 +16,12 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
   }, [project]);
   const handleDeleteBranch = useCallback(async (featureId: string) => {
     // await deleteFeature(featureId)
-  },[])
+    console.log(featureId);
+  }, []);
   const handleStatusChange = useCallback(async (featureId: string, status: Feature['status']) => {
     // await updateFeatureStatus(featureId,status)
-  },[])
+    console.log(featureId, status);
+  }, []);
 
   return (
     <div className="h-full grid grid-cols-4 gap-4">
@@ -46,7 +48,12 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
         ) : (
           <div className="space-y-4">
             {project.features.map((feature) => (
-              <FeatureCard key={feature.id} feature={feature}  onDeleteBranch={handleDeleteBranch} onStatusChange={handleStatusChange} />
+              <FeatureCard
+                key={feature.id}
+                feature={feature}
+                onDeleteBranch={handleDeleteBranch}
+                onStatusChange={handleStatusChange}
+              />
             ))}
           </div>
         )}
