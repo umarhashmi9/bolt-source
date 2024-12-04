@@ -287,14 +287,66 @@ const PROVIDER_LIST: ProviderInfo[] = [
   },
 ];
 
-export const DEFAULT_PROVIDER = PROVIDER_LIST[0];
+const apiKeyChecks: Record<string, boolean> = {
+  Groq: !!import.meta.env.VITE_GROQ_API_KEY && String(import.meta.env.VITE_GROQ_API_KEY).trim() !== '',
+  HuggingFace:
+    !!import.meta.env.VITE_HUGGINGFACE_API_KEY && String(import.meta.env.VITE_HUGGINGFACE_API_KEY).trim() !== '',
+  OpenAI: !!import.meta.env.VITE_OPENAI_API_KEY && String(import.meta.env.VITE_OPENAI_API_KEY).trim() !== '',
+  Anthropic: !!import.meta.env.VITE_ANTHROPIC_API_KEY && String(import.meta.env.VITE_ANTHROPIC_API_KEY).trim() !== '',
+  OpenRouter:
+    !!import.meta.env.VITE_OPEN_ROUTER_API_KEY && String(import.meta.env.VITE_OPEN_ROUTER_API_KEY).trim() !== '',
+  GoogleGenerativeAI:
+    !!import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY &&
+    String(import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY).trim() !== '',
+  Ollama: !!import.meta.env.VITE_OLLAMA_API_BASE_URL && String(import.meta.env.VITE_OLLAMA_API_BASE_URL).trim() !== '',
+  OpenAILike:
+    !!import.meta.env.VITE_OPENAI_LIKE_API_KEY && String(import.meta.env.VITE_OPENAI_LIKE_API_KEY).trim() !== '',
+  Together: !!import.meta.env.VITE_TOGETHER_API_KEY && String(import.meta.env.VITE_TOGETHER_API_KEY).trim() !== '',
+  DeepSeek: !!import.meta.env.VITE_DEEPSEEK_API_KEY && String(import.meta.env.VITE_DEEPSEEK_API_KEY).trim() !== '',
+  Mistral: !!import.meta.env.VITE_MISTRAL_API_KEY && String(import.meta.env.VITE_MISTRAL_API_KEY).trim() !== '',
+  Cohere: !!import.meta.env.VITE_COHERE_API_KEY && String(import.meta.env.VITE_COHERE_API_KEY).trim() !== '',
+  LMStudio:
+    !!import.meta.env.VITE_LMSTUDIO_API_BASE_URL && String(import.meta.env.VITE_LMSTUDIO_API_BASE_URL).trim() !== '',
+  xAI: !!import.meta.env.VITE_XAI_API_KEY && String(import.meta.env.VITE_XAI_API_KEY).trim() !== '',
+};
+
+function checkApiKeys() {
+  // Log all available environment variables for debugging
+  console.log('All environment variables:', {
+    ...import.meta.env,
+  });
+
+  const availableProviders = Object.entries(apiKeyChecks)
+    .filter(([_, hasKey]) => hasKey)
+    .map(([provider]) => provider);
+
+  console.log('Available Providers:', availableProviders);
+  console.log('API Key Checks:', apiKeyChecks);
+
+  if (availableProviders.length === 0) {
+    console.warn('No API keys found in import.meta.env');
+    return false;
+  }
+
+  return true;
+}
+
+// Filter the provider list based on available API keys
+export const FILTERED_PROVIDER_LIST = PROVIDER_LIST.filter((provider) => apiKeyChecks[provider.name]);
+
+// Set default provider to the first available one, or the first one in the list if none are available
+export const DEFAULT_PROVIDER = FILTERED_PROVIDER_LIST.length > 0 ? FILTERED_PROVIDER_LIST[0] : PROVIDER_LIST[0];
 
 const staticModels: ModelInfo[] = PROVIDER_LIST.map((p) => p.staticModels).flat();
-
 export let MODEL_LIST: ModelInfo[] = [...staticModels];
 
+// Only initialize if we have at least one API key
+if (checkApiKeys()) {
+  initializeModelList().catch(console.error);
+}
+
 const getOllamaBaseUrl = () => {
-  const defaultBaseUrl = import.meta.env.OLLAMA_API_BASE_URL || 'http://localhost:11434';
+  const defaultBaseUrl = import.meta.env.VITE_OLLAMA_API_BASE_URL || 'http://localhost:11434';
 
   // Check if we're in the browser
   if (typeof window !== 'undefined') {
@@ -303,21 +355,17 @@ const getOllamaBaseUrl = () => {
   }
 
   // Backend: Check if we're running in Docker
-  const isDocker = process.env.RUNNING_IN_DOCKER === 'true';
+  const isDocker = import.meta.env.RUNNING_IN_DOCKER === 'true';
 
   return isDocker ? defaultBaseUrl.replace('localhost', 'host.docker.internal') : defaultBaseUrl;
 };
 
 async function getOllamaModels(): Promise<ModelInfo[]> {
-  /*
-   * if (typeof window === 'undefined') {
-   * return [];
-   * }
-   */
-
   try {
     const baseUrl = getOllamaBaseUrl();
-    const response = await fetch(`${baseUrl}/api/tags`);
+    const apiKey = import.meta.env.VITE_OLLAMA_API_KEY || '';
+    const headers: HeadersInit = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+    const response = await fetch(`${baseUrl}/api/tags`, { headers });
     const data = (await response.json()) as OllamaApiResponse;
 
     return data.models.map((model: OllamaModel) => ({
@@ -334,13 +382,19 @@ async function getOllamaModels(): Promise<ModelInfo[]> {
 
 async function getOpenAILikeModels(): Promise<ModelInfo[]> {
   try {
-    const baseUrl = import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
+    const baseUrl = import.meta.env.VITE_OPENAI_LIKE_API_BASE_URL || '';
 
     if (!baseUrl) {
       return [];
     }
 
-    const apiKey = import.meta.env.OPENAI_LIKE_API_KEY ?? '';
+    const apiKey = import.meta.env.VITE_OPENAI_LIKE_API_KEY || '';
+
+    if (!apiKey) {
+      console.warn('VITE_OPENAI_LIKE_API_KEY is missing. Skipping OpenAILike models retrieval.');
+      return [];
+    }
+
     const response = await fetch(`${baseUrl}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -398,7 +452,7 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
   }
 
   try {
-    const baseUrl = import.meta.env.LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
+    const baseUrl = import.meta.env.VITE_LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
     const response = await fetch(`${baseUrl}/v1/models`);
     const data = (await response.json()) as any;
 
@@ -414,16 +468,35 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
 }
 
 async function initializeModelList(): Promise<ModelInfo[]> {
+  const apiKeyChecks: Record<string, boolean> = {
+    Ollama: !!import.meta.env.VITE_OLLAMA_API_BASE_URL,
+    OpenAILike: !!import.meta.env.VITE_OPENAI_LIKE_API_KEY,
+    LMStudio: !!import.meta.env.VITE_LMSTUDIO_API_BASE_URL,
+    Groq: !!import.meta.env.VITE_GROQ_API_KEY,
+    HuggingFace: !!import.meta.env.VITE_HUGGINGFACE_API_KEY,
+    OpenAI: !!import.meta.env.VITE_OPENAI_API_KEY,
+    Anthropic: !!import.meta.env.VITE_ANTHROPIC_API_KEY,
+    OpenRouter: !!import.meta.env.VITE_OPEN_ROUTER_API_KEY,
+    GoogleGenerativeAI: !!import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY,
+    Together: !!import.meta.env.VITE_TOGETHER_API_KEY,
+    DeepSeek: !!import.meta.env.VITE_DEEPSEEK_API_KEY,
+    Mistral: !!import.meta.env.VITE_MISTRAL_API_KEY,
+    Cohere: !!import.meta.env.VITE_COHERE_API_KEY,
+    xAI: !!import.meta.env.VITE_XAI_API_KEY,
+  };
+
   MODEL_LIST = [
     ...(
       await Promise.all(
         PROVIDER_LIST.filter(
-          (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
+          (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } =>
+            !!p.getDynamicModels && apiKeyChecks[p.name],
         ).map((p) => p.getDynamicModels()),
       )
     ).flat(),
     ...staticModels,
   ];
+
   return MODEL_LIST;
 }
 
