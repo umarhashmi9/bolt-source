@@ -311,11 +311,6 @@ const apiKeyChecks: Record<string, boolean> = {
 };
 
 function checkApiKeys() {
-  // Log all available environment variables for debugging
-  console.log('All environment variables:', {
-    ...import.meta.env,
-  });
-
   const availableProviders = Object.entries(apiKeyChecks)
     .filter(([_, hasKey]) => hasKey)
     .map(([provider]) => provider);
@@ -484,8 +479,6 @@ async function initializeModelList(): Promise<ModelInfo[]> {
     Cohere: !!import.meta.env.VITE_COHERE_API_KEY,
     xAI: !!import.meta.env.VITE_XAI_API_KEY,
   };
-
-  console.log('OpenAI API Key:', import.meta.env.VITE_OPENAI_API_KEY);
 
   MODEL_LIST = [
     ...(
