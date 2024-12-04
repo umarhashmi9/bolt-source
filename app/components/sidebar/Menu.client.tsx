@@ -34,7 +34,7 @@ const menuVariants = {
 
 type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
-export function Menu() {
+export const Menu = () => {
   const { duplicateCurrentChat, exportChat } = useChatHistory();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
@@ -218,4 +218,4 @@ export function Menu() {
       </div>
     </motion.div>
   );
-}
+};
