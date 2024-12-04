@@ -10,7 +10,7 @@ import type { Project } from './types';
 
 export const ProjectDashboard = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const { addNewProject, projects, refreshProject } = useProjectHistory(selectedProject?.id);
+  const { addNewProject, projects, refreshProject,deleteProject,editProject } = useProjectHistory(selectedProject?.id);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleProjectAdd = useCallback(
@@ -66,7 +66,14 @@ export const ProjectDashboard = () => {
                   <div className="w-full flex justify-center">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-7xl">
                       {projects.map((project) => (
-                        <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} />
+                        <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} 
+                        onDelete={(id)=>{
+                            deleteProject(id)
+                        }}
+                        onEdit={(id,newName)=>{
+                            editProject(id,{...project,name:newName})
+                        }}
+                        />
                       ))}
                     </div>
                   </div>

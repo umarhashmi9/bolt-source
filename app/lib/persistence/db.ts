@@ -74,6 +74,21 @@ export async function addProject(db: IDBDatabase, project: Project) {
     request.onerror = () => reject(request.error);
   });
 }
+
+export async function updateProject(db: IDBDatabase, project: Project,_id:string) {
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+
+    const request = store.put({
+      ...project,
+      timestamp: new Date().toISOString(),
+    });
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
 export async function addOrUpdateFeature(db: IDBDatabase, projectId: string, feature: Feature) {
   const project = await getProjectById(db, projectId);
   return new Promise<void>((resolve, reject) => {
@@ -232,7 +247,16 @@ export async function deleteById(db: IDBDatabase, id: string): Promise<void> {
     request.onerror = () => reject(request.error);
   });
 }
+export async function deleteProjectById(db: IDBDatabase, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+    const request = store.delete(id);
 
+    request.onsuccess = () => resolve(undefined);
+    request.onerror = () => reject(request.error);
+  });
+}
 export async function getNextId(db: IDBDatabase): Promise<string> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('chats', 'readonly');

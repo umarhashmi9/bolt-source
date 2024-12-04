@@ -5,7 +5,7 @@ import { EmptyFeatureState } from './EmptyStates';
 import { NewFeatureDialog } from './NewFeatureDialog';
 import { useProjectHistory } from '~/lib/persistence/useProjectHistory';
 import { IconButton } from '~/components/ui/IconButton';
-import type { Project } from './types';
+import type { Feature, Project } from './types';
 
 export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
   const [newFeatureDialogOpen, setNewFeatureDialogOpen] = useState(false);
@@ -14,6 +14,12 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
   const handlePrejectRefresh = useCallback(async () => {
     await refreshProject(project.id);
   }, [project]);
+  const handleDeleteBranch = useCallback(async (featureId: string) => {
+    // await deleteFeature(featureId)
+  },[])
+  const handleStatusChange = useCallback(async (featureId: string, status: Feature['status']) => {
+    // await updateFeatureStatus(featureId,status)
+  },[])
 
   return (
     <div className="h-full grid grid-cols-4 gap-4">
@@ -40,7 +46,7 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
         ) : (
           <div className="space-y-4">
             {project.features.map((feature) => (
-              <FeatureCard key={feature.id} feature={feature} />
+              <FeatureCard key={feature.id} feature={feature}  onDeleteBranch={handleDeleteBranch} onStatusChange={handleStatusChange} />
             ))}
           </div>
         )}
