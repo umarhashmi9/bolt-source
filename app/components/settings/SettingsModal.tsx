@@ -3,12 +3,14 @@ import { Dialog, DialogTitle, DialogDescription, DialogButton, DialogRoot } from
 import { IconButton } from '~/components/ui/IconButton';
 import Cookies from 'js-cookie';
 
+interface Settings {
+  apiKey: string;
+  baseUrl?: string;
+  getKeyUrl?: string;
+}
+
 interface ApiSettings {
-  [key: string]: {
-    apiKey: string;
-    baseUrl?: string;
-    getKeyUrl?: string;
-  };
+  [key: string]: Settings;
 }
 
 const initialApiSettings: ApiSettings = {
