@@ -280,7 +280,7 @@ importers:
         specifier: ^2.1.7
         version: 2.1.7(@types/node@22.10.1)(sass-embedded@1.81.0)(sass@1.77.6)
       wrangler:
-        specifier: ^3.91.0
+        specifier: ^3.57.1
         version: 3.91.0(@cloudflare/workers-types@4.20241127.0)
       zod:
         specifier: ^3.23.8
