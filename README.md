@@ -6,12 +6,11 @@ This fork of Bolt.new (oTToDev) allows you to choose the LLM that you use for ea
 
 Check the [oTToDev Docs](https://coleam00.github.io/bolt.new-any-llm/) for more information.
 
-## Join the community for oTToDev!
+## Join the community for oTToDev
 
-https://thinktank.ottomator.ai
+<https://thinktank.ottomator.ai>
 
-
-## Requested Additions - Feel Free to Contribute!
+## Requested Additions - Feel Free to Contribute
 
 - ✅ OpenRouter Integration (@coleam00)
 - ✅ Gemini Integration (@jonathands)
@@ -78,11 +77,11 @@ For developers interested in building their own AI-powered development tools wit
 
 Many of you are new users to installing software from Github. If you have any installation troubles reach out and submit an "issue" using the links above, or feel free to enhance this documentation by forking, editing the instructions, and doing a pull request.
 
-1. Install Git from https://git-scm.com/downloads
+1. Install Git from <https://git-scm.com/downloads>
 
-2. Install Node.js from https://nodejs.org/en/download/ 
+2. Install Node.js from <https://nodejs.org/en/download/>
 
-Pay attention to the installer notes after completion. 
+Pay attention to the installer notes after completion.
 
 On all operating systems, the path to Node.js should automatically be added to your system path. But you can check your path if you want to be sure. On Windows, you can search for "edit the system environment variables" in your system, select "Environment Variables..." once you are in the system properties, and then check for a path to Node in your "Path" system variable. On a Mac or Linux machine, it will tell you to check if /usr/local/bin is in your $PATH. To determine if usr/local/bin is included in $PATH open your Terminal and run:
 
@@ -110,11 +109,11 @@ defaults write com.apple.finder AppleShowAllFiles YES
 
 **NOTE**: you only have to set the ones you want to use and Ollama doesn't need an API key because it runs locally on your computer:
 
-Get your GROQ API Key here: https://console.groq.com/keys
+Get your GROQ API Key here: <https://console.groq.com/keys>
 
-Get your Open AI API Key by following these instructions: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+Get your Open AI API Key by following these instructions: <https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key>
 
-Get your Anthropic API Key in your account settings: https://console.anthropic.com/settings/keys
+Get your Anthropic API Key in your account settings: <https://console.anthropic.com/settings/keys>
 
 ```
 GROQ_API_KEY=XXX
@@ -141,7 +140,7 @@ DEFAULT_NUM_CTX=8192
 
 Prerequisites:
 
-Git and Node.js as mentioned above, as well as Docker: https://www.docker.com/
+Git and Node.js as mentioned above, as well as Docker: <https://www.docker.com/>
 
 ### 1a. Using Helper Scripts
 
@@ -202,6 +201,7 @@ sudo npm install -g pnpm
 ```bash
 pnpm run dev
 ```
+
 ## Available Scripts
 
 - `pnpm run dev`: Starts the development server.
@@ -212,7 +212,7 @@ pnpm run dev
 - `pnpm run typecheck`: Runs TypeScript type checking.
 - `pnpm run typegen`: Generates TypeScript types using Wrangler.
 - `pnpm run deploy`: Builds the project and deploys it to Cloudflare Pages.
-- `pnpm run lint:fix`: Runs the linter and automatically fixes issues according to your ESLint configuration. 
+- `pnpm run lint:fix`: Runs the linter and automatically fixes issues according to your ESLint configuration.
 
 ## Development
 

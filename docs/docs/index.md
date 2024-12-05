@@ -1,9 +1,10 @@
 # Welcome to OTTO Dev
+
 This fork of Bolt.new (oTToDev) allows you to choose the LLM that you use for each prompt! Currently, you can use OpenAI, Anthropic, Ollama, OpenRouter, Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, or Groq models - and it is easily extended to use any other model supported by the Vercel AI SDK! See the instructions below for running this locally and extending it to include more models.
 
 Join the community for oTToDev!
 
-https://thinktank.ottomator.ai
+<https://thinktank.ottomator.ai>
 
 ## Whats Bolt.new
 
@@ -30,11 +31,11 @@ For developers interested in building their own AI-powered development tools wit
 
 Many of you are new users to installing software from Github. If you have any installation troubles reach out and submit an "issue" using the links above, or feel free to enhance this documentation by forking, editing the instructions, and doing a pull request.
 
-1. Install Git from https://git-scm.com/downloads
+1. Install Git from <https://git-scm.com/downloads>
 
-2. Install Node.js from https://nodejs.org/en/download/ 
+2. Install Node.js from <https://nodejs.org/en/download/>
 
-Pay attention to the installer notes after completion. 
+Pay attention to the installer notes after completion.
 
 On all operating systems, the path to Node.js should automatically be added to your system path. But you can check your path if you want to be sure. On Windows, you can search for "edit the system environment variables" in your system, select "Environment Variables..." once you are in the system properties, and then check for a path to Node in your "Path" system variable. On a Mac or Linux machine, it will tell you to check if /usr/local/bin is in your $PATH. To determine if usr/local/bin is included in $PATH open your Terminal and run:
 
@@ -62,11 +63,11 @@ defaults write com.apple.finder AppleShowAllFiles YES
 
 **NOTE**: you only have to set the ones you want to use and Ollama doesn't need an API key because it runs locally on your computer:
 
-Get your GROQ API Key here: https://console.groq.com/keys
+Get your GROQ API Key here: <https://console.groq.com/keys>
 
-Get your Open AI API Key by following these instructions: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
+Get your Open AI API Key by following these instructions: <https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key>
 
-Get your Anthropic API Key in your account settings: https://console.anthropic.com/settings/keys
+Get your Anthropic API Key in your account settings: <https://console.anthropic.com/settings/keys>
 
 ```
 GROQ_API_KEY=XXX
@@ -86,7 +87,7 @@ LOG_LEVEL=debug
 
 Prerequisites:
 
-Git and Node.js as mentioned above, as well as Docker: https://www.docker.com/
+Git and Node.js as mentioned above, as well as Docker: <https://www.docker.com/>
 
 ### 1a. Using Helper Scripts
 
@@ -164,7 +165,7 @@ FROM [Ollama model ID such as qwen2.5-coder:7b]
 PARAMETER num_ctx 32768
 ```
 
-- Run the command: 
+- Run the command:
 
 ```
 ollama create -f Modelfile [your new model ID, can be whatever you want (example: qwen2.5-coder-extra-ctx:7b)]
@@ -173,9 +174,9 @@ ollama create -f Modelfile [your new model ID, can be whatever you want (example
 Now you have a new Ollama model that isn't heavily limited in the context length like Ollama models are by default for some reason.
 You'll see this new model in the list of Ollama models along with all the others you pulled!
 
-## Adding New LLMs:
+## Adding New LLMs
 
-To make new LLMs available to use in this version of Bolt.new, head on over to `app/utils/constants.ts` and find the constant MODEL_LIST. Each element in this array is an object that has the model ID for the name (get this from the provider's API documentation), a label for the frontend model dropdown, and the provider. 
+To make new LLMs available to use in this version of Bolt.new, head on over to `app/utils/constants.ts` and find the constant MODEL_LIST. Each element in this array is an object that has the model ID for the name (get this from the provider's API documentation), a label for the frontend model dropdown, and the provider.
 
 By default, Anthropic, OpenAI, Groq, and Ollama are implemented as providers, but the YouTube video for this repo covers how to extend this to work with more providers if you wish!
 

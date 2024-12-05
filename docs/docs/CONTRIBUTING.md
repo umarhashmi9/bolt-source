@@ -7,6 +7,7 @@ The `DEFAULT_NUM_CTX` environment variable can be used to limit the maximum numb
 First off, thank you for considering contributing to Bolt.new! This fork aims to expand the capabilities of the original project by integrating multiple LLM providers and enhancing functionality. Every contribution helps make Bolt.new a better tool for developers worldwide.
 
 ## 📋 Table of Contents
+
 - [Code of Conduct](#code-of-conduct)
 - [How Can I Contribute?](#how-can-i-contribute)
 - [Pull Request Guidelines](#pull-request-guidelines)
@@ -21,29 +22,34 @@ This project and everyone participating in it is governed by our Code of Conduct
 ## How Can I Contribute?
 
 ### 🐞 Reporting Bugs and Feature Requests
+
 - Check the issue tracker to avoid duplicates
 - Use the issue templates when available
 - Include as much relevant information as possible
 - For bugs, add steps to reproduce the issue
 
 ### 🔧 Code Contributions
+
 1. Fork the repository
 2. Create a new branch for your feature/fix
 3. Write your code
 4. Submit a pull request
 
 ### ✨ Becoming a Core Contributor
+
 We're looking for dedicated contributors to help maintain and grow this project. If you're interested in becoming a core contributor, please fill out our [Contributor Application Form](https://forms.gle/TBSteXSDCtBDwr5m7).
 
 ## Pull Request Guidelines
 
 ### 📝 PR Checklist
+
 - [ ] Branch from the main branch
 - [ ] Update documentation if needed
 - [ ] Manually verify all new functionality works as expected
 - [ ] Keep PRs focused and atomic
 
 ### 👀 Review Process
+
 1. Manually test the changes
 2. At least one maintainer review required
 3. Address all review comments
@@ -52,6 +58,7 @@ We're looking for dedicated contributors to help maintain and grow this project.
 ## Coding Standards
 
 ### 💻 General Guidelines
+
 - Follow existing code style
 - Comment complex logic
 - Keep functions focused and small
@@ -60,12 +67,15 @@ We're looking for dedicated contributors to help maintain and grow this project.
 ## Development Setup
 
 ### 🔄 Initial Setup
+
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/coleam00/bolt.new-any-llm.git
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm install
 ```
@@ -73,6 +83,7 @@ pnpm install
 3. Set up environment variables:
    - Rename `.env.example` to `.env.local`
    - Add your LLM API keys (only set the ones you plan to use):
+
 ```bash
 GROQ_API_KEY=XXX
 HUGGINGFACE_API_KEY=XXX
@@ -80,26 +91,30 @@ OPENAI_API_KEY=XXX
 ANTHROPIC_API_KEY=XXX
 ...
 ```
-   - Optionally set debug level:
+
+- Optionally set debug level:
+
 ```bash
 LOG_LEVEL=debug
 ```
 
-   - Optionally set context size:
+- Optionally set context size:
+
 ```bash
 DEFAULT_NUM_CTX=32768
 ```
 
 Some Example Context Values for the qwen2.5-coder:32b models are.
- 
-* DEFAULT_NUM_CTX=32768 - Consumes 36GB of VRAM
-* DEFAULT_NUM_CTX=24576 - Consumes 32GB of VRAM
-* DEFAULT_NUM_CTX=12288 - Consumes 26GB of VRAM
-* DEFAULT_NUM_CTX=6144 - Consumes 24GB of VRAM
+
+- DEFAULT_NUM_CTX=32768 - Consumes 36GB of VRAM
+- DEFAULT_NUM_CTX=24576 - Consumes 32GB of VRAM
+- DEFAULT_NUM_CTX=12288 - Consumes 26GB of VRAM
+- DEFAULT_NUM_CTX=6144 - Consumes 24GB of VRAM
 
 **Important**: Never commit your `.env.local` file to version control. It's already included in .gitignore.
 
 ### 🚀 Running the Development Server
+
 ```bash
 pnpm run dev
 ```
@@ -187,9 +202,11 @@ docker run -p 5173:5173 --env-file .env.local bolt-ai:production
 3. Choose "Docker Compose" as the Build Pack
 4. Configure deployment domains
 5. Set the custom start command:
+
    ```bash
    docker compose --profile production up
    ```
+
 6. Configure environment variables
    - Add necessary AI API keys
    - Adjust other environment variables as needed
@@ -206,6 +223,7 @@ The `docker-compose.yaml` configuration is compatible with VS Code dev container
 ## Environment Files
 
 Ensure you have the appropriate `.env.local` file configured before running the containers. This file should contain:
+
 - API keys
 - Environment-specific configurations
 - Other required environment variables
