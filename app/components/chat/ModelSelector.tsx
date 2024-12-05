@@ -24,82 +24,67 @@ export const ModelSelector = ({
   // Get active providers with proper configuration
   const activeProviders = useMemo(() => {
     return providerList
-      .filter((p) => {
-        // Check if provider has an API key or base URL set
+      .filter((p: ProviderInfo) => {
         const settings = apiKeys[p.name];
-        if (!settings) return false;
-        
-        // For providers that need API keys, ensure they have one
-        if ('apiKey' in settings && !settings.apiKey) return false;
-        
-        // For providers that need base URLs, ensure they have one
-        if ('baseUrl' in settings && !settings.baseUrl) return false;
-        
-        return true;
+        // Special handling for Ollama and LM Studio - require explicit URL input
+        if (p.name === 'Ollama' || p.name === 'LMStudio') {
+          return settings?.baseUrl && settings.baseUrl !== 'http://localhost:11434' && settings.baseUrl !== 'http://localhost:1234';
+        }
+        return settings && (
+          // Either has API key if required
+          (!('apiKey' in settings) || settings.apiKey) &&
+          // Or has base URL if required
+          (!('baseUrl' in settings) || settings.baseUrl)
+        );
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [providerList, apiKeys]);
 
-  // Handle changes in active providers
+  // Only update provider if current one becomes inactive
   useEffect(() => {
-    if (activeProviders.length === 0) {
-      // If no providers are active, clear current selection
-      setProvider?.(undefined);
-      setModel?.(undefined);
-      return;
-    }
-
-    // If current provider becomes inactive, switch to first active provider
-    if (!provider || !apiKeys[provider.name]) {
-      const firstProvider = activeProviders[0];
-      setProvider?.(firstProvider);
+    const currentProviderIsActive = provider && apiKeys[provider.name];
+    
+    if (!currentProviderIsActive && activeProviders.length > 0) {
+      const newProvider = activeProviders[0];
+      setProvider?.(newProvider);
       
-      // Set first available model for the new provider
-      const firstAvailableModel = modelList.find(m => m.provider === firstProvider.name);
-      if (firstAvailableModel) {
-        setModel?.(firstAvailableModel.name);
+      const newModel = modelList.find(m => m.provider === newProvider.name);
+      if (newModel) {
+        setModel?.(newModel.name);
       }
     }
-  }, [activeProviders, provider, apiKeys]);
+  }, [apiKeys, activeProviders.length]);
 
   if (activeProviders.length === 0) {
     return (
-      <div className="mb-2 p-3 text-sm text-bolt-elements-textTertiary bg-bolt-elements-background-depth-3 rounded-lg flex items-center justify-between">
+      <div className="mb-2 p-3 text-sm text-bolt-elements-textTertiary bg-bolt-elements-background-depth-3 rounded-lg">
         <span>No active providers. Please configure API keys in settings.</span>
-        <button
-          onClick={() => {
-            // Trigger settings modal open (you'll need to implement this)
-            document.dispatchEvent(new CustomEvent('openSettings', { detail: { tab: 'api-settings' } }));
-          }}
-          className="text-xs px-2 py-1 bg-bolt-elements-background-depth-4 hover:bg-bolt-elements-background-depth-5 rounded transition-colors"
-        >
-          Open Settings
-        </button>
       </div>
     );
   }
+
+  const handleProviderChange = (providerName: string) => {
+    const newProvider = providerList.find((p: ProviderInfo) => p.name === providerName);
+    if (!newProvider || !setProvider) return;
+    
+    setProvider(newProvider);
+    
+    const newModel = modelList.find(m => m.provider === providerName);
+    if (newModel && setModel) {
+      setModel(newModel.name);
+    }
+  };
 
   return (
     <div className="mb-2 flex gap-2 flex-col sm:flex-row">
       <select
         value={provider?.name ?? ''}
-        onChange={(e) => {
-          const newProvider = providerList.find((p: ProviderInfo) => p.name === e.target.value);
-          if (newProvider && setProvider) {
-            setProvider(newProvider);
-            
-            // When changing provider, select the first available model
-            const firstModel = modelList.find((m) => m.provider === newProvider.name);
-            if (firstModel && setModel) {
-              setModel(firstModel.name);
-            }
-          }
-        }}
+        onChange={(e) => handleProviderChange(e.target.value)}
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
       >
-        {activeProviders.map((provider: ProviderInfo) => (
-          <option key={provider.name} value={provider.name}>
-            {provider.name}
+        {activeProviders.map((p: ProviderInfo) => (
+          <option key={p.name} value={p.name}>
+            {p.name}
           </option>
         ))}
       </select>
@@ -110,8 +95,8 @@ export const ModelSelector = ({
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all lg:max-w-[70%]"
         disabled={!provider}
       >
-        {[...modelList]
-          .filter((e) => e.provider === provider?.name && e.name)
+        {modelList
+          .filter((m) => m.provider === provider?.name && m.name)
           .map((modelOption) => (
             <option key={modelOption.name} value={modelOption.name}>
               {modelOption.label}

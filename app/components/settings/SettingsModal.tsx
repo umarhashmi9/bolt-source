@@ -59,7 +59,7 @@ const initialApiSettings: ApiSettings = {
     name: 'Google'
   },
   Ollama: { 
-    baseUrl: 'http://localhost:11434',
+    baseUrl: '',
     name: 'Ollama'
   },
   OpenAILike: { 
@@ -89,7 +89,7 @@ const initialApiSettings: ApiSettings = {
     name: 'Cohere'
   },
   LMStudio: { 
-    baseUrl: 'http://localhost:1234',
+    baseUrl: '',
     name: 'LM Studio'
   },
   xAI: { 
