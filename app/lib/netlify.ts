@@ -3,7 +3,7 @@ interface NetlifySite {
   url: string;
 }
 
-interface NetlifyDeploy {
+interface NetlifyDeployResponse {
   id: string;
   required?: string[];
 }
@@ -79,7 +79,7 @@ export class NetlifyDeploy {
       return fileHashes;
     }
   
-    private async createDeploy(files: Record<string, string>): Promise<NetlifyDeploy> {
+    private async createDeploy(files: Record<string, string>): Promise<NetlifyDeployResponse> {
       if (!this.siteId) {
         throw new Error('No site ID available. Make sure to create a site first.');
       }
@@ -95,7 +95,7 @@ export class NetlifyDeploy {
             async: true
           }),
         });
-        return response as NetlifyDeploy;
+        return response as NetlifyDeployResponse;
       } catch (error: any) {
         console.error('Error creating deploy:', error.message);
         throw error;
@@ -150,9 +150,10 @@ export class NetlifyDeploy {
         console.log('Creating deploy...');
         const deploy = await this.createDeploy(fileHashes);
         
-        if (deploy.required?.length > 0) {
+        const requiredFiles = deploy.required || [];
+        if (requiredFiles.length > 0) {
           console.log('Uploading files...');
-          for (const sha1 of deploy.required) {
+          for (const sha1 of requiredFiles) {
             const filePath = Object.entries(fileHashes).find(([_, hash]) => hash === sha1)?.[0];
             if (filePath) {
               console.log(`Uploading ${filePath}...`);
