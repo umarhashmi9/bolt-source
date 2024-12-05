@@ -1,73 +1,99 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogDescription, DialogButton, DialogRoot } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
+import { APIKeyManager } from '~/components/chat/APIKeyManager';
 import Cookies from 'js-cookie';
 
 interface Settings {
-  apiKey: string;
+  apiKey?: string;
   baseUrl?: string;
   getKeyUrl?: string;
+  name: string;
 }
 
 interface ApiSettings {
   [key: string]: Settings;
 }
 
+interface ApiKeyValue {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+interface BaseUrlEditorState {
+  provider: string;
+  isEditing: boolean;
+}
+
 const initialApiSettings: ApiSettings = {
   GROQ: { 
     apiKey: '', 
-    getKeyUrl: 'https://console.groq.com/keys' 
+    getKeyUrl: 'https://console.groq.com/keys',
+    name: 'GROQ'
   },
   HuggingFace: { 
     apiKey: '', 
-    getKeyUrl: 'https://huggingface.co/settings/tokens' 
+    getKeyUrl: 'https://huggingface.co/settings/tokens',
+    name: 'HuggingFace'
   },
   OpenAI: { 
     apiKey: '', 
-    getKeyUrl: 'https://platform.openai.com/api-keys' 
+    getKeyUrl: 'https://platform.openai.com/api-keys',
+    name: 'OpenAI'
   },
   Anthropic: { 
     apiKey: '', 
-    getKeyUrl: 'https://console.anthropic.com/settings/keys' 
+    getKeyUrl: 'https://console.anthropic.com/settings/keys',
+    name: 'Anthropic'
   },
   OpenRouter: { 
     apiKey: '', 
-    getKeyUrl: 'https://openrouter.ai/keys' 
+    getKeyUrl: 'https://openrouter.ai/keys',
+    name: 'OpenRouter'
   },
   GoogleGenerativeAI: { 
     apiKey: '', 
-    getKeyUrl: 'https://makersuite.google.com/app/apikey' 
+    getKeyUrl: 'https://makersuite.google.com/app/apikey',
+    name: 'Google AI'
   },
   Ollama: { 
-    baseUrl: '' 
+    baseUrl: 'http://localhost:11434',
+    name: 'Ollama'
   },
   OpenAILike: { 
     apiKey: '', 
-    baseUrl: '' 
+    baseUrl: '',
+    name: 'OpenAI-Like'
   },
   TogetherAI: { 
     apiKey: '', 
     baseUrl: '', 
-    getKeyUrl: 'https://api.together.xyz/settings/api-keys'
+    getKeyUrl: 'https://api.together.xyz/settings/api-keys',
+    name: 'Together AI'
   },
   Deepseek: { 
     apiKey: '', 
-    getKeyUrl: 'https://platform.deepseek.com/settings'
+    getKeyUrl: 'https://platform.deepseek.com/settings',
+    name: 'Deepseek'
   },
   Mistral: { 
     apiKey: '', 
-    getKeyUrl: 'https://console.mistral.ai/api-keys/'
+    getKeyUrl: 'https://console.mistral.ai/api-keys/',
+    name: 'Mistral'
   },
   Cohere: { 
     apiKey: '', 
-    getKeyUrl: 'https://dashboard.cohere.com/api-keys'
+    getKeyUrl: 'https://dashboard.cohere.com/api-keys',
+    name: 'Cohere'
   },
   LMStudio: { 
-    baseUrl: '' 
+    baseUrl: 'http://localhost:1234',
+    name: 'LM Studio'
   },
   xAI: { 
     apiKey: '', 
-    getKeyUrl: 'https://api.xai.com/settings'
+    getKeyUrl: 'https://api.xai.com/settings',
+    name: 'xAI'
   },
 };
 
@@ -83,14 +109,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     return savedPrompt || "default";
   });
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
+  const [baseUrlEditor, setBaseUrlEditor] = useState<BaseUrlEditorState>({ provider: '', isEditing: false });
+  const [tempBaseUrl, setTempBaseUrl] = useState('');
 
   useEffect(() => {
     // Load saved API keys from cookies
     const savedApiKeys = Cookies.get('apiKeys');
     if (savedApiKeys) {
       try {
-        const parsedKeys = JSON.parse(savedApiKeys);
-        setApiSettings(prev => {
+        const parsedKeys = JSON.parse(savedApiKeys) as Record<string, ApiKeyValue>;
+        setApiSettings((prev: ApiSettings) => {
           const newSettings = { ...prev };
           Object.entries(parsedKeys).forEach(([provider, value]) => {
             if (newSettings[provider]) {
@@ -126,7 +154,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }, []);
 
   const handleApiSettingChange = (provider: string, field: 'apiKey' | 'baseUrl', value: string) => {
-    setApiSettings(prev => ({
+    setApiSettings((prev: ApiSettings) => ({
       ...prev,
       [provider]: {
         ...prev[provider],
@@ -135,17 +163,27 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }));
   };
 
+  const handleBaseUrlEdit = (provider: string, currentUrl: string) => {
+    setBaseUrlEditor({ provider, isEditing: true });
+    setTempBaseUrl(currentUrl);
+  };
+
+  const handleBaseUrlSave = (provider: string) => {
+    handleApiSettingChange(provider, 'baseUrl', tempBaseUrl);
+    setBaseUrlEditor({ provider: '', isEditing: false });
+  };
+
   const handleSaveSettings = () => {
     // Save system prompt to cookie
     Cookies.set('systemPrompt', systemPrompt, { 
-      expires: 30, // 30 days
-      secure: true, // Only send over HTTPS
-      sameSite: 'strict', // Protect against CSRF
-      path: '/' // Accessible across the site
+      expires: 30,
+      secure: true,
+      sameSite: 'strict',
+      path: '/'
     });
 
     // Save API keys to cookies
-    const apiKeysToSave = Object.entries(apiSettings).reduce((acc, [provider, settings]) => {
+    const apiKeysToSave = Object.entries(apiSettings).reduce<Record<string, ApiKeyValue>>((acc, [provider, settings]) => {
       if (settings.apiKey || settings.baseUrl) {
         // If both apiKey and baseUrl exist, save both
         if (settings.apiKey && settings.baseUrl) {
@@ -166,13 +204,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         }
       }
       return acc;
-    }, {} as Record<string, any>);
+    }, {});
     
     Cookies.set('apiKeys', JSON.stringify(apiKeysToSave), { 
-      expires: 30, // 30 days
-      secure: true, // Only send over HTTPS
-      sameSite: 'strict', // Protect against CSRF
-      path: '/' // Accessible across the site
+      expires: 30,
+      secure: true,
+      sameSite: 'strict',
+      path: '/'
     });
     
     onClose();
@@ -283,41 +321,55 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="flex-1 space-y-4 overflow-y-auto pr-4">
                   {Object.entries(apiSettings).map(([provider, settings]) => (
                     <div key={provider} className="space-y-2 p-4 bg-bolt-elements-background-depth-4 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">{provider}</h4>
-                        {settings.getKeyUrl && (
-                          <a
-                            href={settings.getKeyUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-black/80 dark:text-white/80 font-medium hover:text-black dark:hover:text-white transition-colors"
-                          >
-                            Get API Key
-                          </a>
-                        )}
-                      </div>
+                      <h4 className="font-medium">{settings.name}</h4>
                       {settings.apiKey !== undefined && (
                         <div className="space-y-1">
                           <label className="text-sm text-bolt-elements-textSecondary">API Key</label>
-                          <input
-                            type="password"
-                            value={settings.apiKey}
-                            onChange={(e) => handleApiSettingChange(provider, 'apiKey', e.target.value)}
-                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
-                            placeholder={`Enter your ${provider} API key`}
+                          <APIKeyManager
+                            provider={{
+                              name: settings.name,
+                              getApiKeyLink: settings.getKeyUrl,
+                              labelForGetApiKey: "Get API Key",
+                              icon: "i-ph:key"
+                            }}
+                            apiKey={settings.apiKey}
+                            setApiKey={(key) => handleApiSettingChange(provider, 'apiKey', key)}
                           />
                         </div>
                       )}
                       {settings.baseUrl !== undefined && (
                         <div className="space-y-1">
                           <label className="text-sm text-bolt-elements-textSecondary">Base URL</label>
-                          <input
-                            type="text"
-                            value={settings.baseUrl}
-                            onChange={(e) => handleApiSettingChange(provider, 'baseUrl', e.target.value)}
-                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
-                            placeholder={`Enter the ${provider} base URL`}
-                          />
+                          {baseUrlEditor.isEditing && baseUrlEditor.provider === provider ? (
+                            <div className="flex items-center gap-3 w-full">
+                              <input
+                                type="text"
+                                value={tempBaseUrl}
+                                placeholder={`Enter the ${settings.name} base URL`}
+                                onChange={(e) => setTempBaseUrl(e.target.value)}
+                                className="flex-1 px-2 py-1 text-xs lg:text-sm rounded border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
+                              />
+                              <IconButton onClick={() => handleBaseUrlSave(provider)} title="Save Base URL">
+                                <div className="i-ph:check" />
+                              </IconButton>
+                              <IconButton onClick={() => setBaseUrlEditor({ provider: '', isEditing: false })} title="Cancel">
+                                <div className="i-ph:x" />
+                              </IconButton>
+                            </div>
+                          ) : (
+                            <div className="flex items-center w-full">
+                              <span className="flex-1 text-xs text-bolt-elements-textPrimary mr-2">
+                                {settings.baseUrl ? settings.baseUrl : 'Not set (will still work if set in .env file)'}
+                              </span>
+                              <IconButton onClick={() => handleBaseUrlEdit(provider, settings.baseUrl || '')} title="Edit Base URL">
+                                <div className="i-ph:pencil-simple" />
+                              </IconButton>
+                              <IconButton className="ml-2" onClick={() => window.open('https://coleam00.github.io/bolt.new-any-llm/')} title="Learn More">
+                                <span className="mr-2 text-xs lg:text-sm">Learn More</span>
+                                <div className="i-ph:book" />
+                              </IconButton>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

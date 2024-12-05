@@ -3,14 +3,11 @@ import { IconButton } from '~/components/ui/IconButton';
 import type { ProviderInfo } from '~/types/model';
 
 interface APIKeyManagerProps {
-  provider: ProviderInfo;
+  provider: Pick<ProviderInfo, 'name' | 'getApiKeyLink' | 'labelForGetApiKey' | 'icon'>;
   apiKey: string;
   setApiKey: (key: string) => void;
-  getApiKeyLink?: string;
-  labelForGetApiKey?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, setApiKey }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
@@ -22,22 +19,23 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
 
   return (
     <div className="flex items-start sm:items-center mt-2 mb-2 flex-col sm:flex-row">
-      <div>
-        <span className="text-sm text-bolt-elements-textSecondary">{provider?.name} API Key:</span>
-        {!isEditing && (
-          <div className="flex items-center mb-4">
-            <span className="flex-1 text-xs text-bolt-elements-textPrimary mr-2">
-              {apiKey ? '••••••••' : 'Not set (will still work if set in .env file)'}
-            </span>
-            <IconButton onClick={() => setIsEditing(true)} title="Edit API Key">
-              <div className="i-ph:pencil-simple" />
+      {!isEditing ? (
+        <div className="flex items-center w-full">
+          <span className="flex-1 text-xs text-bolt-elements-textPrimary mr-2">
+            {apiKey ? '••••••••' : 'Not set (will still work if set in .env file)'}
+          </span>
+          <IconButton onClick={() => setIsEditing(true)} title="Edit API Key">
+            <div className="i-ph:pencil-simple" />
+          </IconButton>
+          {provider.getApiKeyLink && (
+            <IconButton className="ml-2" onClick={() => window.open(provider.getApiKeyLink)} title="Get API Key">
+              <span className="mr-2 text-xs lg:text-sm">{provider.labelForGetApiKey || 'Get API Key'}</span>
+              <div className={provider.icon || 'i-ph:key'} />
             </IconButton>
-          </div>
-        )}
-      </div>
-
-      {isEditing ? (
-        <div className="flex items-center gap-3 mt-2">
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 w-full">
           <input
             type="password"
             value={tempKey}
@@ -52,15 +50,6 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
             <div className="i-ph:x" />
           </IconButton>
         </div>
-      ) : (
-        <>
-          {provider?.getApiKeyLink && (
-            <IconButton className="ml-auto" onClick={() => window.open(provider?.getApiKeyLink)} title="Edit API Key">
-              <span className="mr-2 text-xs lg:text-sm">{provider?.labelForGetApiKey || 'Get API Key'}</span>
-              <div className={provider?.icon || 'i-ph:key'} />
-            </IconButton>
-          )}
-        </>
       )}
     </div>
   );
