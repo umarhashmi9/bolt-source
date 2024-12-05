@@ -288,7 +288,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             href={settings.getKeyUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-bolt-elements-button-primary-background hover:underline"
+                            className="text-sm text-black/80 dark:text-white/80 font-medium hover:text-black dark:hover:text-white transition-colors"
                           >
                             Get API Key
                           </a>
