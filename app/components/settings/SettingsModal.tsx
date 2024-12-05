@@ -185,23 +185,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     // Save API keys to cookies
     const apiKeysToSave = Object.entries(apiSettings).reduce<Record<string, ApiKeyValue>>((acc, [provider, settings]) => {
       if (settings.apiKey || settings.baseUrl) {
-        // If both apiKey and baseUrl exist, save both
-        if (settings.apiKey && settings.baseUrl) {
-          acc[provider] = {
-            apiKey: settings.apiKey,
-            baseUrl: settings.baseUrl
-          };
-        }
-        // If only apiKey exists, save just the string
-        else if (settings.apiKey) {
-          acc[provider] = settings.apiKey;
-        }
-        // If only baseUrl exists, save as object
-        else if (settings.baseUrl) {
-          acc[provider] = {
-            baseUrl: settings.baseUrl
-          };
-        }
+        acc[provider] = {
+          ...(settings.apiKey && { apiKey: settings.apiKey }),
+          ...(settings.baseUrl && { baseUrl: settings.baseUrl })
+        };
       }
       return acc;
     }, {});
