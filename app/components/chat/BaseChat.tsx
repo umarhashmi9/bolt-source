@@ -94,7 +94,35 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
 
-    console.log(transcript);
+    // Watch for API key changes in cookies
+    useEffect(() => {
+      const checkApiKeys = () => {
+        try {
+          const storedApiKeys = Cookies.get('apiKeys');
+          if (storedApiKeys) {
+            const parsedKeys = JSON.parse(storedApiKeys);
+            if (typeof parsedKeys === 'object' && parsedKeys !== null) {
+              setApiKeys(parsedKeys);
+            }
+          } else {
+            setApiKeys({});
+          }
+        } catch (error) {
+          console.error('Error loading API keys from cookies:', error);
+          Cookies.remove('apiKeys');
+          setApiKeys({});
+        }
+      };
+
+      // Check immediately
+      checkApiKeys();
+
+      // Set up an interval to check for cookie changes
+      const interval = setInterval(checkApiKeys, 1000);
+
+      return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
       // Load API keys from cookies on component mount
       try {
