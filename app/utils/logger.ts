@@ -11,7 +11,11 @@ interface Logger {
   setLevel: (level: DebugLevel) => void;
 }
 
-let currentLevel: DebugLevel = (import.meta.env.VITE_LOG_LEVEL ?? import.meta.env.DEV) ? 'debug' : 'info';
+// Get log level from environment variables in order of precedence
+let currentLevel: DebugLevel = (import.meta.env.LOG_LEVEL ||
+  import.meta.env.LOG_LEVEL ||
+  process.env.LOG_LEVEL ||
+  (import.meta.env.DEV ? 'debug' : 'info')) as DebugLevel;
 
 const isWorker = 'HTMLRewriter' in globalThis;
 const supportsColor = !isWorker;

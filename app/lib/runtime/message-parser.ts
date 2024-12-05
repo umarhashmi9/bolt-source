@@ -191,8 +191,8 @@ export class StreamingMessageParser {
             if (openTagEnd !== -1) {
               const artifactTag = input.slice(i, openTagEnd + 1);
 
-              const artifactTitle = this.#extractAttribute(artifactTag, 'title') as string;
-              const artifactId = this.#extractAttribute(artifactTag, 'id') as string;
+              const artifactTitle = this.#extractAttribute(artifactTag, 'title') ?? '';
+              const artifactId = this.#extractAttribute(artifactTag, 'id') ?? `artifact-${Date.now()}`;
 
               if (!artifactTitle) {
                 logger.warn('Artifact title missing');
@@ -257,15 +257,15 @@ export class StreamingMessageParser {
   #parseActionTag(input: string, actionOpenIndex: number, actionEndIndex: number) {
     const actionTag = input.slice(actionOpenIndex, actionEndIndex + 1);
 
-    const actionType = this.#extractAttribute(actionTag, 'type') as ActionType;
+    const actionType = this.#extractAttribute(actionTag, 'type') ?? 'shell';
 
     const actionAttributes = {
-      type: actionType,
+      type: actionType as ActionType,
       content: '',
     };
 
     if (actionType === 'file') {
-      const filePath = this.#extractAttribute(actionTag, 'filePath') as string;
+      const filePath = this.#extractAttribute(actionTag, 'filePath') ?? '';
 
       if (!filePath) {
         logger.debug('File path not specified');

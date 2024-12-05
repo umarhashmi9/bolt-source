@@ -386,7 +386,7 @@ if (checkApiKeys()) {
 }
 
 const getOllamaBaseUrl = () => {
-  const defaultBaseUrl = import.meta.env.VITE_OLLAMA_API_BASE_URL || 'http://localhost:11434';
+  const defaultBaseUrl = import.meta.env.OLLAMA_API_BASE_URL || 'http://localhost:11434';
 
   // Check if we're in the browser
   if (typeof window !== 'undefined') {
@@ -403,7 +403,7 @@ const getOllamaBaseUrl = () => {
 async function getOllamaModels(): Promise<ModelInfo[]> {
   try {
     const baseUrl = getOllamaBaseUrl();
-    const apiKey = import.meta.env.VITE_OLLAMA_API_KEY || '';
+    const apiKey = import.meta.env.OLLAMA_API_KEY || '';
     const headers: HeadersInit = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
     const response = await fetch(`${baseUrl}/api/tags`, { headers });
     const data = (await response.json()) as OllamaApiResponse;
@@ -422,16 +422,16 @@ async function getOllamaModels(): Promise<ModelInfo[]> {
 
 async function getOpenAILikeModels(): Promise<ModelInfo[]> {
   try {
-    const baseUrl = import.meta.env.VITE_OPENAI_LIKE_API_BASE_URL || '';
+    const baseUrl = import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
 
     if (!baseUrl) {
       return [];
     }
 
-    const apiKey = import.meta.env.VITE_OPENAI_LIKE_API_KEY || '';
+    const apiKey = import.meta.env.OPENAI_LIKE_API_KEY || '';
 
     if (!apiKey) {
-      console.warn('VITE_OPENAI_LIKE_API_KEY is missing. Skipping OpenAILike models retrieval.');
+      console.warn('OPENAI_LIKE_API_KEY is missing. Skipping OpenAILike models retrieval.');
       return [];
     }
 
@@ -492,7 +492,7 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
   }
 
   try {
-    const baseUrl = import.meta.env.VITE_LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
+    const baseUrl = import.meta.env.LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
     const response = await fetch(`${baseUrl}/v1/models`);
     const data = (await response.json()) as any;
 

@@ -22,7 +22,7 @@ export interface ChatHistoryItem {
   timestamp: string;
 }
 
-const persistenceEnabled = !import.meta.env.VITE_DISABLE_PERSISTENCE;
+const persistenceEnabled = !import.meta.env.DISABLE_PERSISTENCE;
 
 export const db = persistenceEnabled ? await openDatabase() : undefined;
 

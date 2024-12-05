@@ -77,7 +77,7 @@ ANTHROPIC_API_KEY=XXX
 Optionally, you can set the debug level:
 
 ```
-VITE_LOG_LEVEL=debug
+LOG_LEVEL=debug
 ```
 
 **Important**: Never commit your `.env.local` file to version control. It's already included in .gitignore.

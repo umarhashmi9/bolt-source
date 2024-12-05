@@ -125,7 +125,7 @@ ANTHROPIC_API_KEY=XXX
 Optionally, you can set the debug level:
 
 ```
-VITE_LOG_LEVEL=debug
+LOG_LEVEL=debug
 ```
 
 And if using Ollama set the DEFAULT_NUM_CTX, the example below uses 8K context and ollama running on localhost port 11434:

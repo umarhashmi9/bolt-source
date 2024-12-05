@@ -81,7 +81,7 @@ ANTHROPIC_API_KEY=XXX
 ```
    - Optionally set debug level:
 ```bash
-VITE_LOG_LEVEL=debug
+LOG_LEVEL=debug
 ```
 
    - Optionally set context size:
