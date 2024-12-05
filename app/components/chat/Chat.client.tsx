@@ -184,81 +184,73 @@ export const ChatImpl = memo(
       setChatStarted(true);
     };
 
+    const [isSendingMessage, setIsSendingMessage] = useState(false);
+
     const sendMessage = async (_event: React.UIEvent, messageInput?: string) => {
       const _input = messageInput || input;
 
-      if (_input.length === 0 || isLoading) {
+      if (_input.length === 0 || isLoading || isSendingMessage) {
         return;
       }
 
-      /**
-       * @note (delm) Usually saving files shouldn't take long but it may take longer if there
-       * many unsaved files. In that case we need to block user input and show an indicator
-       * of some kind so the user is aware that something is happening. But I consider the
-       * happy case to be no unsaved files and I would expect users to save their changes
-       * before they send another message.
-       */
-      await workbenchStore.saveAllFiles();
+      try {
+        setIsSendingMessage(true);
 
-      const fileModifications = workbenchStore.getFileModifcations();
+        await workbenchStore.saveAllFiles();
 
-      chatStore.setKey('aborted', false);
+        const fileModifications = workbenchStore.getFileModifcations();
 
-      runAnimation();
+        chatStore.setKey('aborted', false);
 
-      if (fileModifications !== undefined) {
-        /**
-         * If we have file modifications we append a new user message manually since we have to prefix
-         * the user input with the file modifications and we don't want the new user input to appear
-         * in the prompt. Using `append` is almost the same as `handleSubmit` except that we have to
-         * manually reset the input and we'd have to manually pass in file attachments. However, those
-         * aren't relevant here.
-         */
-        append({
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
-            },
-            ...imageDataList.map((imageData) => ({
-              type: 'image',
-              image: imageData,
-            })),
-          ] as any, // Type assertion to bypass compiler check
-        });
+        runAnimation();
 
-        /**
-         * After sending a new message we reset all modifications since the model
-         * should now be aware of all the changes.
-         */
-        workbenchStore.resetAllFileModifications();
-      } else {
-        append({
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
-            },
-            ...imageDataList.map((imageData) => ({
-              type: 'image',
-              image: imageData,
-            })),
-          ] as any, // Type assertion to bypass compiler check
-        });
+        if (fileModifications !== undefined) {
+          append({
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+              },
+              ...imageDataList.map((imageData) => ({
+                type: 'image',
+                image: imageData,
+              })),
+            ] as any, // Type assertion to bypass compiler check
+          });
+
+          workbenchStore.resetAllFileModifications();
+        } else {
+          append({
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+              },
+              ...imageDataList.map((imageData) => ({
+                type: 'image',
+                image: imageData,
+              })),
+            ] as any, // Type assertion to bypass compiler check
+          });
+        }
+
+        setInput('');
+        Cookies.remove(PROMPT_COOKIE_KEY);
+
+        setUploadedFiles([]);
+        setImageDataList([]);
+
+        resetEnhancer();
+
+        textareaRef.current?.blur();
+      } catch (error) {
+        console.error('Error sending message:', error);
+        toast.error('Failed to send message. Please try again.');
+      } finally {
+        setIsSendingMessage(false);
       }
-
-      setInput('');
-      Cookies.remove(PROMPT_COOKIE_KEY);
-
-      // Add file cleanup here
-      setUploadedFiles([]);
-      setImageDataList([]);
-
-      resetEnhancer();
-
-      textareaRef.current?.blur();
     };
 
     /**
@@ -309,6 +301,7 @@ export const ChatImpl = memo(
         showChat={showChat}
         chatStarted={chatStarted}
         isStreaming={isLoading}
+        isSendingMessage={isSendingMessage}
         enhancingPrompt={enhancingPrompt}
         promptEnhanced={promptEnhanced}
         sendMessage={sendMessage}

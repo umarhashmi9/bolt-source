@@ -37,13 +37,13 @@ If you see this error within oTToDev, that is just the application telling you t
 
 We have seen this error a couple times and for some reason just restarting the Docker container has fixed it. This seems to be Ollama specific. Another thing to try is try to run oTToDev with Docker or pnpm, whichever you didn’t run first. We are still on the hunt for why this happens once and a while!
 
-### I'm getting a blank preview when oTToDev runs my app!
+### I'm getting a blank preview when oTToDev runs my app
 
 We promise you that we are constantly testing new PRs coming into oTToDev and the preview is core functionality, so the application is not broken! When you get a blank preview or don’t get a preview, this is generally because the LLM hallucinated bad code or incorrect commands. We are working on making this more transparent so it is obvious. Sometimes the error will appear in developer console too so check that as well.
 
-### How to add a LLM:
+### How to add a LLM
 
-To make new LLMs available to use in this version of Bolt.new, head on over to `app/utils/constants.ts` and find the constant MODEL_LIST. Each element in this array is an object that has the model ID for the name (get this from the provider's API documentation), a label for the frontend model dropdown, and the provider. 
+To make new LLMs available to use in this version of Bolt.new, head on over to `app/utils/constants.ts` and find the constant MODEL_LIST. Each element in this array is an object that has the model ID for the name (get this from the provider's API documentation), a label for the frontend model dropdown, and the provider.
 
 By default, Anthropic, OpenAI, Groq, and Ollama are implemented as providers, but the YouTube video for this repo covers how to extend this to work with more providers if you wish!
 

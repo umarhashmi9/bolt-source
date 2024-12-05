@@ -3,13 +3,14 @@ import { AnimatePresence, cubicBezier, motion } from 'framer-motion';
 interface SendButtonProps {
   show: boolean;
   isStreaming?: boolean;
+  isSending?: boolean;
   onClick?: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   onImagesSelected?: (images: File[]) => void;
 }
 
 const customEasingFn = cubicBezier(0.4, 0, 0.2, 1);
 
-export const SendButton = ({ show, isStreaming, onClick }: SendButtonProps) => {
+export const SendButton = ({ show, isStreaming, isSending, onClick }: SendButtonProps) => {
   return (
     <AnimatePresence>
       {show ? (
@@ -25,7 +26,13 @@ export const SendButton = ({ show, isStreaming, onClick }: SendButtonProps) => {
           }}
         >
           <div className="text-lg">
-            {!isStreaming ? <div className="i-ph:arrow-right"></div> : <div className="i-ph:stop-circle-bold"></div>}
+            {isStreaming ? (
+              <div className="i-ph:stop-circle-bold"></div>
+            ) : isSending ? (
+              <div className="i-svg-spinners:90-ring-with-bg animate-spin"></div>
+            ) : (
+              <div className="i-ph:arrow-right"></div>
+            )}
           </div>
         </motion.button>
       ) : null}

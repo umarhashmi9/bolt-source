@@ -11,6 +11,42 @@ export const PROMPT_COOKIE_KEY = 'cachedPrompt';
 
 const PROVIDER_LIST: ProviderInfo[] = [
   {
+    name: 'OpenAI',
+    staticModels: [
+      {
+        name: 'gpt-4o',
+        label: 'GPT-4o',
+        provider: 'OpenAI',
+        maxTokenAllowed: 8000,
+      },
+      {
+        name: 'gpt-4o-mini',
+        label: 'GPT-4o Mini',
+        provider: 'OpenAI',
+        maxTokenAllowed: 8000,
+      },
+      {
+        name: 'gpt-4-turbo',
+        label: 'GPT-4 Turbo',
+        provider: 'OpenAI',
+        maxTokenAllowed: 8000,
+      },
+      {
+        name: 'gpt-4',
+        label: 'GPT-4',
+        provider: 'OpenAI',
+        maxTokenAllowed: 8000,
+      },
+      {
+        name: 'gpt-3.5-turbo',
+        label: 'GPT-3.5 Turbo',
+        provider: 'OpenAI',
+        maxTokenAllowed: 8000,
+      },
+    ],
+    getApiKeyLink: 'https://platform.openai.com/api-keys',
+  },
+  {
     name: 'Anthropic',
     staticModels: [
       {
@@ -69,7 +105,6 @@ const PROVIDER_LIST: ProviderInfo[] = [
   {
     name: 'OpenRouter',
     staticModels: [
-      { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', maxTokenAllowed: 8000 },
       {
         name: 'anthropic/claude-3.5-sonnet',
         label: 'Anthropic: Claude 3.5 Sonnet (OpenRouter)',
@@ -213,17 +248,6 @@ const PROVIDER_LIST: ProviderInfo[] = [
     ],
     getApiKeyLink: 'https://huggingface.co/settings/tokens',
   },
-
-  {
-    name: 'OpenAI',
-    staticModels: [
-      { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-4', label: 'GPT-4', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
-    ],
-    getApiKeyLink: 'https://platform.openai.com/api-keys',
-  },
   {
     name: 'xAI',
     staticModels: [{ name: 'grok-beta', label: 'xAI Grok Beta', provider: 'xAI', maxTokenAllowed: 8000 }],
@@ -287,27 +311,48 @@ const PROVIDER_LIST: ProviderInfo[] = [
   },
 ];
 
+// Declare cloudflareEnv for Cloudflare environment variables
+const cloudflareEnv: Record<string, string | undefined> = {};
+
 const apiKeyChecks: Record<string, boolean> = {
-  Groq: !!import.meta.env.VITE_GROQ_API_KEY && String(import.meta.env.VITE_GROQ_API_KEY).trim() !== '',
-  HuggingFace:
-    !!import.meta.env.VITE_HUGGINGFACE_API_KEY && String(import.meta.env.VITE_HUGGINGFACE_API_KEY).trim() !== '',
-  OpenAI: !!import.meta.env.VITE_OPENAI_API_KEY && String(import.meta.env.VITE_OPENAI_API_KEY).trim() !== '',
-  Anthropic: !!import.meta.env.VITE_ANTHROPIC_API_KEY && String(import.meta.env.VITE_ANTHROPIC_API_KEY).trim() !== '',
-  OpenRouter:
-    !!import.meta.env.VITE_OPEN_ROUTER_API_KEY && String(import.meta.env.VITE_OPEN_ROUTER_API_KEY).trim() !== '',
-  GoogleGenerativeAI:
-    !!import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY &&
-    String(import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY).trim() !== '',
-  Ollama: !!import.meta.env.VITE_OLLAMA_API_BASE_URL && String(import.meta.env.VITE_OLLAMA_API_BASE_URL).trim() !== '',
-  OpenAILike:
-    !!import.meta.env.VITE_OPENAI_LIKE_API_KEY && String(import.meta.env.VITE_OPENAI_LIKE_API_KEY).trim() !== '',
-  Together: !!import.meta.env.VITE_TOGETHER_API_KEY && String(import.meta.env.VITE_TOGETHER_API_KEY).trim() !== '',
-  DeepSeek: !!import.meta.env.VITE_DEEPSEEK_API_KEY && String(import.meta.env.VITE_DEEPSEEK_API_KEY).trim() !== '',
-  Mistral: !!import.meta.env.VITE_MISTRAL_API_KEY && String(import.meta.env.VITE_MISTRAL_API_KEY).trim() !== '',
-  Cohere: !!import.meta.env.VITE_COHERE_API_KEY && String(import.meta.env.VITE_COHERE_API_KEY).trim() !== '',
-  LMStudio:
-    !!import.meta.env.VITE_LMSTUDIO_API_BASE_URL && String(import.meta.env.VITE_LMSTUDIO_API_BASE_URL).trim() !== '',
-  xAI: !!import.meta.env.VITE_XAI_API_KEY && String(import.meta.env.VITE_XAI_API_KEY).trim() !== '',
+  Groq: !!(import.meta.env.GROQ_API_KEY || process.env.GROQ_API_KEY || cloudflareEnv?.GROQ_API_KEY),
+  HuggingFace: !!(
+    import.meta.env.HUGGINGFACE_API_KEY ||
+    process.env.HUGGINGFACE_API_KEY ||
+    cloudflareEnv?.HUGGINGFACE_API_KEY
+  ),
+  OpenAI: !!(import.meta.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY || cloudflareEnv?.OPENAI_API_KEY),
+  Anthropic: !!(import.meta.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY || cloudflareEnv?.ANTHROPIC_API_KEY),
+  OpenRouter: !!(
+    import.meta.env.OPEN_ROUTER_API_KEY ||
+    process.env.OPEN_ROUTER_API_KEY ||
+    cloudflareEnv?.OPEN_ROUTER_API_KEY
+  ),
+  GoogleGenerativeAI: !!(
+    import.meta.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    cloudflareEnv?.GOOGLE_GENERATIVE_AI_API_KEY
+  ),
+  Ollama: !!(
+    import.meta.env.OLLAMA_API_BASE_URL ||
+    process.env.OLLAMA_API_BASE_URL ||
+    cloudflareEnv?.OLLAMA_API_BASE_URL
+  ),
+  OpenAILike: !!(
+    import.meta.env.OPENAI_LIKE_API_KEY ||
+    process.env.OPENAI_LIKE_API_KEY ||
+    cloudflareEnv?.OPENAI_LIKE_API_KEY
+  ),
+  Together: !!(import.meta.env.TOGETHER_API_KEY || process.env.TOGETHER_API_KEY || cloudflareEnv?.TOGETHER_API_KEY),
+  DeepSeek: !!(import.meta.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || cloudflareEnv?.DEEPSEEK_API_KEY),
+  Mistral: !!(import.meta.env.MISTRAL_API_KEY || process.env.MISTRAL_API_KEY || cloudflareEnv?.MISTRAL_API_KEY),
+  Cohere: !!(import.meta.env.COHERE_API_KEY || process.env.COHERE_API_KEY || cloudflareEnv?.COHERE_API_KEY),
+  LMStudio: !!(
+    import.meta.env.LMSTUDIO_API_BASE_URL ||
+    process.env.LMSTUDIO_API_BASE_URL ||
+    cloudflareEnv?.LMSTUDIO_API_BASE_URL
+  ),
+  xAI: !!(import.meta.env.XAI_API_KEY || process.env.XAI_API_KEY || cloudflareEnv?.XAI_API_KEY),
 };
 
 function checkApiKeys() {
@@ -464,20 +509,20 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
 
 async function initializeModelList(): Promise<ModelInfo[]> {
   const apiKeyChecks: Record<string, boolean> = {
-    Ollama: !!import.meta.env.VITE_OLLAMA_API_BASE_URL,
-    OpenAILike: !!import.meta.env.VITE_OPENAI_LIKE_API_KEY,
-    LMStudio: !!import.meta.env.VITE_LMSTUDIO_API_BASE_URL,
-    Groq: !!import.meta.env.VITE_GROQ_API_KEY,
-    HuggingFace: !!import.meta.env.VITE_HUGGINGFACE_API_KEY,
-    OpenAI: !!import.meta.env.VITE_OPENAI_API_KEY,
-    Anthropic: !!import.meta.env.VITE_ANTHROPIC_API_KEY,
-    OpenRouter: !!import.meta.env.VITE_OPEN_ROUTER_API_KEY,
-    GoogleGenerativeAI: !!import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY,
-    Together: !!import.meta.env.VITE_TOGETHER_API_KEY,
-    DeepSeek: !!import.meta.env.VITE_DEEPSEEK_API_KEY,
-    Mistral: !!import.meta.env.VITE_MISTRAL_API_KEY,
-    Cohere: !!import.meta.env.VITE_COHERE_API_KEY,
-    xAI: !!import.meta.env.VITE_XAI_API_KEY,
+    Ollama: !!import.meta.env.OLLAMA_API_BASE_URL,
+    OpenAILike: !!import.meta.env.OPENAI_LIKE_API_KEY,
+    LMStudio: !!import.meta.env.LMSTUDIO_API_BASE_URL,
+    Groq: !!import.meta.env.GROQ_API_KEY,
+    HuggingFace: !!import.meta.env.HUGGINGFACE_API_KEY,
+    OpenAI: !!import.meta.env.OPENAI_API_KEY,
+    Anthropic: !!import.meta.env.ANTHROPIC_API_KEY,
+    OpenRouter: !!import.meta.env.OPEN_ROUTER_API_KEY,
+    GoogleGenerativeAI: !!import.meta.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    Together: !!import.meta.env.TOGETHER_API_KEY,
+    DeepSeek: !!import.meta.env.DEEPSEEK_API_KEY,
+    Mistral: !!import.meta.env.MISTRAL_API_KEY,
+    Cohere: !!import.meta.env.COHERE_API_KEY,
+    xAI: !!import.meta.env.XAI_API_KEY,
   };
 
   MODEL_LIST = [

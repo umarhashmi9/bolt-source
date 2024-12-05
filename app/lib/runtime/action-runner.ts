@@ -214,16 +214,40 @@ export class ActionRunner {
         logger.debug('Created folder', folder);
       } catch (error) {
         logger.error('Failed to create folder\n\n', error);
+        throw new Error(
+          `Failed to create directory ${folder}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 
     try {
+      // Ensure the file exists before writing
+      try {
+        await webcontainer.fs.rm(action.filePath, { force: true });
+      } catch {
+        // Ignore errors if file doesn't exist
+      }
+
       await webcontainer.fs.writeFile(action.filePath, action.content);
       logger.debug(`File written ${action.filePath}`);
+
+      // Verify the file was written
+      const fileExists = await webcontainer.fs
+        .readFile(action.filePath)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!fileExists) {
+        throw new Error('File write verification failed');
+      }
     } catch (error) {
       logger.error('Failed to write file\n\n', error);
+      throw new Error(
+        `Failed to write file ${action.filePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
+
   #updateAction(id: string, newState: ActionStateUpdate) {
     const actions = this.actions.get();
 

@@ -54,6 +54,7 @@ interface BaseChatProps {
   setUploadedFiles?: (files: File[]) => void;
   imageDataList?: string[];
   setImageDataList?: (dataList: string[]) => void;
+  isSendingMessage?: boolean;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -83,6 +84,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       imageDataList = [],
       setImageDataList,
       messages,
+      isSendingMessage,
     },
     ref,
   ) => {
@@ -451,6 +453,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       <SendButton
                         show={input.length > 0 || isStreaming || uploadedFiles.length > 0}
                         isStreaming={isStreaming}
+                        isSending={isSendingMessage}
                         onClick={(event) => {
                           if (isStreaming) {
                             handleStop?.();
