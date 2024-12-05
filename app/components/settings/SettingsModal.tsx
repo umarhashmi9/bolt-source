@@ -1,29 +1,72 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogDescription, DialogButton, DialogRoot } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
+import Cookies from 'js-cookie';
 
 interface ApiSettings {
   [key: string]: {
     apiKey: string;
     baseUrl?: string;
+    getKeyUrl?: string;
   };
 }
 
 const initialApiSettings: ApiSettings = {
-  GROQ: { apiKey: process.env.GROQ_API_KEY || '' },
-  HuggingFace: { apiKey: process.env.HuggingFace_API_KEY || '' },
-  OpenAI: { apiKey: process.env.OPENAI_API_KEY || '' },
-  Anthropic: { apiKey: process.env.ANTHROPIC_API_KEY || '' },
-  OpenRouter: { apiKey: process.env.OPEN_ROUTER_API_KEY || '' },
-  GoogleGenerativeAI: { apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || '' },
-  Ollama: { baseUrl: process.env.OLLAMA_API_BASE_URL || '' },
-  OpenAILike: { apiKey: process.env.OPENAI_LIKE_API_KEY || '', baseUrl: process.env.OPENAI_LIKE_API_BASE_URL || '' },
-  TogetherAI: { apiKey: process.env.TOGETHER_API_KEY || '', baseUrl: process.env.TOGETHER_API_BASE_URL || '' },
-  DeepSeek: { apiKey: process.env.DEEPSEEK_API_KEY || '' },
-  Mistral: { apiKey: process.env.MISTRAL_API_KEY || '' },
-  Cohere: { apiKey: process.env.COHERE_API_KEY || '' },
-  LMStudio: { baseUrl: process.env.LMSTUDIO_API_BASE_URL || '' },
-  xAI: { apiKey: process.env.XAI_API_KEY || '' },
+  GROQ: { 
+    apiKey: '', 
+    getKeyUrl: 'https://console.groq.com/keys' 
+  },
+  HuggingFace: { 
+    apiKey: '', 
+    getKeyUrl: 'https://huggingface.co/settings/tokens' 
+  },
+  OpenAI: { 
+    apiKey: '', 
+    getKeyUrl: 'https://platform.openai.com/api-keys' 
+  },
+  Anthropic: { 
+    apiKey: '', 
+    getKeyUrl: 'https://console.anthropic.com/settings/keys' 
+  },
+  OpenRouter: { 
+    apiKey: '', 
+    getKeyUrl: 'https://openrouter.ai/keys' 
+  },
+  GoogleGenerativeAI: { 
+    apiKey: '', 
+    getKeyUrl: 'https://makersuite.google.com/app/apikey' 
+  },
+  Ollama: { 
+    baseUrl: '' 
+  },
+  OpenAILike: { 
+    apiKey: '', 
+    baseUrl: '' 
+  },
+  TogetherAI: { 
+    apiKey: '', 
+    baseUrl: '', 
+    getKeyUrl: 'https://api.together.xyz/settings/api-keys'
+  },
+  Deepseek: { 
+    apiKey: '', 
+    getKeyUrl: 'https://platform.deepseek.com/settings'
+  },
+  Mistral: { 
+    apiKey: '', 
+    getKeyUrl: 'https://console.mistral.ai/api-keys/'
+  },
+  Cohere: { 
+    apiKey: '', 
+    getKeyUrl: 'https://dashboard.cohere.com/api-keys'
+  },
+  LMStudio: { 
+    baseUrl: '' 
+  },
+  xAI: { 
+    apiKey: '', 
+    getKeyUrl: 'https://api.xai.com/settings'
+  },
 };
 
 interface SettingsModalProps {
@@ -33,8 +76,52 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("system-prompt");
-  const [systemPrompt, setSystemPrompt] = useState("default");
+  const [systemPrompt, setSystemPrompt] = useState(() => {
+    const savedPrompt = Cookies.get('systemPrompt');
+    return savedPrompt || "default";
+  });
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
+
+  useEffect(() => {
+    // Load saved API keys from cookies
+    const savedApiKeys = Cookies.get('apiKeys');
+    if (savedApiKeys) {
+      try {
+        const parsedKeys = JSON.parse(savedApiKeys);
+        setApiSettings(prev => {
+          const newSettings = { ...prev };
+          Object.entries(parsedKeys).forEach(([provider, value]) => {
+            if (newSettings[provider]) {
+              // Handle string format (just API key)
+              if (typeof value === 'string') {
+                newSettings[provider] = { 
+                  ...newSettings[provider], 
+                  apiKey: value 
+                };
+              } 
+              // Handle object format (apiKey and/or baseUrl)
+              else if (typeof value === 'object' && value !== null) {
+                newSettings[provider] = { 
+                  ...newSettings[provider],
+                  ...(value.apiKey && { apiKey: value.apiKey }),
+                  ...(value.baseUrl && { baseUrl: value.baseUrl })
+                };
+              }
+            }
+          });
+          return newSettings;
+        });
+      } catch (e) {
+        console.error('Error parsing saved API keys:', e);
+      }
+    }
+
+    // Load saved system prompt
+    const savedPrompt = Cookies.get('systemPrompt');
+    if (savedPrompt) {
+      setSystemPrompt(savedPrompt);
+    }
+  }, []);
 
   const handleApiSettingChange = (provider: string, field: 'apiKey' | 'baseUrl', value: string) => {
     setApiSettings(prev => ({
@@ -47,8 +134,45 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   const handleSaveSettings = () => {
-    // Here you would typically save the settings to your backend or local storage
-    console.log('Saving settings:', { systemPrompt, apiSettings });
+    // Save system prompt to cookie
+    Cookies.set('systemPrompt', systemPrompt, { 
+      expires: 30, // 30 days
+      secure: true, // Only send over HTTPS
+      sameSite: 'strict', // Protect against CSRF
+      path: '/' // Accessible across the site
+    });
+
+    // Save API keys to cookies
+    const apiKeysToSave = Object.entries(apiSettings).reduce((acc, [provider, settings]) => {
+      if (settings.apiKey || settings.baseUrl) {
+        // If both apiKey and baseUrl exist, save both
+        if (settings.apiKey && settings.baseUrl) {
+          acc[provider] = {
+            apiKey: settings.apiKey,
+            baseUrl: settings.baseUrl
+          };
+        }
+        // If only apiKey exists, save just the string
+        else if (settings.apiKey) {
+          acc[provider] = settings.apiKey;
+        }
+        // If only baseUrl exists, save as object
+        else if (settings.baseUrl) {
+          acc[provider] = {
+            baseUrl: settings.baseUrl
+          };
+        }
+      }
+      return acc;
+    }, {} as Record<string, any>);
+    
+    Cookies.set('apiKeys', JSON.stringify(apiKeysToSave), { 
+      expires: 30, // 30 days
+      secure: true, // Only send over HTTPS
+      sameSite: 'strict', // Protect against CSRF
+      path: '/' // Accessible across the site
+    });
+    
     onClose();
   };
 
@@ -101,30 +225,26 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <div>
                         <div className="font-medium">Default</div>
                         <div className="text-sm text-bolt-elements-textTertiary mt-1">
-                          A balanced AI assistant optimized for general-purpose conversations and tasks. Best for most use cases.
+                          The default system prompt - Best for Claude 3.5 Sonnet.
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div 
-                    className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      systemPrompt === "small-model" 
-                        ? 'bg-bolt-elements-background-depth-4 border-bolt-elements-button-primary-background' 
-                        : 'bg-bolt-elements-background-depth-2 border-bolt-elements-borderColor hover:border-bolt-elements-button-primary-background'
-                    }`}
-                    onClick={() => setSystemPrompt("small-model")}
+                    className={`p-4 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 opacity-50 cursor-not-allowed`}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="radio"
-                        value="small-model"
-                        checked={systemPrompt === "small-model"}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
+                        disabled
                         className="text-bolt-elements-button-primary-background"
                       />
-                      <div>
-                        <div className="font-medium">Small Model</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Small Model</span>
+                          <span className="text-xs px-2 py-0.5 bg-bolt-elements-background-depth-4 rounded">Coming Soon</span>
+                        </div>
                         <div className="text-sm text-bolt-elements-textTertiary mt-1">
                           Optimized for smaller language models, providing concise and efficient responses while maintaining quality.
                         </div>
@@ -133,25 +253,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
 
                   <div 
-                    className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      systemPrompt === "qa" 
-                        ? 'bg-bolt-elements-background-depth-4 border-bolt-elements-button-primary-background' 
-                        : 'bg-bolt-elements-background-depth-2 border-bolt-elements-borderColor hover:border-bolt-elements-button-primary-background'
-                    }`}
-                    onClick={() => setSystemPrompt("qa")}
+                    className={`p-4 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 opacity-50 cursor-not-allowed`}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="radio"
-                        value="qa"
-                        checked={systemPrompt === "qa"}
-                        onChange={(e) => setSystemPrompt(e.target.value)}
+                        disabled
                         className="text-bolt-elements-button-primary-background"
                       />
-                      <div>
-                        <div className="font-medium">Q&A</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Q&A</span>
+                          <span className="text-xs px-2 py-0.5 bg-bolt-elements-background-depth-4 rounded">Coming Soon</span>
+                        </div>
                         <div className="text-sm text-bolt-elements-textTertiary mt-1">
-                          Specialized for question-answering scenarios, providing direct, factual responses with relevant context.
+                          Specialized for question-answering scenarios, chatting, or creative writing.
                         </div>
                       </div>
                     </div>
@@ -165,26 +281,40 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="flex-1 space-y-4 overflow-y-auto pr-4">
                   {Object.entries(apiSettings).map(([provider, settings]) => (
                     <div key={provider} className="space-y-2 p-4 bg-bolt-elements-background-depth-4 rounded-lg">
-                      <h4 className="font-medium">{provider}</h4>
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium">{provider}</h4>
+                        {settings.getKeyUrl && (
+                          <a
+                            href={settings.getKeyUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-bolt-elements-button-primary-background hover:underline"
+                          >
+                            Get API Key
+                          </a>
+                        )}
+                      </div>
                       {settings.apiKey !== undefined && (
                         <div className="space-y-1">
-                          <label className="text-sm">API Key</label>
+                          <label className="text-sm text-bolt-elements-textSecondary">API Key</label>
                           <input
                             type="password"
                             value={settings.apiKey}
                             onChange={(e) => handleApiSettingChange(provider, 'apiKey', e.target.value)}
-                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded"
+                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
+                            placeholder={`Enter your ${provider} API key`}
                           />
                         </div>
                       )}
                       {settings.baseUrl !== undefined && (
                         <div className="space-y-1">
-                          <label className="text-sm">Base URL</label>
+                          <label className="text-sm text-bolt-elements-textSecondary">Base URL</label>
                           <input
                             type="text"
                             value={settings.baseUrl}
                             onChange={(e) => handleApiSettingChange(provider, 'baseUrl', e.target.value)}
-                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded"
+                            className="w-full px-2 py-1 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
+                            placeholder={`Enter the ${provider} base URL`}
                           />
                         </div>
                       )}
@@ -196,7 +326,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {activeTab === 'features' && (
               <div>
                 <h3 className="text-lg font-semibold">Features</h3>
-                <p className="text-bolt-elements-textTertiary">Coming Soon</p>
+                <p className="text-bolt-elements-textTertiary">This is where new features will be shown and can be turned on/off for testing.</p>
               </div>
             )}
           </div>

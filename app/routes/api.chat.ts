@@ -32,22 +32,21 @@ function parseCookies(cookieHeader) {
 }
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
-  const { messages, model } = await request.json<{
+  const { messages, model, provider } = await request.json<{
     messages: Messages;
     model: string;
+    provider: string;
   }>();
 
   const cookieHeader = request.headers.get('Cookie');
-
-  // Parse the cookie's value (returns an object or null if no cookie exists)
-  const apiKeys = JSON.parse(parseCookies(cookieHeader).apiKeys || '{}');
+  const cookies = parseCookies(cookieHeader || '');
+  const apiKeys = JSON.parse(decodeURIComponent(cookies.apiKeys || '{}'));
 
   const stream = new SwitchableStream();
 
   try {
     const options: StreamingOptions = {
       toolChoice: 'none',
-      apiKeys,
       model,
       onFinish: async ({ text: content, finishReason }) => {
         if (finishReason !== 'length') {

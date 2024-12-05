@@ -110,7 +110,8 @@ export const ChatImpl = memo(
     const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
       api: '/api/chat',
       body: {
-        apiKeys,
+        model,
+        provider: provider.name
       },
       onError: (error) => {
         logger.error('Request failed\n\n', error);
@@ -123,6 +124,10 @@ export const ChatImpl = memo(
       },
       initialMessages,
       initialInput: Cookies.get(PROMPT_COOKIE_KEY) || '',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `apiKeys=${encodeURIComponent(JSON.stringify(apiKeys))}`
+      }
     });
 
     const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
@@ -284,12 +289,22 @@ export const ChatImpl = memo(
     const [messageRef, scrollRef] = useSnapScroll();
 
     useEffect(() => {
-      const storedApiKeys = Cookies.get('apiKeys');
-
-      if (storedApiKeys) {
-        setApiKeys(JSON.parse(storedApiKeys));
+      const savedApiKeys = Cookies.get('apiKeys');
+      if (savedApiKeys) {
+        try {
+          const parsedKeys = JSON.parse(savedApiKeys);
+          // Update apiKeys state with the current provider's key
+          if (provider && parsedKeys[provider.name]) {
+            const providerKey = parsedKeys[provider.name];
+            setApiKeys({
+              [provider.name]: typeof providerKey === 'string' ? providerKey : providerKey.apiKey
+            });
+          }
+        } catch (error) {
+          console.error('Error loading API keys from cookies:', error);
+        }
       }
-    }, []);
+    }, [provider]);
 
     const handleModelChange = (newModel: string) => {
       setModel(newModel);

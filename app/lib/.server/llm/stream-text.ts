@@ -4,7 +4,7 @@
 import { convertToCoreMessages, streamText as _streamText } from 'ai';
 import { getModel } from '~/lib/.server/llm/model';
 import { MAX_TOKENS } from './constants';
-import { getSystemPrompt } from './prompts';
+import { getSystemPrompt, SystemPromptType } from './prompts';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODEL_LIST, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
 
 interface ToolResult<Name extends string, Args, Result> {
@@ -64,6 +64,18 @@ function extractPropertiesFromMessage(message: Message): { model: string; provid
 export function streamText(messages: Messages, env: Env, options?: StreamingOptions, apiKeys?: Record<string, string>) {
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER;
+  let systemPromptType: SystemPromptType = 'default';
+
+  // Try to get system prompt type from cookie
+  if (typeof document !== 'undefined') {
+    const savedPromptType = document.cookie.split('; ').find(row => row.startsWith('systemPrompt='));
+    if (savedPromptType) {
+      const promptType = savedPromptType.split('=')[1] as SystemPromptType;
+      if (['default', 'small-model', 'qa'].includes(promptType)) {
+        systemPromptType = promptType;
+      }
+    }
+  }
 
   const processedMessages = messages.map((message) => {
     if (message.role === 'user') {
@@ -82,13 +94,18 @@ export function streamText(messages: Messages, env: Env, options?: StreamingOpti
   });
 
   const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
-
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
+
+  // Get the API key for the current provider
+  const apiKey = apiKeys?.[currentProvider];
+  if (!apiKey) {
+    throw new Error(`API key not found for provider: ${currentProvider}`);
+  }
 
   return _streamText({
     ...options,
-    model: getModel(currentProvider, currentModel, env, apiKeys),
-    system: getSystemPrompt(),
+    model: getModel(currentProvider, currentModel, env, { [currentProvider]: apiKey }),
+    system: getSystemPrompt(systemPromptType),
     maxTokens: dynamicMaxTokens,
     messages: convertToCoreMessages(processedMessages),
   });

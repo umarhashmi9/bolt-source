@@ -359,13 +359,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       providerList={PROVIDER_LIST}
                       apiKeys={apiKeys}
                     />
-                    {provider && (
-                      <APIKeyManager
-                        provider={provider}
-                        apiKey={apiKeys[provider.name] || ''}
-                        setApiKey={(key) => updateApiKey(provider.name, key)}
-                      />
-                    )}
                   </div>
                 </div>
                 <FilePreview

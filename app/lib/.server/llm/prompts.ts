@@ -2,7 +2,7 @@ import { MODIFICATIONS_TAG_NAME, WORK_DIR } from '~/utils/constants';
 import { allowedHTMLElements } from '~/utils/markdown';
 import { stripIndents } from '~/utils/stripIndent';
 
-export const getSystemPrompt = (cwd: string = WORK_DIR) => `
+const DEFAULT_PROMPT = (cwd: string = WORK_DIR) => `
 You are Bolt, an expert AI assistant and exceptional senior software developer with vast knowledge across multiple programming languages, frameworks, and best practices.
 
 <system_constraints>
@@ -338,6 +338,27 @@ Here are some examples of correct usage of artifacts:
   </example>
 </examples>
 `;
+
+const SMALL_MODEL_PROMPT = (cwd: string = WORK_DIR) => `
+PLACEHOLDER
+`;
+
+const QA_PROMPT = (cwd: string = WORK_DIR) => `
+PLACEHOLDER
+`;;
+
+export type SystemPromptType = 'default' | 'small-model' | 'qa';
+
+export const getSystemPrompt = (promptType: SystemPromptType = 'default', cwd: string = WORK_DIR) => {
+  switch (promptType) {
+    case 'small-model':
+      return SMALL_MODEL_PROMPT(cwd);
+    case 'qa':
+      return QA_PROMPT(cwd);
+    default:
+      return DEFAULT_PROMPT(cwd);
+  }
+};
 
 export const CONTINUE_PROMPT = stripIndents`
   Continue your prior response. IMPORTANT: Immediately begin from where you left off without any interruptions.
