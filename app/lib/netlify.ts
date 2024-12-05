@@ -1,3 +1,18 @@
+interface NetlifySite {
+  id: string;
+  url: string;
+}
+
+interface NetlifyDeploy {
+  id: string;
+  required?: string[];
+}
+
+interface NetlifyDeployStatus {
+  state: string;
+  url: string;
+}
+
 export class NetlifyDeploy {
     private accessToken: string;
     private siteId?: string;
@@ -8,7 +23,7 @@ export class NetlifyDeploy {
       this.baseURL = 'https://api.netlify.com/api/v1';
     }
   
-    private async createSite(name?: string) {
+    private async createSite(name?: string): Promise<NetlifySite> {
       try {
         const response = await this.fetchWithAuth('/sites', {
           method: 'POST',
@@ -19,8 +34,9 @@ export class NetlifyDeploy {
             name: name || `site-${Date.now()}`,
           }),
         });
-        this.siteId = response.id;
-        return response;
+        const site = response as NetlifySite;
+        this.siteId = site.id;
+        return site;
       } catch (error: any) {
         console.error('Error creating site:', error.message);
         throw error;
@@ -37,7 +53,7 @@ export class NetlifyDeploy {
         },
       });
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+        const error = await response.json().catch(() => ({ message: 'Unknown error' })) as { message: string };
         throw new Error(error.message || `HTTP error! status: ${response.status}`);
       }
       return response.json();
@@ -63,13 +79,13 @@ export class NetlifyDeploy {
       return fileHashes;
     }
   
-    private async createDeploy(files: Record<string, string>) {
+    private async createDeploy(files: Record<string, string>): Promise<NetlifyDeploy> {
       if (!this.siteId) {
         throw new Error('No site ID available. Make sure to create a site first.');
       }
   
       try {
-        return await this.fetchWithAuth(`/sites/${this.siteId}/deploys`, {
+        const response = await this.fetchWithAuth(`/sites/${this.siteId}/deploys`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,6 +95,7 @@ export class NetlifyDeploy {
             async: true
           }),
         });
+        return response as NetlifyDeploy;
       } catch (error: any) {
         console.error('Error creating deploy:', error.message);
         throw error;
@@ -100,13 +117,13 @@ export class NetlifyDeploy {
       }
     }
   
-    private async waitForDeploy(deployId: string) {
+    private async waitForDeploy(deployId: string): Promise<NetlifyDeployStatus> {
       if (!this.siteId) {
         throw new Error('No site ID available.');
       }
   
       while (true) {
-        const data = await this.fetchWithAuth(`/sites/${this.siteId}/deploys/${deployId}`);
+        const data = await this.fetchWithAuth(`/sites/${this.siteId}/deploys/${deployId}`) as NetlifyDeployStatus;
         const { state } = data;
         
         if (state === 'ready') {
@@ -119,7 +136,7 @@ export class NetlifyDeploy {
       }
     }
   
-    async deploy(files: Record<string, { content: string; type: 'file' | 'folder' }>, siteName?: string) {
+    async deploy(files: Record<string, { content: string; type: 'file' | 'folder' }>, siteName?: string): Promise<NetlifyDeployStatus> {
       try {
         if (!this.siteId) {
           console.log('Creating new site...');
@@ -155,4 +172,4 @@ export class NetlifyDeploy {
         throw error;
       }
     }
-  }
+}

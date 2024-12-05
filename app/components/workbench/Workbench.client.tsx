@@ -173,11 +173,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                           return;
                         }
 
-                        workbenchStore.deployToNetlify(accessToken, siteId)
-                          .then((result) => {
+                        workbenchStore.deployToNetlify(accessToken)
+                          .then((result: { url: string }) => {
                             toast.success(`Deployed successfully! Site URL: ${result.url}`);
                           })
-                          .catch((error) => {
+                          .catch((error: Error) => {
                             toast.error(`Failed to deploy: ${error.message}`);
                           });
                       }}

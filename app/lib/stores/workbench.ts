@@ -504,11 +504,28 @@ export class WorkbenchStore {
     }
   }
 
-  async deployToNetlify(accessToken: string, siteId: string) {
+  async deployToNetlify(accessToken: string) {
     try {
       const files = this.files.get();
-      const netlifyDeploy = new NetlifyDeploy(accessToken, siteId);
-      const result = await netlifyDeploy.deploy(files);
+      const netlifyDeploy = new NetlifyDeploy(accessToken);
+      
+      // Convert FileMap to the format expected by NetlifyDeploy
+      const deployFiles: Record<string, { content: string; type: 'file' | 'folder' }> = {};
+      for (const [path, dirent] of Object.entries(files)) {
+        if (dirent?.type === 'file' && !dirent.isBinary) {
+          deployFiles[path] = {
+            content: dirent.content,
+            type: 'file'
+          };
+        } else if (dirent?.type === 'folder') {
+          deployFiles[path] = {
+            content: '',
+            type: 'folder'
+          };
+        }
+      }
+      
+      const result = await netlifyDeploy.deploy(deployFiles);
       return result;
     } catch (error) {
       console.error('Failed to deploy to Netlify:', error);
