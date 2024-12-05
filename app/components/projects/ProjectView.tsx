@@ -22,6 +22,10 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
     // await updateFeatureStatus(featureId,status)
     console.log(featureId, status);
   }, []);
+  const handleMergeBranch = useCallback(async (featureId: string) => {
+    // await mergeFeature(featureId)
+    console.log(featureId);
+  }, []);
 
   return (
     <div className="h-full grid grid-cols-4 gap-4">
@@ -53,6 +57,7 @@ export const ProjectView: React.FC<{ project: Project }> = ({ project }) => {
                 feature={feature}
                 onDeleteBranch={handleDeleteBranch}
                 onStatusChange={handleStatusChange}
+                onMergeBranch={handleMergeBranch}
               />
             ))}
           </div>

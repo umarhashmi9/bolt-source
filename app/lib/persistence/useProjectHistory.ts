@@ -324,6 +324,84 @@ ${file.content}
     },
     [db, id],
   );
+  const deleteFeature = useCallback(
+    async (featureId: string) => {
+      if (!db) {
+        return;
+      }
+
+      if (!activeProject) {
+        return;
+      }
+
+      try {
+        const feature = activeProject.features.find((x) => x.id == featureId);
+
+        if (!feature) {
+          return;
+        }
+
+        const fs = fsRef.current;
+        await git.deleteBranch({ fs, dir: '/', ref: feature.branchRef });
+
+        // deleting feature chats
+        await Promise.all(activeProject.features.map((x) => deleteById(db, x.id).catch(() => {})));
+
+        // updating project branches
+        await updateProjectBranches(db, activeProject.id, [
+          ...activeProject.branches.filter((x) => x.name != feature.branchRef),
+        ]);
+
+        // reloading project
+        await reloadCache();
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        return;
+      }
+      await reloadCache();
+    },
+    [db, activeProject],
+  );
+  const mergeFeature = useCallback(
+    async (featureId: string) => {
+      if (!db) {
+        return;
+      }
+
+      if (!activeProject) {
+        return;
+      }
+
+      try {
+        const feature = activeProject.features.find((x) => x.id == featureId);
+
+        // const fs = fsRef.current;
+
+        if (!feature) {
+          return;
+        }
+
+        /*
+         * await git.merge({
+         *     fs,
+         *     dir: '/',
+         */
+
+        /*
+         *     message: `Merged feature ${feature.name}`,
+         *     author: {
+         *         name: feature.author,
+         *         email: feature.email,
+         *     },
+         * });
+         */
+      } catch (error) {
+        console.error('Error merging feature:', error);
+        return;
+      }
+    },
+    [db, activeProject],
+  );
   const deleteProject = useCallback(
     async (projectId: string) => {
       if (!db) {
@@ -395,5 +473,7 @@ ${file.content}
     isProjectsLoading,
     deleteProject,
     editProject,
+    deleteFeature,
+    mergeFeature,
   };
 }
