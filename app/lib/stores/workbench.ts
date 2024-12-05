@@ -15,6 +15,7 @@ import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import * as nodePath from 'node:path';
 import { extractRelativePath } from '~/utils/diff';
 import { description } from '~/lib/persistence';
+import { NetlifyDeploy } from '../netlify';
 
 export interface ArtifactState {
   id: string;
@@ -500,6 +501,18 @@ export class WorkbenchStore {
       alert(`Repository created and code pushed: ${repo.html_url}`);
     } catch (error) {
       console.error('Error pushing to GitHub:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async deployToNetlify(accessToken: string, siteId: string) {
+    try {
+      const files = this.files.get();
+      const netlifyDeploy = new NetlifyDeploy(accessToken, siteId);
+      const result = await netlifyDeploy.deploy(files);
+      return result;
+    } catch (error) {
+      console.error('Failed to deploy to Netlify:', error);
+      throw error;
     }
   }
 }

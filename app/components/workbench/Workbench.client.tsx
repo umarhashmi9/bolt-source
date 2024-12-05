@@ -161,6 +161,33 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     <PanelHeaderButton
                       className="mr-1 text-sm"
                       onClick={() => {
+                        const accessToken = prompt('Please enter your Netlify access token:');
+                        if (!accessToken) {
+                          alert('Netlify access token is required. Deployment cancelled.');
+                          return;
+                        }
+
+                        const siteId = prompt('Please enter your Netlify site ID:');
+                        if (!siteId) {
+                          alert('Netlify site ID is required. Deployment cancelled.');
+                          return;
+                        }
+
+                        workbenchStore.deployToNetlify(accessToken, siteId)
+                          .then((result) => {
+                            toast.success(`Deployed successfully! Site URL: ${result.url}`);
+                          })
+                          .catch((error) => {
+                            toast.error(`Failed to deploy: ${error.message}`);
+                          });
+                      }}
+                    >
+                      <div className="i-ph:cloud-arrow-up" />
+                      Deploy to Netlify
+                    </PanelHeaderButton>
+                    <PanelHeaderButton
+                      className="mr-1 text-sm"
+                      onClick={() => {
                         workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
                       }}
                     >
