@@ -232,3 +232,64 @@ export async function updateChatDescription(db: IDBDatabase, id: string, descrip
 
   await setMessages(db, id, chat.messages, chat.urlId, description, chat.timestamp);
 }
+
+export async function deleteAllChats(db: IDBDatabase): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('chats', 'readwrite');
+    const store = transaction.objectStore('chats');
+    const request = store.clear();
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function deleteAllChatsExceptToday(db: IDBDatabase): Promise<void> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const allChats = await getAll(db);
+  const chatsToDelete = allChats.filter((chat) => {
+    const chatDate = new Date(chat.timestamp);
+    chatDate.setHours(0, 0, 0, 0);
+
+    return chatDate < today;
+  });
+
+  const transaction = db.transaction('chats', 'readwrite');
+  const store = transaction.objectStore('chats');
+
+  return new Promise((resolve, reject) => {
+    let completed = 0;
+    let errors = 0;
+
+    if (chatsToDelete.length === 0) {
+      resolve();
+      return;
+    }
+
+    chatsToDelete.forEach((chat) => {
+      const request = store.delete(chat.id);
+
+      request.onsuccess = () => {
+        completed++;
+
+        if (completed + errors === chatsToDelete.length) {
+          if (errors > 0) {
+            reject(new Error(`Failed to delete ${errors} chats`));
+          } else {
+            resolve();
+          }
+        }
+      };
+
+      request.onerror = () => {
+        errors++;
+
+        if (completed + errors === chatsToDelete.length) {
+          reject(new Error(`Failed to delete ${errors} chats`));
+        }
+      };
+    });
+  });
+}

@@ -12,6 +12,9 @@ import {
   setMessages,
   duplicateChat,
   createChatFromMessages,
+  deleteAllChats,
+  deleteAllChatsExceptToday,
+  getAll,
 } from './db';
 
 export interface ChatHistoryItem {
@@ -159,6 +162,64 @@ export function useChatHistory() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    },
+    exportAllChats: async () => {
+      if (!db) {
+        return;
+      }
+
+      try {
+        const allChats = await getAll(db);
+        const exportData = {
+          chats: allChats.map((chat) => ({
+            messages: chat.messages,
+            description: chat.description,
+            timestamp: chat.timestamp,
+          })),
+          exportDate: new Date().toISOString(),
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `all-chats-${new Date().toISOString()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('All chats exported successfully');
+      } catch (error) {
+        toast.error('Failed to export chats');
+        console.error(error);
+      }
+    },
+    deleteAllChatHistory: async () => {
+      if (!db) {
+        return;
+      }
+
+      try {
+        await deleteAllChats(db);
+        window.location.href = '/';
+        toast.success('All chat history deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete chat history');
+        console.error(error);
+      }
+    },
+    deleteAllChatHistoryExceptToday: async () => {
+      if (!db) {
+        return;
+      }
+
+      try {
+        await deleteAllChatsExceptToday(db);
+        toast.success('Old chat history deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete chat history');
+        console.error(error);
+      }
     },
   };
 }
