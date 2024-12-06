@@ -340,16 +340,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
     return !!ENV_BASE_URLS[providerName as keyof typeof ENV_BASE_URLS];
   };
 
-  const handleToggleChatHistory = () => {
-    const newValue = !showChatHistory;
-    setShowChatHistory(newValue);
-    Cookies.set('showChatHistory', String(newValue));
-
-    if (activeTab === 'chat-history') {
-      setActiveTab('features');
-    }
-  };
-
   return (
     <DialogRoot open={isOpen}>
       <Dialog onClose={onClose} className="!max-w-[900px]">
@@ -381,6 +371,18 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   Features
                 </button>
               </li>
+              <li>
+                <button
+                  className={`w-full text-left py-2 px-4 rounded ${
+                    activeTab === 'chat-history'
+                      ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                      : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                  }`}
+                  onClick={() => setActiveTab('chat-history')}
+                >
+                  Chat History
+                </button>
+              </li>
               {debugSettings.enabled && (
                 <li>
                   <button
@@ -392,20 +394,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     onClick={() => setActiveTab('debug')}
                   >
                     Debug
-                  </button>
-                </li>
-              )}
-              {showChatHistory && (
-                <li>
-                  <button
-                    className={`w-full text-left py-2 px-4 rounded ${
-                      activeTab === 'chat-history'
-                        ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                        : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
-                    }`}
-                    onClick={() => setActiveTab('chat-history')}
-                  >
-                    Chat History
                   </button>
                 </li>
               )}
@@ -510,22 +498,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
                     <div>
-                      <h3 className="text-lg font-medium">Enable Chat History Tab</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">Show chat history management features</p>
-                    </div>
-                    <button
-                      onClick={handleToggleChatHistory}
-                      className={`px-3 py-1 rounded text-sm ${
-                        showChatHistory
-                          ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                          : 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text'
-                      }`}
-                    >
-                      {showChatHistory ? 'Enabled' : 'Disabled'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <div>
                       <h3 className="text-lg font-medium">Debug Mode</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">Enable detailed debugging information</p>
                     </div>
@@ -551,7 +523,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 </div>
               </div>
             )}
-            {activeTab === 'chat-history' && showChatHistory && (
+            {activeTab === 'chat-history' && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Chat History</h2>
                 <div className="space-y-4">
@@ -667,7 +639,27 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
             )}
           </div>
         </div>
-        <div className="flex justify-end mt-4 px-4 pb-4 bg-bolt-elements-background-depth-2 border-t border-bolt-elements-borderColor">
+        <div className="flex justify-between items-center mt-8 pt-4 px-4 pb-4 bg-bolt-elements-background-depth-2 border-t border-bolt-elements-borderColor">
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/coleam00/bolt.new-any-llm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text rounded-md"
+            >
+              <span className="i-ph-github-logo text-lg" />
+              Visit our GitHub
+            </a>
+            <a
+              href="https://github.com/coleam00/bolt.new-any-llm#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text rounded-md"
+            >
+              <span className="i-ph-book-open text-lg" />
+              Documentation
+            </a>
+          </div>
           <button
             onClick={handleSaveSettings}
             className="px-4 py-2 bg-bolt-elements-button-primary-background hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text rounded-md"
