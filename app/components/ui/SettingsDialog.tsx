@@ -15,6 +15,11 @@ interface ApiSettings {
   };
 }
 
+// Add debug settings interface
+interface DebugSettings {
+  enabled: boolean;
+}
+
 const initialApiSettings: ApiSettings = {
   Anthropic: {
     apiKey: '',
@@ -121,11 +126,61 @@ interface SettingsDialogProps {
   setApiKey?: (key: string) => void;
 }
 
+// Add type for active tab
+type ActiveTab = 'api-settings' | 'features' | 'debug';
+
 export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiKey }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState('api-settings');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('api-settings');
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
   const [activeProviders, setActiveProviders] = useState<{ [key: string]: boolean }>({});
+  const [debugSettings, setDebugSettings] = useState<DebugSettings>({ enabled: false });
   const storedSettings = useStore(apiSettingsStore);
+
+  // Add function to format debug info
+  const getFormattedDebugInfo = () => {
+    const systemInfo = {
+      'Node.js Version': process.version,
+      Environment: process.env.NODE_ENV || 'development',
+      Runtime: process.env.DOCKER_CONTAINER ? 'Docker' : 'Local',
+      Platform: window.navigator.platform,
+    };
+
+    const activeProvidersInfo = Object.entries(activeProviders)
+      .filter(([_, isActive]) => isActive)
+      .map(([provider]) => {
+        const settings = apiSettings[provider];
+        const showBaseUrl = ['OpenAILike', 'Ollama', 'LMStudio'].includes(provider);
+
+        if (showBaseUrl && settings.baseUrl) {
+          return {
+            name: provider,
+            baseUrl: settings.baseUrl,
+          };
+        }
+
+        return {
+          name: provider,
+        };
+      });
+
+    const debugInfo = {
+      'System Information': systemInfo,
+      'Active API Providers': activeProvidersInfo,
+    };
+
+    return JSON.stringify(debugInfo, null, 2);
+  };
+
+  const handleCopyDebugInfo = async () => {
+    try {
+      await navigator.clipboard.writeText(getFormattedDebugInfo());
+
+      // You might want to add a toast notification here
+      console.log('Debug info copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy debug info:', err);
+    }
+  };
 
   useEffect(() => {
     // Load settings from the store and environment
@@ -179,6 +234,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
       }
     });
     setActiveProviders(newActiveProviders);
+
+    // Load debug mode
+    setDebugSettings((prev) => ({ ...prev, enabled: storedSettings.debugMode || false }));
   }, [storedSettings]);
 
   const handleApiSettingChange = (provider: string, field: 'apiKey' | 'baseUrl', value: string) => {
@@ -256,9 +314,10 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
       apiKeys: apiKeysToSave,
       baseUrls: baseUrlsToSave,
       activeProviders,
+      debugMode: debugSettings.enabled,
     });
 
-    console.log('Saving settings:', { apiSettings, activeProviders });
+    console.log('Saving settings:', { apiSettings, activeProviders, debugSettings });
     onClose();
   };
 
@@ -304,6 +363,20 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   Features
                 </button>
               </li>
+              {debugSettings.enabled && (
+                <li>
+                  <button
+                    className={`w-full text-left py-2 px-4 rounded ${
+                      activeTab === 'debug'
+                        ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                        : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                    }`}
+                    onClick={() => setActiveTab('debug')}
+                  >
+                    Debug
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
           <div className="flex-1 pl-4 overflow-y-auto">
@@ -403,7 +476,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               <div>
                 <h2 className="text-xl font-semibold mb-4">Features</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
                     <div>
                       <h3 className="text-lg font-medium">Enable Chat Tab</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">Additional chat management features</p>
@@ -417,6 +490,95 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                         Disabled
                       </button>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <div>
+                      <h3 className="text-lg font-medium">Debug Mode</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">Enable detailed debugging information</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newEnabled = !debugSettings.enabled;
+                        setDebugSettings((prev) => ({ ...prev, enabled: newEnabled }));
+
+                        // If we're disabling debug mode while on the debug tab, switch to features tab
+                        if (!newEnabled && activeTab === ('debug' as ActiveTab)) {
+                          setActiveTab('features');
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        debugSettings.enabled
+                          ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                          : 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text'
+                      }`}
+                    >
+                      {debugSettings.enabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'debug' && debugSettings.enabled && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Debug Information</h2>
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <h3 className="text-lg font-medium mb-3">System Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Node.js Version:</span>
+                        <span>{process.version}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Environment:</span>
+                        <span>{process.env.NODE_ENV || 'development'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Runtime:</span>
+                        <span>{process.env.DOCKER_CONTAINER ? 'Docker' : 'Local'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Platform:</span>
+                        <span>{window.navigator.platform}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <h3 className="text-lg font-medium mb-3">Active API Providers</h3>
+                    <div className="space-y-2 text-sm">
+                      {Object.entries(activeProviders)
+                        .filter(([_, isActive]) => isActive)
+                        .map(([provider]) => {
+                          const settings = apiSettings[provider];
+                          const showBaseUrl = ['OpenAILike', 'Ollama', 'LMStudio'].includes(provider);
+
+                          return (
+                            <div key={provider} className="space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-bolt-elements-textSecondary">{provider}</span>
+                                <span>✓ Active</span>
+                              </div>
+                              {showBaseUrl && settings.baseUrl && (
+                                <div className="text-xs text-bolt-elements-textTertiary pl-4">
+                                  Base URL: {settings.baseUrl}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleCopyDebugInfo}
+                      className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text"
+                    >
+                      <span className="i-ph-copy text-lg" />
+                      Copy to Clipboard
+                    </button>
                   </div>
                 </div>
               </div>
