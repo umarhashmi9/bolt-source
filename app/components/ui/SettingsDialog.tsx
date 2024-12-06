@@ -129,7 +129,7 @@ interface SettingsDialogProps {
 }
 
 // Add type for active tab
-type ActiveTab = 'api-settings' | 'features' | 'debug';
+type ActiveTab = 'api-settings' | 'features' | 'debug' | 'chat-history';
 
 export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiKey }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('api-settings');
@@ -392,6 +392,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     onClick={() => setActiveTab('debug')}
                   >
                     Debug
+                  </button>
+                </li>
+              )}
               {showChatHistory && (
                 <li>
                   <button
