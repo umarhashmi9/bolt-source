@@ -540,30 +540,35 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <div>
-                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Netlify Deployments</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Netlify</p>
-                    </div>
-                    <button
-                      onClick={() => alert('Feature coming soon')}
-                      className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
-                    >
-                      Coming Soon
-                    </button>
-                  </div>
+                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor bg-bolt-elements-background-depth-2">
+                    <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Coming Soon</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Netlify Deployments</h4>
+                          <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Netlify</p>
+                        </div>
+                        <button
+                          onClick={() => alert('Feature coming soon')}
+                          className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
+                        >
+                          Coming Soon
+                        </button>
+                      </div>
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <div>
-                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Vercel Deployments</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Vercel</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Vercel Deployments</h4>
+                          <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Vercel</p>
+                        </div>
+                        <button
+                          onClick={() => alert('Feature coming soon')}
+                          className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
+                        >
+                          Coming Soon
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => alert('Feature coming soon')}
-                      className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
-                    >
-                      Coming Soon
-                    </button>
                   </div>
                 </div>
               </div>
