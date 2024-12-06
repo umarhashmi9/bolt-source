@@ -420,7 +420,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
           </div>
           <div className="flex-1 pl-4 overflow-y-auto">
             {activeTab === 'api-settings' && (
-              <div className="h-full overflow-y-auto pr-4 pt-4">
+              <div className="h-full overflow-y-auto pr-6 pt-4">
                 <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">API Settings</h2>
                 <p className="text-sm text-bolt-elements-textSecondary mb-4">Manage your API keys and URLs</p>
                 {provider && setApiKey && <APIKeyManager provider={provider} apiKey={apiKey} setApiKey={setApiKey} />}
@@ -512,7 +512,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               </div>
             )}
             {activeTab === 'features' && (
-              <div className="pt-4">
+              <div className="pt-4 pr-6">
                 <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Features</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
@@ -569,10 +569,10 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               </div>
             )}
             {activeTab === 'chat-history' && (
-              <div className="pt-4">
+              <div className="pt-4 pr-6">
                 <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Chat History</h2>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
                     <div>
                       <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Export All Chats</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">
@@ -586,40 +586,46 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       Export All
                     </button>
                   </div>
-                  <div className="border-t border-bolt-elements-borderColor my-4"></div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Delete All Chat History</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">
-                        This will permanently delete all your chat history
-                      </p>
+
+                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor border-bolt-elements-button-danger-background/20">
+                    <h3 className="text-lg font-medium text-bolt-elements-button-danger-text mb-4">Danger Zone</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Delete All Chat History</h4>
+                          <p className="text-sm text-bolt-elements-textSecondary">
+                            This will permanently delete all your chat history
+                          </p>
+                        </div>
+                        <button
+                          onClick={deleteAllChatHistory}
+                          className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
+                        >
+                          Delete All
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Delete Old Chat History</h4>
+                          <p className="text-sm text-bolt-elements-textSecondary">
+                            This will delete all chat history except today's chats
+                          </p>
+                        </div>
+                        <button
+                          onClick={deleteAllChatHistoryExceptToday}
+                          className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
+                        >
+                          Delete Old Chats
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={deleteAllChatHistory}
-                      className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
-                    >
-                      Delete All
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Delete Old Chat History</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">
-                        This will delete all chat history except today's chats
-                      </p>
-                    </div>
-                    <button
-                      onClick={deleteAllChatHistoryExceptToday}
-                      className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
-                    >
-                      Delete Old Chats
-                    </button>
                   </div>
                 </div>
               </div>
             )}
             {activeTab === 'debug' && debugSettings.enabled && (
-              <div className="pt-4">
+              <div className="pt-4 pr-6">
                 <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Debug Information</h2>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
