@@ -92,8 +92,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
+    const [localAvailableProviders, setLocalAvailableProviders] = useState(availableProviders);
 
-    console.log(transcript);
+    useEffect(() => {
+      setLocalAvailableProviders(availableProviders);
+    }, [availableProviders]);
+
     useEffect(() => {
       initializeModelList().then((modelList) => {
         setModelList(modelList);
@@ -101,27 +105,27 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
       // Add event listener for settings updates
       const handleSettingsUpdate = (event: CustomEvent<{ activeProviders: { [key: string]: boolean } }>) => {
+        // Filter available providers based on active ones from settings
         const updatedProviders = PROVIDER_LIST.filter(
           (provider) => event.detail.activeProviders[provider.name]
         );
         
+        // Update the providers list using state
+        setLocalAvailableProviders(updatedProviders);
+        
         // If current provider is no longer active, switch to first available provider
         if (provider && !event.detail.activeProviders[provider.name]) {
           const newProvider = updatedProviders[0];
-          setProvider?.(newProvider);
-          
-          // Also update the model to the first available one for the new provider
-          const firstModel = modelList.find((m) => m.provider === newProvider.name);
-          if (firstModel) {
-            setModel?.(firstModel.name);
+          if (newProvider) {
+            setProvider?.(newProvider);
+            
+            // Update the model to the first available one for the new provider
+            const availableModels = modelList.filter(m => m.provider === newProvider.name);
+            if (availableModels.length > 0) {
+              setModel?.(availableModels[0].name);
+            }
           }
         }
-        
-        // Force re-render of model selector by toggling collapsed state
-        setIsModelSettingsCollapsed(prev => {
-          setTimeout(() => setIsModelSettingsCollapsed(prev), 0);
-          return !prev;
-        });
       };
 
       window.addEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
@@ -339,7 +343,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         modelList={modelList}
                         provider={provider}
                         setProvider={setProvider}
-                        providerList={availableProviders}
+                        providerList={localAvailableProviders}
                       />
                     </div>
                   </div>
