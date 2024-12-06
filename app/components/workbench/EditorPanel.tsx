@@ -20,6 +20,7 @@ import { FileBreadcrumb } from './FileBreadcrumb';
 import { FileTree } from './FileTree';
 import { DEFAULT_TERMINAL_SIZE, TerminalTabs } from './terminal/TerminalTabs';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { apiSettingsStore } from '~/lib/stores/settings';
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -55,6 +56,7 @@ export const EditorPanel = memo(
 
     const theme = useStore(themeStore);
     const showTerminal = useStore(workbenchStore.showTerminal);
+    const apiSettings = useStore(apiSettingsStore);
 
     const activeFileSegments = useMemo(() => {
       if (!editorDocument) {
@@ -92,23 +94,39 @@ export const EditorPanel = memo(
             <PanelResizeHandle />
             <Panel className="flex flex-col" defaultSize={80} minSize={20}>
               <PanelHeader className="overflow-x-auto">
-                {activeFileSegments?.length && (
-                  <div className="flex items-center flex-1 text-sm">
-                    <FileBreadcrumb pathSegments={activeFileSegments} files={files} onFileSelect={onFileSelect} />
-                    {activeFileUnsaved && (
-                      <div className="flex gap-1 ml-auto -mr-1.5">
-                        <PanelHeaderButton onClick={onFileSave}>
-                          <div className="i-ph:floppy-disk-duotone" />
-                          Save
-                        </PanelHeaderButton>
-                        <PanelHeaderButton onClick={onFileReset}>
-                          <div className="i-ph:clock-counter-clockwise-duotone" />
-                          Reset
-                        </PanelHeaderButton>
+                <div className="flex items-center flex-1 text-sm">
+                  {activeFileSegments?.length ? (
+                    <>
+                      <FileBreadcrumb pathSegments={activeFileSegments} files={files} onFileSelect={onFileSelect} />
+                      <div className="flex gap-1 ml-auto">
+                        {apiSettings.netlifyEnabled && (
+                          <PanelHeaderButton onClick={() => alert('Netlify deployment feature coming soon')}>
+                            <div className="i-ph:cloud-arrow-up-duotone" />
+                            Deploy to Netlify
+                          </PanelHeaderButton>
+                        )}
+                        {apiSettings.vercelEnabled && (
+                          <PanelHeaderButton onClick={() => alert('Vercel deployment feature coming soon')}>
+                            <div className="i-ph:cloud-arrow-up-duotone" />
+                            Deploy to Vercel
+                          </PanelHeaderButton>
+                        )}
+                        {activeFileUnsaved && (
+                          <>
+                            <PanelHeaderButton onClick={onFileSave}>
+                              <div className="i-ph:floppy-disk-duotone" />
+                              Save
+                            </PanelHeaderButton>
+                            <PanelHeaderButton onClick={onFileReset}>
+                              <div className="i-ph:clock-counter-clockwise-duotone" />
+                              Reset
+                            </PanelHeaderButton>
+                          </>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )}
+                    </>
+                  ) : null}
+                </div>
               </PanelHeader>
               <div className="h-full flex-1 overflow-hidden">
                 <CodeMirrorEditor

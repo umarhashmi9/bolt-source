@@ -22,6 +22,12 @@ interface DebugSettings {
   enabled: boolean;
 }
 
+// Add interface for deployment settings
+interface DeploymentSettings {
+  netlifyEnabled: boolean;
+  vercelEnabled: boolean;
+}
+
 const initialApiSettings: ApiSettings = {
   Anthropic: {
     apiKey: '',
@@ -137,6 +143,10 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
   const [activeProviders, setActiveProviders] = useState<{ [key: string]: boolean }>({});
 
   const [debugSettings, setDebugSettings] = useState<DebugSettings>({ enabled: false });
+  const [deploymentSettings, setDeploymentSettings] = useState<DeploymentSettings>({
+    netlifyEnabled: false,
+    vercelEnabled: false,
+  });
   const [showChatHistory, setShowChatHistory] = useState(() => {
     const savedValue = Cookies.get('showChatHistory');
     return savedValue === undefined ? true : savedValue === 'true';
@@ -245,6 +255,13 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
 
     // Load debug mode
     setDebugSettings((prev) => ({ ...prev, enabled: storedSettings.debugMode || false }));
+
+    // Load deployment settings
+    setDeploymentSettings((prev) => ({
+      ...prev,
+      netlifyEnabled: storedSettings.netlifyEnabled || false,
+      vercelEnabled: storedSettings.vercelEnabled || false,
+    }));
   }, [storedSettings]);
 
   const handleApiSettingChange = (provider: string, field: 'apiKey' | 'baseUrl', value: string) => {
@@ -323,9 +340,11 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
       baseUrls: baseUrlsToSave,
       activeProviders,
       debugMode: debugSettings.enabled,
+      netlifyEnabled: deploymentSettings.netlifyEnabled,
+      vercelEnabled: deploymentSettings.vercelEnabled,
     });
 
-    console.log('Saving settings:', { apiSettings, activeProviders, debugSettings });
+    console.log('Saving settings:', { apiSettings, activeProviders, debugSettings, deploymentSettings });
     onClose();
   };
 
@@ -498,7 +517,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
                     <div>
-                      <h3 className="text-lg font-medium">Debug Mode</h3>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Debug Mode</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">Enable detailed debugging information</p>
                     </div>
                     <button
@@ -520,6 +539,32 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       {debugSettings.enabled ? 'Enabled' : 'Disabled'}
                     </button>
                   </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <div>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Netlify Deployments</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Netlify</p>
+                    </div>
+                    <button
+                      onClick={() => alert('Feature coming soon')}
+                      className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
+                    >
+                      Coming Soon
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <div>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Vercel Deployments</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Vercel</p>
+                    </div>
+                    <button
+                      onClick={() => alert('Feature coming soon')}
+                      className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text"
+                    >
+                      Coming Soon
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -529,7 +574,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium">Export All Chats</h3>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Export All Chats</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">
                         Download all your chats as a single JSON file
                       </p>
@@ -544,7 +589,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   <div className="border-t border-bolt-elements-borderColor my-4"></div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium">Delete All Chat History</h3>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Delete All Chat History</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">
                         This will permanently delete all your chat history
                       </p>
@@ -558,7 +603,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium">Delete Old Chat History</h3>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Delete Old Chat History</h3>
                       <p className="text-sm text-bolt-elements-textSecondary">
                         This will delete all chat history except today's chats
                       </p>
@@ -578,29 +623,29 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Debug Information</h2>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <h3 className="text-lg font-medium mb-3">System Information</h3>
+                    <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">System Information</h3>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Node.js Version:</span>
-                        <span>{process.version}</span>
+                        <span className="text-bolt-elements-textPrimary">{process.version}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Environment:</span>
-                        <span>{process.env.NODE_ENV || 'development'}</span>
+                        <span className="text-bolt-elements-textPrimary">{process.env.NODE_ENV || 'development'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Runtime:</span>
-                        <span>{process.env.DOCKER_CONTAINER ? 'Docker' : 'Local'}</span>
+                        <span className="text-bolt-elements-textPrimary">{process.env.DOCKER_CONTAINER ? 'Docker' : 'Local'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Platform:</span>
-                        <span>{window.navigator.platform}</span>
+                        <span className="text-bolt-elements-textPrimary">{window.navigator.platform}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <h3 className="text-lg font-medium mb-3">Active API Providers</h3>
+                    <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Active API Providers</h3>
                     <div className="space-y-2 text-sm">
                       {Object.entries(activeProviders)
                         .filter(([_, isActive]) => isActive)
@@ -612,7 +657,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                             <div key={provider} className="space-y-1">
                               <div className="flex justify-between">
                                 <span className="text-bolt-elements-textSecondary">{provider}</span>
-                                <span>✓ Active</span>
+                                <span className="text-bolt-elements-textPrimary">✓ Active</span>
                               </div>
                               {showBaseUrl && settings.baseUrl && (
                                 <div className="text-xs text-bolt-elements-textTertiary pl-4">

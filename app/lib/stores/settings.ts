@@ -30,6 +30,8 @@ export interface ApiSettings {
   baseUrls: Record<string, string>;
   activeProviders: Record<string, boolean>;
   debugMode?: boolean;
+  netlifyEnabled?: boolean;
+  vercelEnabled?: boolean;
 }
 
 export interface Shortcut {
@@ -72,12 +74,16 @@ const loadApiSettings = () => {
     const savedBaseUrls = Cookies.get('baseUrls');
     const savedActiveProviders = Cookies.get('activeProviders');
     const savedDebugMode = Cookies.get('debugMode');
+    const savedNetlifyEnabled = Cookies.get('netlifyEnabled');
+    const savedVercelEnabled = Cookies.get('vercelEnabled');
 
     // Start with environment variables
     const apiKeys: Record<string, string> = {};
     const baseUrls: Record<string, string> = {};
     const activeProviders: Record<string, boolean> = {};
     let debugMode = false;
+    let netlifyEnabled = false;
+    let vercelEnabled = false;
 
     // Load environment variables first
     Object.entries(ENV_API_KEYS).forEach(([provider, key]) => {
@@ -122,6 +128,14 @@ const loadApiSettings = () => {
       debugMode = JSON.parse(savedDebugMode);
     }
 
+    if (savedNetlifyEnabled) {
+      netlifyEnabled = JSON.parse(savedNetlifyEnabled);
+    }
+
+    if (savedVercelEnabled) {
+      vercelEnabled = JSON.parse(savedVercelEnabled);
+    }
+
     // Ensure providers with env vars are always active
     Object.entries(ENV_API_KEYS).forEach(([provider, key]) => {
       if (key) {
@@ -140,9 +154,11 @@ const loadApiSettings = () => {
       baseUrls,
       activeProviders,
       debugMode,
+      netlifyEnabled,
+      vercelEnabled,
     });
 
-    console.log('Loaded settings:', { apiKeys, baseUrls, activeProviders, debugMode });
+    console.log('Loaded settings:', { apiKeys, baseUrls, activeProviders, debugMode, netlifyEnabled, vercelEnabled });
   } catch (error) {
     console.error('Error loading API settings:', error);
   }
@@ -157,6 +173,14 @@ export const saveApiSettings = (settings: ApiSettings) => {
 
     if (settings.debugMode !== undefined) {
       Cookies.set('debugMode', JSON.stringify(settings.debugMode), { expires: 30 });
+    }
+
+    if (settings.netlifyEnabled !== undefined) {
+      Cookies.set('netlifyEnabled', JSON.stringify(settings.netlifyEnabled), { expires: 30 });
+    }
+
+    if (settings.vercelEnabled !== undefined) {
+      Cookies.set('vercelEnabled', JSON.stringify(settings.vercelEnabled), { expires: 30 });
     }
 
     apiSettingsStore.set(settings);
