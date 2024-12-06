@@ -346,13 +346,13 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
         <DialogTitle>Settings</DialogTitle>
         <div className="flex-1 overflow-hidden flex h-[500px]">
           <div className="w-1/4 border-r border-bolt-elements-borderColor pr-4">
-            <ul className="space-y-2 pt-4">
+            <ul className="space-y-2 pt-4 pl-2">
               <li>
                 <button
                   className={`w-full text-left py-2 px-4 rounded ${
                     activeTab === 'api-settings'
                       ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                      : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                      : 'bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text'
                   }`}
                   onClick={() => setActiveTab('api-settings')}
                 >
@@ -364,7 +364,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   className={`w-full text-left py-2 px-4 rounded ${
                     activeTab === 'features'
                       ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                      : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                      : 'bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text'
                   }`}
                   onClick={() => setActiveTab('features')}
                 >
@@ -376,7 +376,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   className={`w-full text-left py-2 px-4 rounded ${
                     activeTab === 'chat-history'
                       ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                      : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                      : 'bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text'
                   }`}
                   onClick={() => setActiveTab('chat-history')}
                 >
@@ -389,7 +389,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     className={`w-full text-left py-2 px-4 rounded ${
                       activeTab === 'debug'
                         ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                        : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                        : 'bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text'
                     }`}
                     onClick={() => setActiveTab('debug')}
                   >
@@ -401,17 +401,17 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
           </div>
           <div className="flex-1 pl-4 overflow-y-auto">
             {activeTab === 'api-settings' && (
-              <div className="h-full overflow-y-auto pr-4">
-                <h2 className="text-xl font-semibold mb-4">API Settings</h2>
+              <div className="h-full overflow-y-auto pr-4 pt-4">
+                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">API Settings</h2>
                 <p className="text-sm text-bolt-elements-textSecondary mb-4">Manage your API keys and URLs</p>
                 {provider && setApiKey && <APIKeyManager provider={provider} apiKey={apiKey} setApiKey={setApiKey} />}
                 {Object.entries(apiSettings)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([providerName, settings]) => (
-                    <div key={providerName} className="mb-6 p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <div key={providerName} className="mb-6 p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-medium">{providerName}</h3>
+                          <h3 className="text-lg font-medium text-bolt-elements-textPrimary">{providerName}</h3>
                           {settings.getApiKeyLink && (
                             <IconButton
                               icon="i-ph-link"
@@ -446,7 +446,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                         <div className="space-y-4">
                           {!NO_API_KEY_PROVIDERS.includes(providerName) && (
                             <div>
-                              <label className="block text-sm font-medium mb-1">
+                              <label className="block text-sm font-medium mb-1 text-bolt-elements-textSecondary">
                                 API Key
                                 {isKeySetInEnv(providerName) && (
                                   <span className="ml-2 text-xs text-bolt-elements-textTertiary">
@@ -458,7 +458,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                                 type="password"
                                 value={settings.apiKey}
                                 onChange={(e) => handleApiSettingChange(providerName, 'apiKey', e.target.value)}
-                                className="w-full px-3 py-2 rounded border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary"
+                                className="w-full px-3 py-2 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-3 text-bolt-elements-textPrimary"
                                 placeholder={
                                   isKeySetInEnv(providerName) ? 'Using environment variable' : 'Enter API key'
                                 }
@@ -467,7 +467,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                           )}
                           {settings.baseUrl !== undefined && (
                             <div>
-                              <label className="block text-sm font-medium mb-1">
+                              <label className="block text-sm font-medium mb-1 text-bolt-elements-textSecondary">
                                 Base URL
                                 {isBaseUrlSetInEnv(providerName) && (
                                   <span className="ml-2 text-xs text-bolt-elements-textTertiary">
@@ -479,7 +479,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                                 type="text"
                                 value={settings.baseUrl}
                                 onChange={(e) => handleApiSettingChange(providerName, 'baseUrl', e.target.value)}
-                                className="w-full px-3 py-2 rounded border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary"
+                                className="w-full px-3 py-2 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-3 text-bolt-elements-textPrimary"
                                 placeholder={
                                   isBaseUrlSetInEnv(providerName) ? 'Using environment variable' : 'Enter base URL'
                                 }
@@ -493,8 +493,8 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               </div>
             )}
             {activeTab === 'features' && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Features</h2>
+              <div className="pt-4">
+                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Features</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
                     <div>
@@ -524,8 +524,8 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               </div>
             )}
             {activeTab === 'chat-history' && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Chat History</h2>
+              <div className="pt-4">
+                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Chat History</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -574,8 +574,8 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               </div>
             )}
             {activeTab === 'debug' && debugSettings.enabled && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Debug Information</h2>
+              <div className="pt-4">
+                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Debug Information</h2>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
                     <h3 className="text-lg font-medium mb-3">System Information</h3>
