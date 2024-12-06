@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import type { ProviderInfo } from '~/types/model';
+import { apiSettingsStore } from '~/lib/stores/settings';
+import { useStore } from '@nanostores/react';
 
 interface APIKeyManagerProps {
   provider: ProviderInfo;
@@ -14,6 +16,17 @@ interface APIKeyManagerProps {
 export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, setApiKey }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
+  const storedSettings = useStore(apiSettingsStore);
+
+  useEffect(() => {
+    // Update the API key if it exists in the store
+    const storedKey = storedSettings.apiKeys[provider.name];
+
+    if (storedKey) {
+      setApiKey(storedKey);
+      setTempKey(storedKey);
+    }
+  }, [storedSettings, provider.name, setApiKey]);
 
   const handleSave = () => {
     setApiKey(tempKey);
