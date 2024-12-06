@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { ThemeSwitch } from './ThemeSwitch';
-import { SettingsDialog } from './SettingsDialog';
-import { IconButton } from './IconButton';
+import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
+import { SettingsDialog } from '~/components/settings/SettingsDialog';
+import { IconButton } from '~/components/ui/IconButton';
 
-interface ThemeAndSettingsProps {
+interface FooterMenusProps {
   className?: string;
 }
 
-export function ThemeAndSettings({ className }: ThemeAndSettingsProps) {
+export function FooterMenus({ className }: FooterMenusProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
