@@ -344,6 +344,14 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
       vercelEnabled: deploymentSettings.vercelEnabled,
     });
 
+    // Emit a custom event to notify that settings have been updated
+    const event = new CustomEvent('settingsUpdated', {
+      detail: {
+        activeProviders,
+      },
+    });
+    window.dispatchEvent(event);
+
     console.log('Saving settings:', { apiSettings, activeProviders, debugSettings, deploymentSettings });
     onClose();
   };

@@ -99,6 +99,39 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         setModelList(modelList);
       });
 
+      // Add event listener for settings updates
+      const handleSettingsUpdate = (event: CustomEvent<{ activeProviders: { [key: string]: boolean } }>) => {
+        const updatedProviders = PROVIDER_LIST.filter(
+          (provider) => event.detail.activeProviders[provider.name]
+        );
+        
+        // If current provider is no longer active, switch to first available provider
+        if (provider && !event.detail.activeProviders[provider.name]) {
+          const newProvider = updatedProviders[0];
+          setProvider?.(newProvider);
+          
+          // Also update the model to the first available one for the new provider
+          const firstModel = modelList.find((m) => m.provider === newProvider.name);
+          if (firstModel) {
+            setModel?.(firstModel.name);
+          }
+        }
+        
+        // Force re-render of model selector by toggling collapsed state
+        setIsModelSettingsCollapsed(prev => {
+          setTimeout(() => setIsModelSettingsCollapsed(prev), 0);
+          return !prev;
+        });
+      };
+
+      window.addEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
+
+      return () => {
+        window.removeEventListener('settingsUpdated', handleSettingsUpdate as EventListener);
+      };
+    }, [provider, modelList]);
+
+    useEffect(() => {
       if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
