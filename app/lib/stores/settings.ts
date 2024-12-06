@@ -29,6 +29,7 @@ export interface ApiSettings {
   apiKeys: Record<string, string>;
   baseUrls: Record<string, string>;
   activeProviders: Record<string, boolean>;
+  debugMode?: boolean;
 }
 
 export interface Shortcut {
@@ -70,11 +71,13 @@ const loadApiSettings = () => {
     const savedApiKeys = Cookies.get('apiKeys');
     const savedBaseUrls = Cookies.get('baseUrls');
     const savedActiveProviders = Cookies.get('activeProviders');
+    const savedDebugMode = Cookies.get('debugMode');
 
     // Start with environment variables
     const apiKeys: Record<string, string> = {};
     const baseUrls: Record<string, string> = {};
     const activeProviders: Record<string, boolean> = {};
+    let debugMode = false;
 
     // Load environment variables first
     Object.entries(ENV_API_KEYS).forEach(([provider, key]) => {
@@ -115,6 +118,10 @@ const loadApiSettings = () => {
       Object.assign(activeProviders, cookieActiveProviders);
     }
 
+    if (savedDebugMode) {
+      debugMode = JSON.parse(savedDebugMode);
+    }
+
     // Ensure providers with env vars are always active
     Object.entries(ENV_API_KEYS).forEach(([provider, key]) => {
       if (key) {
@@ -132,9 +139,10 @@ const loadApiSettings = () => {
       apiKeys,
       baseUrls,
       activeProviders,
+      debugMode,
     });
 
-    console.log('Loaded settings:', { apiKeys, baseUrls, activeProviders });
+    console.log('Loaded settings:', { apiKeys, baseUrls, activeProviders, debugMode });
   } catch (error) {
     console.error('Error loading API settings:', error);
   }
@@ -146,6 +154,11 @@ export const saveApiSettings = (settings: ApiSettings) => {
     Cookies.set('apiKeys', JSON.stringify(settings.apiKeys), { expires: 30 });
     Cookies.set('baseUrls', JSON.stringify(settings.baseUrls), { expires: 30 });
     Cookies.set('activeProviders', JSON.stringify(settings.activeProviders), { expires: 30 });
+
+    if (settings.debugMode !== undefined) {
+      Cookies.set('debugMode', JSON.stringify(settings.debugMode), { expires: 30 });
+    }
+
     apiSettingsStore.set(settings);
   } catch (error) {
     console.error('Error saving API settings to cookies:', error);
