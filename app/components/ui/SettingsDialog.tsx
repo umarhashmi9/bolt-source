@@ -651,7 +651,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
               Visit our GitHub
             </a>
             <a
-              href="https://github.com/coleam00/bolt.new-any-llm#readme"
+              href="https://coleam00.github.io/bolt.new-any-llm/"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text rounded-md"
