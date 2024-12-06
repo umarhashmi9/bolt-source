@@ -631,7 +631,16 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
             )}
             {activeTab === 'debug' && debugSettings.enabled && (
               <div className="pt-4 pr-6">
-                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Debug Information</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-bolt-elements-textPrimary">Debug Information</h2>
+                  <button
+                    onClick={handleCopyDebugInfo}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text"
+                  >
+                    <span className="i-ph-copy text-lg" />
+                    Copy to Clipboard
+                  </button>
+                </div>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
                     <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">System Information</h3>
@@ -679,16 +688,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                           );
                         })}
                     </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleCopyDebugInfo}
-                      className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text"
-                    >
-                      <span className="i-ph-copy text-lg" />
-                      Copy to Clipboard
-                    </button>
                   </div>
                 </div>
               </div>
