@@ -356,7 +356,7 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
         <DialogTitle>Settings</DialogTitle>
         <div className="flex-1 overflow-hidden flex h-[500px]">
           <div className="w-1/4 border-r border-bolt-elements-borderColor pr-4">
-            <ul className="space-y-2">
+            <ul className="space-y-2 pt-4">
               <li>
                 <button
                   className={`w-full text-left py-2 px-4 rounded ${
@@ -392,6 +392,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     onClick={() => setActiveTab('debug')}
                   >
                     Debug
+                  </button>
+                </li>
+              )}
               {showChatHistory && (
                 <li>
                   <button
@@ -521,6 +524,30 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       {showChatHistory ? 'Enabled' : 'Disabled'}
                     </button>
                   </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
+                    <div>
+                      <h3 className="text-lg font-medium">Debug Mode</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">Enable detailed debugging information</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newEnabled = !debugSettings.enabled;
+                        setDebugSettings((prev) => ({ ...prev, enabled: newEnabled }));
+
+                        // If we're disabling debug mode while on the debug tab, switch to features tab
+                        if (!newEnabled && activeTab === ('debug' as ActiveTab)) {
+                          setActiveTab('features');
+                        }
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        debugSettings.enabled
+                          ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                          : 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text'
+                      }`}
+                    >
+                      {debugSettings.enabled ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -569,31 +596,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
                     >
                       Delete Old Chats
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <div>
-                      <h3 className="text-lg font-medium">Debug Mode</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">Enable detailed debugging information</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newEnabled = !debugSettings.enabled;
-                        setDebugSettings((prev) => ({ ...prev, enabled: newEnabled }));
-
-                        // If we're disabling debug mode while on the debug tab, switch to features tab
-                        if (!newEnabled && activeTab === ('debug' as ActiveTab)) {
-                          setActiveTab('features');
-                        }
-                      }}
-                      className={`px-3 py-1 rounded text-sm ${
-                        debugSettings.enabled
-                          ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
-                          : 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text'
-                      }`}
-                    >
-                      {debugSettings.enabled ? 'Enabled' : 'Disabled'}
                     </button>
                   </div>
                 </div>
