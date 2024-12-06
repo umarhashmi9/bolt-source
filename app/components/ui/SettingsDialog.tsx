@@ -157,8 +157,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
   // Add function to format debug info
   const getFormattedDebugInfo = () => {
     const systemInfo = {
-      'Node.js Version': process.version,
-      Environment: process.env.NODE_ENV || 'development',
       Runtime: process.env.DOCKER_CONTAINER ? 'Docker' : 'Local',
       Platform: window.navigator.platform,
     };
@@ -181,8 +179,15 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
         };
       });
 
+    const featuresEnabled = {
+      'Debug Mode': debugSettings.enabled,
+      'Netlify Deployment': deploymentSettings.netlifyEnabled,
+      'Vercel Deployment': deploymentSettings.vercelEnabled,
+    };
+
     const debugInfo = {
       'System Information': systemInfo,
+      'Features Enabled': featuresEnabled,
       'Active API Providers': activeProvidersInfo,
     };
 
@@ -637,33 +642,18 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 </div>
               </div>
             )}
-            {activeTab === 'debug' && debugSettings.enabled && (
-              <div className="pt-4 pr-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-bolt-elements-textPrimary">Debug Information</h2>
-                  <button
-                    onClick={handleCopyDebugInfo}
-                    className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text"
-                  >
-                    <span className="i-ph-copy text-lg" />
-                    Copy to Clipboard
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
+            {activeTab === 'debug' && (
+              <div className="h-full overflow-y-auto pr-6 pt-4">
+                <h2 className="text-xl font-semibold mb-4 text-bolt-elements-textPrimary">Debug Information</h2>
+                <div className="space-y-6">
+                  <div className="p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
                     <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">System Information</h3>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-bolt-elements-textSecondary">Node.js Version:</span>
-                        <span className="text-bolt-elements-textPrimary">{process.version}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-bolt-elements-textSecondary">Environment:</span>
-                        <span className="text-bolt-elements-textPrimary">{process.env.NODE_ENV || 'development'}</span>
-                      </div>
-                      <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Runtime:</span>
-                        <span className="text-bolt-elements-textPrimary">{process.env.DOCKER_CONTAINER ? 'Docker' : 'Local'}</span>
+                        <span className="text-bolt-elements-textPrimary">
+                          {process.env.DOCKER_CONTAINER ? 'Docker' : 'Local'}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Platform:</span>
@@ -672,9 +662,27 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     </div>
                   </div>
 
-                  <div className="p-4 border rounded-lg border-bolt-elements-borderColor">
-                    <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Active API Providers</h3>
+                  <div className="p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
+                    <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Features Enabled</h3>
                     <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Debug Mode:</span>
+                        <span className="text-bolt-elements-textPrimary">{debugSettings.enabled ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Netlify Deployment:</span>
+                        <span className="text-bolt-elements-textPrimary">{deploymentSettings.netlifyEnabled ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-bolt-elements-textSecondary">Vercel Deployment:</span>
+                        <span className="text-bolt-elements-textPrimary">{deploymentSettings.vercelEnabled ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
+                    <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Active API Providers</h3>
+                    <div className="space-y-4">
                       {Object.entries(activeProviders)
                         .filter(([_, isActive]) => isActive)
                         .map(([provider]) => {
@@ -682,20 +690,26 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                           const showBaseUrl = ['OpenAILike', 'Ollama', 'LMStudio'].includes(provider);
 
                           return (
-                            <div key={provider} className="space-y-1">
+                            <div key={provider} className="text-sm">
                               <div className="flex justify-between">
                                 <span className="text-bolt-elements-textSecondary">{provider}</span>
-                                <span className="text-bolt-elements-textPrimary">✓ Active</span>
+                                {showBaseUrl && settings.baseUrl && (
+                                  <span className="text-bolt-elements-textPrimary">{settings.baseUrl}</span>
+                                )}
                               </div>
-                              {showBaseUrl && settings.baseUrl && (
-                                <div className="text-xs text-bolt-elements-textTertiary pl-4">
-                                  Base URL: {settings.baseUrl}
-                                </div>
-                              )}
                             </div>
                           );
                         })}
                     </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleCopyDebugInfo}
+                      className="px-4 py-2 rounded bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text hover:bg-bolt-elements-button-primary-backgroundHover"
+                    >
+                      Copy Debug Info
+                    </button>
                   </div>
                 </div>
               </div>
