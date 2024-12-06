@@ -6,7 +6,6 @@ import { IconButton } from './IconButton';
 import { apiSettingsStore, saveApiSettings } from '~/lib/stores/settings';
 import { useStore } from '@nanostores/react';
 import { useChatHistory } from '~/lib/persistence';
-import Cookies from 'js-cookie';
 
 interface ApiSettings {
   [key: string]: {
@@ -135,7 +134,7 @@ interface SettingsDialogProps {
 }
 
 // Add type for active tab
-type ActiveTab = 'api-settings' | 'features' | 'debug';
+type ActiveTab = 'api-settings' | 'features' | 'debug' | 'chat-history';
 
 export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiKey }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('api-settings');
@@ -146,10 +145,6 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
   const [deploymentSettings, setDeploymentSettings] = useState<DeploymentSettings>({
     netlifyEnabled: false,
     vercelEnabled: false,
-  });
-  const [showChatHistory, setShowChatHistory] = useState(() => {
-    const savedValue = Cookies.get('showChatHistory');
-    return savedValue === undefined ? true : savedValue === 'true';
   });
   const storedSettings = useStore(apiSettingsStore);
   const { deleteAllChatHistory, deleteAllChatHistoryExceptToday, exportAllChats } = useChatHistory();
@@ -440,7 +435,10 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 {Object.entries(apiSettings)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([providerName, settings]) => (
-                    <div key={providerName} className="mb-6 p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor">
+                    <div
+                      key={providerName}
+                      className="mb-6 p-4 rounded-lg bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor"
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-medium text-bolt-elements-textPrimary">{providerName}</h3>
@@ -559,7 +557,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       <div className="flex items-center justify-between">
                         <div>
                           <h4 className="text-base font-medium text-bolt-elements-textPrimary">Netlify Deployments</h4>
-                          <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Netlify</p>
+                          <p className="text-sm text-bolt-elements-textSecondary">
+                            Enable one-click deployments to Netlify
+                          </p>
                         </div>
                         <button
                           onClick={() => alert('Feature coming soon')}
@@ -572,7 +572,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       <div className="flex items-center justify-between">
                         <div>
                           <h4 className="text-base font-medium text-bolt-elements-textPrimary">Vercel Deployments</h4>
-                          <p className="text-sm text-bolt-elements-textSecondary">Enable one-click deployments to Vercel</p>
+                          <p className="text-sm text-bolt-elements-textSecondary">
+                            Enable one-click deployments to Vercel
+                          </p>
                         </div>
                         <button
                           onClick={() => alert('Feature coming soon')}
@@ -610,7 +612,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Delete All Chat History</h4>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">
+                            Delete All Chat History
+                          </h4>
                           <p className="text-sm text-bolt-elements-textSecondary">
                             This will permanently delete all your chat history
                           </p>
@@ -625,7 +629,9 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">Delete Old Chat History</h4>
+                          <h4 className="text-base font-medium text-bolt-elements-textPrimary">
+                            Delete Old Chat History
+                          </h4>
                           <p className="text-sm text-bolt-elements-textSecondary">
                             This will delete all chat history except today's chats
                           </p>
@@ -671,11 +677,15 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Netlify Deployment:</span>
-                        <span className="text-bolt-elements-textPrimary">{deploymentSettings.netlifyEnabled ? 'Yes' : 'No'}</span>
+                        <span className="text-bolt-elements-textPrimary">
+                          {deploymentSettings.netlifyEnabled ? 'Yes' : 'No'}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-bolt-elements-textSecondary">Vercel Deployment:</span>
-                        <span className="text-bolt-elements-textPrimary">{deploymentSettings.vercelEnabled ? 'Yes' : 'No'}</span>
+                        <span className="text-bolt-elements-textPrimary">
+                          {deploymentSettings.vercelEnabled ? 'Yes' : 'No'}
+                        </span>
                       </div>
                     </div>
                   </div>
