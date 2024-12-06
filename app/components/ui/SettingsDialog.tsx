@@ -5,6 +5,8 @@ import type { ProviderInfo } from '~/types/model';
 import { IconButton } from './IconButton';
 import { apiSettingsStore, saveApiSettings } from '~/lib/stores/settings';
 import { useStore } from '@nanostores/react';
+import { useChatHistory } from '~/lib/persistence';
+import Cookies from 'js-cookie';
 
 interface ApiSettings {
   [key: string]: {
@@ -125,7 +127,12 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
   const [activeTab, setActiveTab] = useState('api-settings');
   const [apiSettings, setApiSettings] = useState<ApiSettings>(initialApiSettings);
   const [activeProviders, setActiveProviders] = useState<{ [key: string]: boolean }>({});
+  const [showChatHistory, setShowChatHistory] = useState(() => {
+    const savedValue = Cookies.get('showChatHistory');
+    return savedValue === undefined ? true : savedValue === 'true';
+  });
   const storedSettings = useStore(apiSettingsStore);
+  const { deleteAllChatHistory, deleteAllChatHistoryExceptToday, exportAllChats } = useChatHistory();
 
   useEffect(() => {
     // Load settings from the store and environment
@@ -273,6 +280,16 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
     return !!ENV_BASE_URLS[providerName as keyof typeof ENV_BASE_URLS];
   };
 
+  const handleToggleChatHistory = () => {
+    const newValue = !showChatHistory;
+    setShowChatHistory(newValue);
+    Cookies.set('showChatHistory', String(newValue));
+
+    if (activeTab === 'chat-history') {
+      setActiveTab('features');
+    }
+  };
+
   return (
     <DialogRoot open={isOpen}>
       <Dialog onClose={onClose} className="!max-w-[900px]">
@@ -304,6 +321,20 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                   Features
                 </button>
               </li>
+              {showChatHistory && (
+                <li>
+                  <button
+                    className={`w-full text-left py-2 px-4 rounded ${
+                      activeTab === 'chat-history'
+                        ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                        : 'hover:bg-bolt-elements-button-secondary-backgroundHover'
+                    }`}
+                    onClick={() => setActiveTab('chat-history')}
+                  >
+                    Chat History
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
           <div className="flex-1 pl-4 overflow-y-auto">
@@ -405,18 +436,69 @@ export function SettingsDialog({ isOpen, onClose, provider, apiKey = '', setApiK
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium">Enable Chat Tab</h3>
-                      <p className="text-sm text-bolt-elements-textSecondary">Additional chat management features</p>
+                      <h3 className="text-lg font-medium">Enable Chat History Tab</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">Show chat history management features</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-bolt-elements-textSecondary italic">Coming Soon</span>
-                      <button
-                        className="px-3 py-1 rounded text-sm bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text opacity-50 cursor-not-allowed"
-                        disabled
-                      >
-                        Disabled
-                      </button>
+                    <button
+                      onClick={handleToggleChatHistory}
+                      className={`px-3 py-1 rounded text-sm ${
+                        showChatHistory
+                          ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                          : 'bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text'
+                      }`}
+                    >
+                      {showChatHistory ? 'Enabled' : 'Disabled'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'chat-history' && showChatHistory && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Chat History</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">Export All Chats</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">
+                        Download all your chats as a single JSON file
+                      </p>
                     </div>
+                    <button
+                      onClick={exportAllChats}
+                      className="px-4 py-2 bg-bolt-elements-button-primary-background hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text rounded-md"
+                    >
+                      Export All
+                    </button>
+                  </div>
+                  <div className="border-t border-bolt-elements-borderColor my-4"></div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">Delete All Chat History</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">
+                        This will permanently delete all your chat history
+                      </p>
+                    </div>
+                    <button
+                      onClick={deleteAllChatHistory}
+                      className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
+                    >
+                      Delete All
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium">Delete Old Chat History</h3>
+                      <p className="text-sm text-bolt-elements-textSecondary">
+                        This will delete all chat history except today's chats
+                      </p>
+                    </div>
+                    <button
+                      onClick={deleteAllChatHistoryExceptToday}
+                      className="px-4 py-2 bg-bolt-elements-button-danger-background hover:bg-bolt-elements-button-danger-backgroundHover text-bolt-elements-button-danger-text rounded-md"
+                    >
+                      Delete Old Chats
+                    </button>
                   </div>
                 </div>
               </div>
