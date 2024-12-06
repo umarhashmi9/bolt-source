@@ -98,7 +98,25 @@ export const ChatImpl = memo(
     });
     const [provider, setProvider] = useState(() => {
       const savedProvider = Cookies.get('selectedProvider');
-      return PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER;
+      const savedActiveProviders = Cookies.get('activeProviders');
+      const activeProviders = savedActiveProviders ? JSON.parse(savedActiveProviders) : {};
+
+      // Filter PROVIDER_LIST to only include active providers and Ollama (which is always available)
+      const availableProviders = PROVIDER_LIST.filter(
+        (p) =>
+          p.name === 'Ollama' || // Ollama is always available
+          activeProviders[p.name], // Provider is active in settings
+      );
+
+      // If no providers are available, default to Ollama
+      if (availableProviders.length === 0) {
+        return PROVIDER_LIST.find((p) => p.name === 'Ollama') || DEFAULT_PROVIDER;
+      }
+
+      // Try to find the saved provider in available providers
+      const savedProviderObj = availableProviders.find((p) => p.name === savedProvider);
+
+      return savedProviderObj || availableProviders[0] || DEFAULT_PROVIDER;
     });
 
     const { showChat } = useStore(chatStore);
@@ -106,6 +124,15 @@ export const ChatImpl = memo(
     const [animationScope, animate] = useAnimate();
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+
+    // Load API keys from cookies when component mounts
+    useEffect(() => {
+      const savedApiKeys = Cookies.get('apiKeys');
+
+      if (savedApiKeys) {
+        setApiKeys(JSON.parse(savedApiKeys));
+      }
+    }, []);
 
     const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
       api: '/api/chat',
@@ -283,14 +310,6 @@ export const ChatImpl = memo(
 
     const [messageRef, scrollRef] = useSnapScroll();
 
-    useEffect(() => {
-      const storedApiKeys = Cookies.get('apiKeys');
-
-      if (storedApiKeys) {
-        setApiKeys(JSON.parse(storedApiKeys));
-      }
-    }, []);
-
     const handleModelChange = (newModel: string) => {
       setModel(newModel);
       Cookies.set('selectedModel', newModel, { expires: 30 });
@@ -352,6 +371,11 @@ export const ChatImpl = memo(
         setUploadedFiles={setUploadedFiles}
         imageDataList={imageDataList}
         setImageDataList={setImageDataList}
+        availableProviders={PROVIDER_LIST.filter(
+          (p) =>
+            p.name === 'Ollama' || // Ollama is always available
+            JSON.parse(Cookies.get('activeProviders') || '{}')[p.name], // Provider is active in settings
+        )}
       />
     );
   },

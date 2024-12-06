@@ -12,8 +12,6 @@ import { classNames } from '~/utils/classNames';
 import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
 import { Messages } from './Messages.client';
 import { SendButton } from './SendButton.client';
-import { APIKeyManager } from './APIKeyManager';
-import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
 import styles from './BaseChat.module.scss';
@@ -54,6 +52,7 @@ interface BaseChatProps {
   setUploadedFiles?: (files: File[]) => void;
   imageDataList?: string[];
   setImageDataList?: (dataList: string[]) => void;
+  availableProviders?: ProviderInfo[];
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -83,11 +82,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       imageDataList = [],
       setImageDataList,
       messages,
+      availableProviders = PROVIDER_LIST,
     },
     ref,
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-    const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
     const [modelList, setModelList] = useState(MODEL_LIST);
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
@@ -96,24 +95,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     console.log(transcript);
     useEffect(() => {
-      // Load API keys from cookies on component mount
-      try {
-        const storedApiKeys = Cookies.get('apiKeys');
-
-        if (storedApiKeys) {
-          const parsedKeys = JSON.parse(storedApiKeys);
-
-          if (typeof parsedKeys === 'object' && parsedKeys !== null) {
-            setApiKeys(parsedKeys);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading API keys from cookies:', error);
-
-        // Clear invalid cookie data
-        Cookies.remove('apiKeys');
-      }
-
       initializeModelList().then((modelList) => {
         setModelList(modelList);
       });
@@ -180,23 +161,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             handleInputChange(syntheticEvent);
           }
         }
-      }
-    };
-
-    const updateApiKey = (provider: string, key: string) => {
-      try {
-        const updatedApiKeys = { ...apiKeys, [provider]: key };
-        setApiKeys(updatedApiKeys);
-
-        // Save updated API keys to cookies with 30 day expiry and secure settings
-        Cookies.set('apiKeys', JSON.stringify(updatedApiKeys), {
-          expires: 30, // 30 days
-          secure: true, // Only send over HTTPS
-          sameSite: 'strict', // Protect against CSRF
-          path: '/', // Accessible across the site
-        });
-      } catch (error) {
-        console.error('Error saving API keys to cookies:', error);
       }
     };
 
@@ -349,23 +313,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   </div>
 
                   <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
-                    <ModelSelector
-                      key={provider?.name + ':' + modelList.length}
-                      model={model}
-                      setModel={setModel}
-                      modelList={modelList}
-                      provider={provider}
-                      setProvider={setProvider}
-                      providerList={PROVIDER_LIST}
-                      apiKeys={apiKeys}
-                    />
-                    {provider && (
-                      <APIKeyManager
+                    <div className="flex gap-2">
+                      <ModelSelector
+                        key={provider?.name + ':' + modelList.length}
+                        model={model}
+                        setModel={setModel}
+                        modelList={modelList}
                         provider={provider}
-                        apiKey={apiKeys[provider.name] || ''}
-                        setApiKey={(key) => updateApiKey(provider.name, key)}
+                        setProvider={setProvider}
+                        providerList={availableProviders}
                       />
-                    )}
+                    </div>
                   </div>
                 </div>
                 <FilePreview
