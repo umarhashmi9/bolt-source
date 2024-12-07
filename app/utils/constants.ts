@@ -146,6 +146,12 @@ const PROVIDER_LIST: ProviderInfo[] = [
     name: 'HuggingFace',
     staticModels: [
       {
+        name: 'Qwen/QwQ-32B-Preview',
+        label: 'QwQ-32B-Preview (HuggingFace)',
+        provider: 'HuggingFace',
+        maxTokenAllowed: 8000,
+      },      
+      {
         name: 'Qwen/Qwen2.5-Coder-32B-Instruct',
         label: 'Qwen2.5-Coder-32B-Instruct (HuggingFace)',
         provider: 'HuggingFace',
