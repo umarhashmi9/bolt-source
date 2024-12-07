@@ -17,7 +17,7 @@ import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
 import styles from './BaseChat.module.scss';
-import type { ProviderInfo } from '~/utils/types';
+import type { ModelInfo, ProviderInfo } from '~/utils/types';
 import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportChatButton';
 import { ImportButtons } from '~/components/chat/chatExportAndImport/ImportButtons';
 import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
@@ -40,8 +40,8 @@ interface BaseChatProps {
   enhancingPrompt?: boolean;
   promptEnhanced?: boolean;
   input?: string;
-  model?: string;
-  setModel?: (model: string) => void;
+  model?: ModelInfo | null;
+  setModel?: (model: ModelInfo) => void;
   provider?: ProviderInfo;
   setProvider?: (provider: ProviderInfo) => void;
   handleStop?: () => void;

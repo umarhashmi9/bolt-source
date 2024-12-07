@@ -127,13 +127,14 @@ export function getXAIModel(apiKey: OptionalApiKey, model: string) {
   return openai(model);
 }
 
-export function getModel(provider: string, model: string, env: Env, apiKeys?: Record<string, string>) {
+export function getModel(provider: string, model: string, env: Env, apiKey?: string) {
   /*
    * let apiKey; // Declare first
    * let baseURL;
    */
 
-  const apiKey = getAPIKey(env, provider, apiKeys); // Then assign
+  apiKey ||= getAPIKey(env, provider); // Then assign
+
   const baseURL = getBaseURL(env, provider);
 
   switch (provider) {

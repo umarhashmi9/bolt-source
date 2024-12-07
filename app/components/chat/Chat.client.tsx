@@ -12,12 +12,12 @@ import { useMessageParser, usePromptEnhancer, useShortcuts, useSnapScroll } from
 import { description, useChatHistory } from '~/lib/persistence';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROMPT_COOKIE_KEY, PROVIDER_LIST } from '~/utils/constants';
+import { DEFAULT_PROVIDER, PROMPT_COOKIE_KEY, PROVIDER_LIST } from '~/utils/constants';
 import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
 import { BaseChat } from './BaseChat';
 import Cookies from 'js-cookie';
-import type { ProviderInfo } from '~/utils/types';
+import type { ModelConfig, ModelInfo, ProviderInfo } from '~/utils/types';
 import { debounce } from '~/utils/debounce';
 
 const toastAnimation = cssTransition({
@@ -94,7 +94,18 @@ export const ChatImpl = memo(
 
     const [model, setModel] = useState(() => {
       const savedModel = Cookies.get('selectedModel');
-      return savedModel || DEFAULT_MODEL;
+
+      if (!savedModel) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(savedModel) as ModelInfo;
+      } catch (error) {
+        console.error(error);
+      }
+
+      return null;
     });
     const [provider, setProvider] = useState(() => {
       const savedProvider = Cookies.get('selectedProvider');
@@ -110,8 +121,10 @@ export const ChatImpl = memo(
     const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
       api: '/api/chat',
       body: {
-        apiKeys,
-      },
+        apiKey: apiKeys[provider.name],
+        model,
+        provider: provider.name,
+      } as ModelConfig,
       onError: (error) => {
         logger.error('Request failed\n\n', error);
         toast.error(
@@ -219,7 +232,7 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+              text: _input,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
@@ -239,7 +252,7 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+              text: _input,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
@@ -283,9 +296,9 @@ export const ChatImpl = memo(
 
     const [messageRef, scrollRef] = useSnapScroll();
 
-    const handleModelChange = (newModel: string) => {
+    const handleModelChange = (newModel: ModelInfo) => {
       setModel(newModel);
-      Cookies.set('selectedModel', newModel, { expires: 30 });
+      Cookies.set('selectedModel', JSON.stringify(newModel), { expires: 30 });
     };
 
     const handleProviderChange = (newProvider: ProviderInfo) => {
@@ -339,8 +352,8 @@ export const ChatImpl = memo(
               setInput(input);
               scrollTextArea();
             },
-            model,
             provider,
+            model,
             apiKeys,
           );
         }}

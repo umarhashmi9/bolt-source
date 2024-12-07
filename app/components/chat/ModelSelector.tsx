@@ -3,8 +3,8 @@ import type { ProviderInfo } from '~/types/model';
 import type { ModelInfo } from '~/utils/types';
 
 interface ModelSelectorProps {
-  model?: string;
-  setModel?: (model: string) => void;
+  model?: ModelInfo | null;
+  setModel?: (model: ModelInfo) => void;
   provider?: ProviderInfo;
   setProvider?: (provider: ProviderInfo) => void;
   providerList: ProviderInfo[];
@@ -33,11 +33,11 @@ export const ModelSelector = ({
     setModelList([...(provider?.staticModels || []), ...dynamicModelList]);
   }, [provider, dynamicModelList, apiKeys]);
   useEffect(() => {
-    if (!modelList.some((x) => x.name == model)) {
+    if (!model || !modelList.some((x) => x.name == model.name)) {
       const firstModel = modelList[0];
 
       if (firstModel && setModel) {
-        setModel(firstModel.name);
+        setModel(firstModel);
       }
     }
   }, [modelList]);
@@ -56,7 +56,7 @@ export const ModelSelector = ({
           const firstModel = modelList[0];
 
           if (firstModel && setModel) {
-            setModel(firstModel.name);
+            setModel(firstModel);
           }
         }}
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
@@ -69,8 +69,8 @@ export const ModelSelector = ({
       </select>
       <select
         key={provider?.name}
-        value={model}
-        onChange={(e) => setModel?.(e.target.value)}
+        value={model?.name}
+        onChange={(e) => setModel?.(modelList.find((x) => x.name == e.target.value)!)}
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all lg:max-w-[70%]"
       >
         {modelList.map((modelOption) => (

@@ -2,7 +2,7 @@ import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { StreamingTextResponse, parseStreamPart } from 'ai';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
-import type { ProviderInfo } from '~/types/model';
+import type { ModelConfig } from '~/utils/types';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -12,24 +12,13 @@ export async function action(args: ActionFunctionArgs) {
 }
 
 async function enhancerAction({ context, request }: ActionFunctionArgs) {
-  const { message, model, provider, apiKeys } = await request.json<{
-    message: string;
-    model: string;
-    provider: ProviderInfo;
-    apiKeys?: Record<string, string>;
-  }>();
+  const { message, model, provider, apiKey } = await request.json<
+    {
+      message: string;
+    } & ModelConfig
+  >();
 
-  const { name: providerName } = provider;
-
-  // validate 'model' and 'provider' fields
-  if (!model || typeof model !== 'string') {
-    throw new Response('Invalid or missing model', {
-      status: 400,
-      statusText: 'Bad Request',
-    });
-  }
-
-  if (!providerName || typeof providerName !== 'string') {
+  if (!provider || typeof provider !== 'string') {
     throw new Response('Invalid or missing provider', {
       status: 400,
       statusText: 'Bad Request',
@@ -41,9 +30,7 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       [
         {
           role: 'user',
-          content:
-            `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
-            stripIndents`
+          content: stripIndents`
             You are a professional prompt engineer specializing in crafting precise, effective prompts.
           Your task is to enhance prompts by making them more specific, actionable, and effective.
 
@@ -74,8 +61,11 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
         },
       ],
       context.cloudflare.env,
-      undefined,
-      apiKeys,
+      {
+        apiKey,
+        model,
+        provider,
+      },
     );
 
     const transformStream = new TransformStream({

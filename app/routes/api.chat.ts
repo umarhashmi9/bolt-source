@@ -6,40 +6,26 @@ import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/.server/llm/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
+import type { ModelConfig } from '~/utils/types';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
 }
 
-function parseCookies(cookieHeader: string) {
-  const cookies: any = {};
-
-  // Split the cookie string by semicolons and spaces
-  const items = cookieHeader.split(';').map((cookie) => cookie.trim());
-
-  items.forEach((item) => {
-    const [name, ...rest] = item.split('=');
-
-    if (name && rest) {
-      // Decode the name and value, and join value parts in case it contains '='
-      const decodedName = decodeURIComponent(name.trim());
-      const decodedValue = decodeURIComponent(rest.join('=').trim());
-      cookies[decodedName] = decodedValue;
-    }
-  });
-
-  return cookies;
-}
-
 async function chatAction({ context, request }: ActionFunctionArgs) {
-  const { messages } = await request.json<{
-    messages: Messages;
-    model: string;
-  }>();
-  const cookieHeader = request.headers.get('Cookie');
+  const { messages, provider, model, apiKey } = await request.json<
+    {
+      messages: Messages;
+    } & ModelConfig
+  >();
 
-  // Parse the cookie's value (returns an object or null if no cookie exists)
-  const apiKeys = JSON.parse(parseCookies(cookieHeader || '').apiKeys || '{}');
+  // validate 'provider' field only
+  if (!provider || typeof provider !== 'string') {
+    throw new Response('Invalid or missing provider', {
+      status: 400,
+      statusText: 'Bad Request',
+    });
+  }
 
   const stream = new SwitchableStream();
 
@@ -62,13 +48,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         messages.push({ role: 'assistant', content });
         messages.push({ role: 'user', content: CONTINUE_PROMPT });
 
-        const result = await streamText(messages, context.cloudflare.env, options, apiKeys);
+        const result = await streamText(messages, context.cloudflare.env, { provider, model, apiKey }, options);
 
         return stream.switchSource(result.toAIStream());
       },
     };
 
-    const result = await streamText(messages, context.cloudflare.env, options, apiKeys);
+    const result = await streamText(messages, context.cloudflare.env, { provider, model, apiKey }, options);
 
     stream.switchSource(result.toAIStream());
 
