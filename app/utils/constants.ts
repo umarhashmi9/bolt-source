@@ -393,11 +393,9 @@ async function getOpenRouterModels(): Promise<ModelInfo[]> {
 }
 
 async function getLMStudioModels(): Promise<ModelInfo[]> {
-  /*
-   * if (typeof window === 'undefined') {
-   * return [];
-   * }
-   */
+   if (typeof window === 'undefined') {
+   return [];
+   }
 
   try {
     const baseUrl = import.meta.env.LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
