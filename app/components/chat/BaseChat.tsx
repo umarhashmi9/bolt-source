@@ -46,6 +46,7 @@ interface BaseChatProps {
   setProvider?: (provider: ProviderInfo) => void;
   handleStop?: () => void;
   sendMessage?: (event: React.UIEvent, messageInput?: string) => void;
+  handleApiKeysChange?: (apikeys: Record<string, string>) => void;
   handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   enhancePrompt?: () => void;
   importChat?: (description: string, messages: Message[]) => Promise<void>;
@@ -71,6 +72,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setProvider,
       input = '',
       enhancingPrompt,
+      handleApiKeysChange,
       handleInputChange,
       promptEnhanced,
       enhancePrompt,
@@ -94,7 +96,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
 
-    console.log(transcript);
+    console.debug(transcript);
     useEffect(() => {
       // Load API keys from cookies on component mount
       try {
@@ -182,6 +184,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         }
       }
     };
+    useEffect(() => {
+      handleApiKeysChange?.(apiKeys);
+    }, [handleApiKeysChange, apiKeys]);
 
     const updateApiKey = (provider: string, key: string) => {
       try {
@@ -353,7 +358,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       key={provider?.name + ':' + modelList.length}
                       model={model}
                       setModel={setModel}
-                      modelList={modelList}
                       provider={provider}
                       setProvider={setProvider}
                       providerList={PROVIDER_LIST}

@@ -9,6 +9,8 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useStore } from '@nanostores/react';
+import { chatStore } from '~/lib/stores/chat';
 
 const menuVariants = {
   closed: {
@@ -37,8 +39,9 @@ export const Menu = () => {
   const { duplicateCurrentChat, exportChat } = useChatHistory();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
-  const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+
+  const chat = useStore(chatStore);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
     items: list,
@@ -79,31 +82,10 @@ export const Menu = () => {
   };
 
   useEffect(() => {
-    if (open) {
+    if (chat.showSidebar) {
       loadEntries();
     }
-  }, [open]);
-
-  useEffect(() => {
-    const enterThreshold = 40;
-    const exitThreshold = 40;
-
-    function onMouseMove(event: MouseEvent) {
-      if (event.pageX < enterThreshold) {
-        setOpen(true);
-      }
-
-      if (menuRef.current && event.clientX > menuRef.current.getBoundingClientRect().right + exitThreshold) {
-        setOpen(false);
-      }
-    }
-
-    window.addEventListener('mousemove', onMouseMove);
-
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-    };
-  }, []);
+  }, [chat.showSidebar]);
 
   const handleDeleteClick = (event: React.UIEvent, item: ChatHistoryItem) => {
     event.preventDefault();
@@ -119,7 +101,7 @@ export const Menu = () => {
     <motion.div
       ref={menuRef}
       initial="closed"
-      animate={open ? 'open' : 'closed'}
+      animate={chat.showSidebar ? 'open' : 'closed'}
       variants={menuVariants}
       className="flex selection-accent flex-col side-menu fixed top-0 w-[350px] h-full bg-bolt-elements-background-depth-2 border-r rounded-r-3xl border-bolt-elements-borderColor z-sidebar shadow-xl shadow-bolt-elements-sidebar-dropdownShadow text-sm"
     >

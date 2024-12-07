@@ -1,3 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck – TODO: Provider proper types
+
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/.server/llm/prompts';
@@ -33,7 +36,6 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     messages: Messages;
     model: string;
   }>();
-
   const cookieHeader = request.headers.get('Cookie');
 
   // Parse the cookie's value (returns an object or null if no cookie exists)
