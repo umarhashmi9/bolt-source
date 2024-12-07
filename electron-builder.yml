@@ -1,0 +1,68 @@
+#
+# https://www.electron.build/configuration/configuration
+#
+copyright: Copyright © 2024 ${author}
+asar: false
+
+appId: com.bolt.local
+productName: Bolt Local
+directories:
+  buildResources: build
+  # buildResources: resource
+  output: dist
+files:
+  - "!**/*"
+  - package.json
+  - build
+  - node_modules
+asarUnpack:
+  - resources/**
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+  target:
+    - zip
+    #- dmg
+    #- mas # not supported. Mac Application Store
+  publish: &publish
+    - provider: github
+      private: false
+      owner: Derek-X-Wang
+      repo: bolt.local.github.io
+dmg:
+  title: bolt.local
+  artifactName: ${name}-${version}.${ext}
+win:
+  executableName: bolt.local
+  target:
+    - zip
+    - nsis
+  publish: *publish
+linux:
+  maintainer: electronjs.org
+  category: Utility
+  target:
+    - zip
+    - deb
+    #- rpm # not supported
+    #- snap # not supported
+    - AppImage
+  publish: *publish
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
