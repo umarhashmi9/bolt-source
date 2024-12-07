@@ -7,6 +7,9 @@ import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
 export function Header() {
   const chat = useStore(chatStore);
+  const toggle = () => {
+    chatStore.setKey('showSidebar', !chat.showSidebar);
+  };
 
   return (
     <header
@@ -19,7 +22,7 @@ export function Header() {
       )}
     >
       <div className="flex items-center gap-2 z-logo text-bolt-elements-textPrimary cursor-pointer">
-        <div className="i-ph:sidebar-simple-duotone text-xl" />
+        <div className="i-ph:sidebar-simple-duotone text-xl" onClick={toggle} />
         <a href="/" className="text-2xl font-semibold text-accent flex items-center">
           <span className="i-bolt:logo-text?mask w-[46px] inline-block" />
         </a>

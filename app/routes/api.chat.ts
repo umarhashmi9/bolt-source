@@ -36,7 +36,6 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     messages: Messages;
     model: string;
   }>();
-
   const cookieHeader = request.headers.get('Cookie');
 
   // Parse the cookie's value (returns an object or null if no cookie exists)

@@ -5,7 +5,7 @@ import { convertToCoreMessages, streamText as _streamText } from 'ai';
 import { getModel } from '~/lib/.server/llm/model';
 import { MAX_TOKENS } from './constants';
 import { getSystemPrompt } from './prompts';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODEL_LIST, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
 
 interface ToolResult<Name extends string, Args, Result> {
   toolCallId: string;
@@ -23,7 +23,7 @@ interface Message {
 
 export type Messages = Message[];
 
-export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
+export type StreamingOptions = Parameters<typeof _streamText>[0];
 
 function extractPropertiesFromMessage(message: Message): { model: string; provider: string; content: string } {
   const textContent = Array.isArray(message.content)
@@ -62,28 +62,30 @@ function extractPropertiesFromMessage(message: Message): { model: string; provid
 }
 
 export function streamText(messages: Messages, env: Env, options?: StreamingOptions, apiKeys?: Record<string, string>) {
-  let currentModel = DEFAULT_MODEL;
+  const currentModel = options.model;
   let currentProvider = DEFAULT_PROVIDER;
 
   const processedMessages = messages.map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
 
-      if (MODEL_LIST.find((m) => m.name === model)) {
-        currentModel = model;
-      }
+      /*
+       * if (MODEL_LIST.find((m) => m.name === model)) {
+       *   currentModel = model;
+       * }
+       */
 
       currentProvider = provider;
 
-      return { ...message, content };
+      return { ...message, model: options.model ?? model, content };
     }
 
     return message;
   });
 
-  const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
+  // const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
 
-  const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
+  const dynamicMaxTokens = env.MAX_TOKENS ?? process.env.MAX_TOKENS ?? MAX_TOKENS; //modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
   return _streamText({
     ...options,

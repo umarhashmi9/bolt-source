@@ -111,6 +111,7 @@ export const ChatImpl = memo(
       api: '/api/chat',
       body: {
         apiKeys,
+        model,
       },
       onError: (error) => {
         logger.error('Request failed\n\n', error);
@@ -283,14 +284,6 @@ export const ChatImpl = memo(
 
     const [messageRef, scrollRef] = useSnapScroll();
 
-    useEffect(() => {
-      const storedApiKeys = Cookies.get('apiKeys');
-
-      if (storedApiKeys) {
-        setApiKeys(JSON.parse(storedApiKeys));
-      }
-    }, []);
-
     const handleModelChange = (newModel: string) => {
       setModel(newModel);
       Cookies.set('selectedModel', newModel, { expires: 30 });
@@ -299,6 +292,9 @@ export const ChatImpl = memo(
     const handleProviderChange = (newProvider: ProviderInfo) => {
       setProvider(newProvider);
       Cookies.set('selectedProvider', newProvider.name, { expires: 30 });
+    };
+    const handleApiKeysChange = (apiKeys: Record<string, string>) => {
+      setApiKeys(apiKeys);
     };
 
     return (
@@ -313,6 +309,7 @@ export const ChatImpl = memo(
         promptEnhanced={promptEnhanced}
         sendMessage={sendMessage}
         model={model}
+        handleApiKeysChange={handleApiKeysChange}
         setModel={handleModelChange}
         provider={provider}
         setProvider={handleProviderChange}

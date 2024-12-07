@@ -332,7 +332,7 @@ async function getOllamaModels(): Promise<ModelInfo[]> {
   }
 }
 
-async function getOpenAILikeModels(): Promise<ModelInfo[]> {
+async function getOpenAILikeModels(apikey?: string): Promise<ModelInfo[]> {
   try {
     const baseUrl = import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
 
@@ -340,7 +340,7 @@ async function getOpenAILikeModels(): Promise<ModelInfo[]> {
       return [];
     }
 
-    const apiKey = import.meta.env.OPENAI_LIKE_API_KEY ?? '';
+    const apiKey = apikey ?? import.meta.env.OPENAI_LIKE_API_KEY ?? '';
     const response = await fetch(`${baseUrl}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -415,13 +415,15 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
 
 async function initializeModelList(): Promise<ModelInfo[]> {
   MODEL_LIST = [
-    ...(
-      await Promise.all(
-        PROVIDER_LIST.filter(
-          (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
-        ).map((p) => p.getDynamicModels()),
-      )
-    ).flat(),
+    /*
+     * ...(
+     *   await Promise.all(
+     *     PROVIDER_LIST.filter(
+     *       (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
+     *     ).map((p) => p.getDynamicModels()),
+     *   )
+     * ).flat(),
+     */
     ...staticModels,
   ];
   return MODEL_LIST;
