@@ -18,8 +18,15 @@ Join the growing oTToDev community here: [oTToDev community](https://thinktank.o
 
 ## Features
 
-- AI-powered full-stack web development directly in your browser.
-- Supports multiple LLMs with an extensible architecture.
+- **AI-powered full-stack web development** directly in your browser.
+- **Support for multiple LLMs** with an extensible architecture to integrate additional models.
+- **Streaming code output** for real-time feedback and debugging.
+- **Prompt caching** for improved performance and faster responses.
+- **Attach images to prompts** for better contextual understanding.
+- **Integrated terminal** to view output of LLM-run commands.
+- **Revert code to earlier versions** for easier debugging and version control.
+- **Download projects as ZIP** for easy portability.
+- **Integration-ready Docker support** for hassle-free setup.
 
 ---
 
