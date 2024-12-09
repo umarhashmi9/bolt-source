@@ -2,7 +2,7 @@
 
 ---
 
-## OttoDev Overview
+## Bolt.new Fork by Cole Medin - oTToDev Overview
 
 This fork of Bolt.new (oTToDev) enhances flexibility by allowing you to select your preferred Large Language Model (LLM) for each prompt. Currently, supported models include OpenAI, Anthropic, Ollama, OpenRouter, Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, and Groq. Additionally, it's easily extensible to support any model compatible with the Vercel AI SDK.
 
