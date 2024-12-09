@@ -49,7 +49,7 @@ cd bolt.new-any-llm/
 ```
 
 #### Running the Application
-**Note:** API keys are required for some providers (free and paid options are available). Experimental local providers are also supported.
+**Note:** API keys are required for providers (free and paid options are available). Experimental local providers are also supported.
 
 ##### Option 1: Run Without Docker
 1. Install `pnpm`:
