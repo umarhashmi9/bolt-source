@@ -32,7 +32,7 @@ Join the growing oTToDev community here: [oTToDev community](https://thinktank.o
 
 ## Getting Started
 
-You can quickly explore oTToDev using the [hosted version](https://ottodev.cyopsys.com/). Here is a link to the thread where [aliasfox] (https://thinktank.ottomator.ai/t/no-setup-required-batteries-not-included/1852) posted this hosted version. 
+You can quickly explore oTToDev using the [hosted version](https://ottodev.cyopsys.com/). Here is a link to the thread where [aliasfox](https://thinktank.ottomator.ai/t/no-setup-required-batteries-not-included/1852) posted this hosted version. 
 
 To contribute or self-host, follow the instructions below.
 
