@@ -3,7 +3,7 @@ import { getModel } from '~/lib/.server/llm/model';
 import { MAX_TOKENS } from './constants';
 import { getSystemPrompt } from '~/lib/common/prompts';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, getModelList, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
-import type { filterRequestObject } from '~/lib/hooks/useFilters';
+import type { FilterRequestObject } from '~/lib/hooks/useFilters';
 
 interface ToolResult<Name extends string, Args, Result> {
   toolCallId: string;
@@ -64,14 +64,14 @@ export async function streamText(
   env: Env,
   options?: StreamingOptions,
   apiKeys?: Record<string, string>,
-  filterReqObject?:filterRequestObject
+  filterReqObject?: FilterRequestObject,
 ) {
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   console.log(filterReqObject);
-  
+
   const MODEL_LIST = await getModelList(apiKeys || {});
-  const processedMessages = (filterReqObject?.messages as Message[]||messages).map((message) => {
+  const processedMessages = ((filterReqObject?.messages as Message[]) || messages).map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
 
@@ -90,11 +90,11 @@ export async function streamText(
   const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
-  console.log(JSON.stringify(filterReqObject,null,2));
-  
+  console.log(JSON.stringify(filterReqObject, null, 2));
+
   return _streamText({
     model: getModel(currentProvider, currentModel, env, apiKeys) as any,
-    system: filterReqObject?.systemPrompt||getSystemPrompt(),
+    system: filterReqObject?.systemPrompt || getSystemPrompt(),
     maxTokens: dynamicMaxTokens,
     messages: convertToCoreMessages(processedMessages as any),
     ...options,

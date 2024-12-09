@@ -1,9 +1,7 @@
-import React, { memo, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { EditorSelection } from '@codemirror/state';
 import CodeMirrorEditor from '~/components/editor/codemirror/CodeMirrorEditor';
 import { Panel, PanelGroup } from 'react-resizable-panels';
-import { motion, type HTMLMotionProps } from 'framer-motion';
-import { cubicEasingFn } from '~/utils/easings';
 
 interface FilterEditorProps {
   initialCode: string;
@@ -11,14 +9,16 @@ interface FilterEditorProps {
 }
 
 const FilterEditor = ({ initialCode, onChange }: FilterEditorProps) => {
-  const [editorScroll, setEditorScroll] = useState<{top:number,left:number}>({top:0,left:0});
-  const onContentChange = useCallback((change:{selection:EditorSelection,content:string}) => {
-    onChange(change.content);
-  },[onChange]);
-  
+  const [editorScroll, setEditorScroll] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const onContentChange = useCallback(
+    (change: { selection: EditorSelection; content: string }) => {
+      onChange(change.content);
+    },
+    [onChange],
+  );
 
   return (
-   <div className='absolute top-0 bottom-0 left-0 right-0'> 
+    <div className="absolute top-0 bottom-0 left-0 right-0">
       <PanelGroup direction="vertical">
         <Panel className="flex flex-col" defaultSize={100} minSize={20}>
           <CodeMirrorEditor
@@ -30,13 +30,13 @@ const FilterEditor = ({ initialCode, onChange }: FilterEditorProps) => {
             }}
             theme="dark"
             onChange={onContentChange}
-            onScroll={(scroll)=>{
-                setEditorScroll(scroll);
+            onScroll={(scroll) => {
+              setEditorScroll(scroll);
             }}
           />
         </Panel>
       </PanelGroup>
-   </div>
-  ); 
+    </div>
+  );
 };
 export default FilterEditor;

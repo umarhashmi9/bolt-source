@@ -19,7 +19,7 @@ import { BaseChat } from './BaseChat';
 import Cookies from 'js-cookie';
 import type { ProviderInfo } from '~/utils/types';
 import { debounce } from '~/utils/debounce';
-import { useFilters, type filterRequestObject } from '~/lib/hooks/useFilters';
+import { useFilters, type FilterRequestObject } from '~/lib/hooks/useFilters';
 import { getSystemPrompt } from '~/lib/common/prompts';
 
 const toastAnimation = cssTransition({
@@ -208,6 +208,7 @@ export const ChatImpl = memo(
       chatStore.setKey('aborted', false);
 
       runAnimation();
+
       let userMessage: Message = {
         id: generateId(),
         role: 'user',
@@ -240,12 +241,13 @@ export const ChatImpl = memo(
         };
       }
 
-      let filterReqObject: filterRequestObject = {
+      const filterReqObject: FilterRequestObject = {
         files: workbenchStore.files.get(),
         messages: [...messages, userMessage],
         systemPrompt: getSystemPrompt(),
       };
-      let resp = await executeFilterChain(filterReqObject);
+      const resp = await executeFilterChain(filterReqObject);
+
       if (resp && resp.response) {
         setMessages([
           ...messages,

@@ -27,7 +27,7 @@ const URL_CONFIGURABLE_PROVIDERS = ['Ollama', 'LMStudio', 'OpenAILike'];
 
 export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   const navigate = useNavigate();
-  const {db}=useIndexedDB();
+  const { db } = useIndexedDB();
   const [activeTab, setActiveTab] = useState<TabType>('chat-history');
   const [isDebugEnabled, setIsDebugEnabled] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,11 +199,14 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   return (
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay asChild onClick={(e)=>{
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-        }}>
+        <RadixDialog.Overlay
+          asChild
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+        >
           <motion.div
             className="bg-black/50 fixed inset-0 z-max backdrop-blur-sm"
             initial="closed"
@@ -401,9 +404,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                       </div>
                     </div>
                   )}
-                  {activeTab === 'middlewares' && (
-                    <FilterTab/>
-                  )}
+                  {activeTab === 'middlewares' && <FilterTab />}
                   {activeTab === 'debug' && isDebugEnabled && (
                     <div className="p-4">
                       <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Debug Tab</h3>

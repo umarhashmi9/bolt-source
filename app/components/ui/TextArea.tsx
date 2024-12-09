@@ -1,7 +1,7 @@
 import React from 'react';
 import { classNames } from '~/utils/classNames';
 
-export default function TextArea({className,...props}:React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export default function TextArea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       className={classNames(

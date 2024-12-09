@@ -3,7 +3,7 @@ import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
-import type { filterRequestObject } from '~/lib/hooks/useFilters';
+import type { FilterRequestObject } from '~/lib/hooks/useFilters';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -33,7 +33,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   const { messages, filterReqObject } = await request.json<{
     messages: Messages;
     model: string;
-    filterReqObject:filterRequestObject
+    filterReqObject: FilterRequestObject;
   }>();
 
   const cookieHeader = request.headers.get('Cookie');

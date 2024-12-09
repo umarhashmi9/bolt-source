@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type DBRecord,type DBOperations, type IndexedDBContextType } from './types';
-import { openDatabase } from '../persistence';
+import { type IndexedDBContextType } from './types';
+import { openDatabase } from '~/lib/persistence';
 
-const IndexedDBContext = createContext<IndexedDBContextType | null>(null);
+const IndexedDbContext = createContext<IndexedDBContextType | null>(null);
 
 interface IndexedDBProviderProps {
   children: React.ReactNode;
@@ -10,23 +10,25 @@ interface IndexedDBProviderProps {
   version?: number;
 }
 
-export function IndexedDBProvider({
+export const IndexedDbProvider = ({
   children,
   databaseName = 'YourDatabaseName',
   version = 1,
-}: IndexedDBProviderProps) {
+}: IndexedDBProviderProps) => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    openDatabase(databaseName,version).then((newDb)=>{
-        if(!newDb){
-          setError('Error opening IndexedDB');
-          return;
-        }
-        setDb(newDb);
-        console.log(newDb);
+    openDatabase(databaseName, version).then((newDb) => {
+      if (!newDb) {
+        setError('Error opening IndexedDB');
+        return;
+      }
+
+      setDb(newDb);
+      console.log(newDb);
     });
+
     return () => {
       if (db) {
         db.close();
@@ -34,14 +36,16 @@ export function IndexedDBProvider({
     };
   }, [databaseName, version]);
 
-  return <IndexedDBContext.Provider value={{ db, error }}>{children}</IndexedDBContext.Provider>;
-}
+  return <IndexedDbContext.Provider value={{ db, error }}>{children}</IndexedDbContext.Provider>;
+};
 
 // Custom hook to use the IndexedDB context
 export function useIndexedDB(): IndexedDBContextType {
-  const context = useContext(IndexedDBContext);
+  const context = useContext(IndexedDbContext);
+
   if (context === null) {
     throw new Error('useIndexedDB must be used within an IndexedDBProvider');
   }
+
   return context;
 }

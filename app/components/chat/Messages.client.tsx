@@ -20,7 +20,7 @@ interface MessagesProps {
 export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: MessagesProps, ref) => {
   const { id, isStreaming = false, messages = [] } = props;
   const location = useLocation();
-  const {db}= useIndexedDB();
+  const { db } = useIndexedDB();
 
   const handleRewind = (messageId: string) => {
     const searchParams = new URLSearchParams(location.search);

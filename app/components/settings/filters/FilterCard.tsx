@@ -1,4 +1,4 @@
-import type { FilterItem } from "./types";
+import type { FilterItem } from './types';
 
 interface FilterCardProps {
   item: FilterItem;

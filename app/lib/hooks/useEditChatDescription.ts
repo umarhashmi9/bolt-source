@@ -7,7 +7,7 @@ import {
   updateChatDescription,
   getMessages,
 } from '~/lib/persistence';
-import { useIndexedDB } from '../providers/IndexedDBProvider.client';
+import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
 
 interface EditChatDescriptionOptions {
   initialDescription?: string;
@@ -45,7 +45,7 @@ export function useEditChatDescription({
   syncWithGlobalStore,
 }: EditChatDescriptionOptions): EditChatDescriptionHook {
   const chatIdFromStore = useStore(chatIdStore);
-  const {db}=useIndexedDB()
+  const { db } = useIndexedDB();
   const [editing, setEditing] = useState(false);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
 

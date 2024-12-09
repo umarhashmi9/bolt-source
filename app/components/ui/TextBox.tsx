@@ -1,5 +1,5 @@
-import React from 'react'
-import { classNames } from '~/utils/classNames'
+import React from 'react';
+import { classNames } from '~/utils/classNames';
 
 export default function TextBox({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (

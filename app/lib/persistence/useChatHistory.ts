@@ -4,15 +4,8 @@ import { atom } from 'nanostores';
 import type { Message } from 'ai';
 import { toast } from 'react-toastify';
 import { workbenchStore } from '~/lib/stores/workbench';
-import {
-  getMessages,
-  getNextId,
-  getUrlId,
-  setMessages,
-  duplicateChat,
-  createChatFromMessages,
-} from './db';
-import { useIndexedDB } from '../providers/IndexedDBProvider.client';
+import { getMessages, getNextId, getUrlId, setMessages, duplicateChat, createChatFromMessages } from './db';
+import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
 
 export interface ChatHistoryItem {
   id: string;
@@ -29,7 +22,7 @@ export const description = atom<string | undefined>(undefined);
 
 export function useChatHistory() {
   const navigate = useNavigate();
-  const {db,error:dbError} = useIndexedDB()
+  const { db, error: dbError } = useIndexedDB();
   const { id: mixedId } = useLoaderData<{ id?: string }>();
   const [searchParams] = useSearchParams();
 
@@ -38,7 +31,10 @@ export function useChatHistory() {
   const [urlId, setUrlId] = useState<string | undefined>();
 
   useEffect(() => {
-    if(!db && !dbError) return; // db not initialized yet
+    if (!db && !dbError) {
+      return;
+    } // db not initialized yet
+
     if (!db) {
       setReady(true);
 

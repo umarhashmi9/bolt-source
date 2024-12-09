@@ -39,7 +39,7 @@ type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
 export const Menu = () => {
   const { duplicateCurrentChat, exportChat } = useChatHistory();
-  const {db}= useIndexedDB();
+  const { db } = useIndexedDB();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -211,9 +211,7 @@ export const Menu = () => {
           <ThemeSwitch />
         </div>
       </div>
-      <ClientOnly>
-        {()=><SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />}
-      </ClientOnly>
+      <ClientOnly>{() => <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />}</ClientOnly>
     </motion.div>
   );
 };

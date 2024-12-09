@@ -10,7 +10,6 @@ import TextBox from '~/components/ui/TextBox';
 import FilterEditor from './FilterEditor';
 import { toast } from 'react-toastify';
 
-
 interface FilterListProps {
   listItems: FilterItem[];
   onFilterOrderChange?: (items: FilterItem[]) => void;
@@ -96,7 +95,9 @@ const FilterList = ({
   const handleDragEnter = (e: React.DragEvent, targetItem: FilterItem) => {
     e.preventDefault();
 
-    if (!draggedItem || targetItem.id === draggedItem.id) return;
+    if (!draggedItem || targetItem.id === draggedItem.id) {
+      return;
+    }
 
     setItems((prevItems) => {
       const newItems = [...prevItems];
@@ -132,23 +133,22 @@ const FilterList = ({
         toast.error('Please enter a name for the filter');
         return;
       }
+
       if (editContent.length === 0) {
         toast.error('Please enter a content for the filter');
         return;
       }
+
       const newId = Math.max(...items.map((item) => item.id), 0) + 1;
-      let newItem: FilterItem = { id: newId, name: editName, content: editContent, order: items.length };
+      const newItem: FilterItem = { id: newId, name: editName, content: editContent, order: items.length };
       onFilterCreate?.(newItem);
       setItems((prevItems) => [...prevItems, newItem]);
     } else if (editingItem) {
-        let updatedItem={...editingItem, name: editName, content: editContent};
-        setItems((prevItems) =>
-          prevItems.map((item) =>
-            item.id === editingItem.id ? updatedItem : item,
-          ),
-        );
-        onFilterUpdate?.(updatedItem);
+      const updatedItem = { ...editingItem, name: editName, content: editContent };
+      setItems((prevItems) => prevItems.map((item) => (item.id === editingItem.id ? updatedItem : item)));
+      onFilterUpdate?.(updatedItem);
     }
+
     handleCloseDialog();
   };
 
@@ -175,9 +175,9 @@ const FilterList = ({
     },
     [setEditContent],
   );
-  useEffect(()=>{
-    setItems(listItems)
-  },[listItems])
+  useEffect(() => {
+    setItems(listItems);
+  }, [listItems]);
 
   return (
     <div className="w-full max-w-md mx-auto p-4">

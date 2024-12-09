@@ -3,7 +3,7 @@ import { ClientOnly } from 'remix-utils/client-only';
 import { BaseChat } from '~/components/chat/BaseChat';
 import { Chat } from '~/components/chat/Chat.client';
 import { Header } from '~/components/header/Header';
-import { IndexedDBProvider } from '~/lib/providers/IndexedDBProvider.client';
+import { IndexedDbProvider } from '~/lib/providers/IndexedDBProvider.client';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'Bolt' }, { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' }];
@@ -24,10 +24,10 @@ export default function Index() {
       >
         {() => (
           <>
-            <IndexedDBProvider databaseName="boltHistory" version={2}>
+            <IndexedDbProvider databaseName="boltHistory" version={2}>
               <Header />
               <Chat />
-            </IndexedDBProvider>
+            </IndexedDbProvider>
           </>
         )}
       </ClientOnly>
