@@ -11,6 +11,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createMistral } from '@ai-sdk/mistral';
 import { createCohere } from '@ai-sdk/cohere';
 import type { LanguageModelV1 } from 'ai';
+import Cookies from 'js-cookie';
 
 export const DEFAULT_NUM_CTX = process.env.DEFAULT_NUM_CTX ? parseInt(process.env.DEFAULT_NUM_CTX, 10) : 32768;
 
@@ -83,8 +84,11 @@ export function getHuggingFaceModel(apiKey: OptionalApiKey, model: string) {
 }
 
 export function getOllamaModel(baseURL: string, model: string) {
+  const savedCtx = Cookies.get('ollamaDefaultCtx');
+  const numCtx = savedCtx ? Number(savedCtx) : DEFAULT_NUM_CTX;
+
   const ollamaInstance = ollama(model, {
-    numCtx: DEFAULT_NUM_CTX,
+    numCtx,
   }) as LanguageModelV1 & { config: any };
 
   ollamaInstance.config.baseURL = `${baseURL}/api`;

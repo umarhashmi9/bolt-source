@@ -1,6 +1,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { classNames } from '~/utils/classNames';
 import { DialogTitle, dialogVariants, dialogBackdropVariants } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
@@ -192,6 +192,20 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
 
   const versionHash = commit.commit; // Get the version hash from commit.json
 
+  // Add a new state for default context
+  const [defaultCtx, setDefaultCtx] = useState<number>(() => {
+    const savedCtx = Cookies.get('ollamaDefaultCtx');
+    return savedCtx ? Number(savedCtx) : 8192; // Default to 8192 if not set
+  });
+
+  const handleDefaultCtxChange = (value: string) => {
+    const numValue = Number(value);
+    if (!isNaN(numValue) && numValue >= 2048 && numValue <= 131072) {
+      setDefaultCtx(numValue);
+      Cookies.set('ollamaDefaultCtx', numValue.toString());
+    }
+  };
+
   return (
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
@@ -322,15 +336,31 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                           </div>
                           {/* Base URL input for configurable providers */}
                           {URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && provider.isEnabled && (
-                            <div className="mt-2">
-                              <label className="block text-sm text-bolt-elements-textSecondary mb-1">Base URL:</label>
-                              <input
-                                type="text"
-                                value={baseUrls[provider.name]}
-                                onChange={(e) => handleBaseUrlChange(provider.name, e.target.value)}
-                                placeholder={`Enter ${provider.name} base URL`}
-                                className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
-                              />
+                            <div className="mt-2 flex items-center">
+                              <div className="flex-1 mr-2">
+                                <label className="block text-sm text-bolt-elements-textSecondary mb-1">Base URL:</label>
+                                <input
+                                  type="text"
+                                  value={baseUrls[provider.name]}
+                                  onChange={(e) => handleBaseUrlChange(provider.name, e.target.value)}
+                                  placeholder={`Enter ${provider.name} base URL`}
+                                  className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
+                                />
+                              </div>
+                              {provider.name === 'Ollama' && (
+                                <div className="flex-none w-32">
+                                  <label className="block text-sm text-bolt-elements-textSecondary mb-1">Default Context:</label>
+                                  <input
+                                    type="number"
+                                    value={defaultCtx}
+                                    onChange={(e) => handleDefaultCtxChange(e.target.value)}
+                                    min="2048"
+                                    max="131072"
+                                    step="1"
+                                    className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
+                                  />
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
