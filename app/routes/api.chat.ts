@@ -38,6 +38,10 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
   // Parse the cookie's value (returns an object or null if no cookie exists)
   const apiKeys = JSON.parse(parseCookies(cookieHeader || '').apiKeys || '{}');
+  const ollamaDefaultCtx = JSON.parse(parseCookies(cookieHeader || '').ollamaDefaultCtx || '{}');
+
+  // Log the parsed ollamaDefaultCtx
+  console.log('Parsed ollamaDefaultCtx:', ollamaDefaultCtx);
 
   const stream = new SwitchableStream();
 
@@ -60,13 +64,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         messages.push({ role: 'assistant', content });
         messages.push({ role: 'user', content: CONTINUE_PROMPT });
 
-        const result = await streamText(messages, context.cloudflare.env, options, apiKeys);
+        const result = await streamText(messages, context.cloudflare.env, options, apiKeys, ollamaDefaultCtx);
 
         return stream.switchSource(result.toAIStream());
       },
     };
 
-    const result = await streamText(messages, context.cloudflare.env, options, apiKeys);
+    const result = await streamText(messages, context.cloudflare.env, options, apiKeys, ollamaDefaultCtx);
 
     stream.switchSource(result.toAIStream());
 

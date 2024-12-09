@@ -2,7 +2,7 @@
  * @ts-nocheck
  * Preventing TS checks with files presented in the video for a better presentation.
  */
-import { getAPIKey, getBaseURL } from '~/lib/.server/llm/api-key';
+import { getAPIKey, getBaseURL, getCTX } from '~/lib/.server/llm/api-key';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -11,7 +11,6 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createMistral } from '@ai-sdk/mistral';
 import { createCohere } from '@ai-sdk/cohere';
 import type { LanguageModelV1 } from 'ai';
-import Cookies from 'js-cookie';
 
 export const DEFAULT_NUM_CTX = process.env.DEFAULT_NUM_CTX ? parseInt(process.env.DEFAULT_NUM_CTX, 10) : 32768;
 
@@ -83,9 +82,10 @@ export function getHuggingFaceModel(apiKey: OptionalApiKey, model: string) {
   return openai(model);
 }
 
-export function getOllamaModel(baseURL: string, model: string) {
-  const savedCtx = Cookies.get('ollamaDefaultCtx');
-  const numCtx = savedCtx ? Number(savedCtx) : DEFAULT_NUM_CTX;
+export function getOllamaModel(baseURL: string, model: string, ollamaDefaultCtx?: Record<string, any>) {
+  console.log('ollamaDefaultCtx:', ollamaDefaultCtx);
+
+  const numCtx = ollamaDefaultCtx?.[model] || DEFAULT_NUM_CTX;
 
   const ollamaInstance = ollama(model, {
     numCtx,
@@ -131,13 +131,8 @@ export function getXAIModel(apiKey: OptionalApiKey, model: string) {
   return openai(model);
 }
 
-export function getModel(provider: string, model: string, env: Env, apiKeys?: Record<string, string>) {
-  /*
-   * let apiKey; // Declare first
-   * let baseURL;
-   */
-
-  const apiKey = getAPIKey(env, provider, apiKeys); // Then assign
+export function getModel(provider: string, model: string, env: Env, apiKeys?: Record<string, string>, ollamaDefaultCtx?: Record<string, any>) {
+  const apiKey = getAPIKey(env, provider, apiKeys);
   const baseURL = getBaseURL(env, provider);
 
   switch (provider) {
@@ -168,6 +163,6 @@ export function getModel(provider: string, model: string, env: Env, apiKeys?: Re
     case 'Cohere':
       return getCohereAIModel(apiKey, model);
     default:
-      return getOllamaModel(baseURL, model);
+      return getOllamaModel(baseURL, model, ollamaDefaultCtx);
   }
 }

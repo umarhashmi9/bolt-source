@@ -69,3 +69,12 @@ export function getBaseURL(cloudflareEnv: Env, provider: string) {
       return '';
   }
 }
+
+export function getCTX(cloudflareEnv: Env, provider: string) {
+  switch (provider) {
+    case 'Ollama':
+      return env.DEFAULT_NUM_CTX || cloudflareEnv.DEFAULT_NUM_CTX || 8111;
+    default:
+      return 32768;
+  }
+}
