@@ -89,6 +89,7 @@ export async function streamText(
   const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
+
   return _streamText({
     model: getModel(currentProvider, currentModel, env, apiKeys) as any,
     system: filterReqObject?.systemPrompt || getSystemPrompt(),

@@ -405,11 +405,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                       </div>
                     </div>
                   )}
-                  <ClientOnly>
-                    {()=><>
-                    {activeTab === 'middlewares' && <FilterTab />}
-                    </>}
-                    </ClientOnly>
+                  <ClientOnly>{() => <>{activeTab === 'middlewares' && <FilterTab />}</>}</ClientOnly>
                   {activeTab === 'debug' && isDebugEnabled && (
                     <div className="p-4">
                       <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Debug Tab</h3>
