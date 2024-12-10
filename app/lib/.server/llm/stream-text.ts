@@ -68,7 +68,6 @@ export async function streamText(
 ) {
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  console.log(filterReqObject);
 
   const MODEL_LIST = await getModelList(apiKeys || {});
   const processedMessages = ((filterReqObject?.messages as Message[]) || messages).map((message) => {
@@ -90,8 +89,6 @@ export async function streamText(
   const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
-  console.log(JSON.stringify(filterReqObject, null, 2));
-
   return _streamText({
     model: getModel(currentProvider, currentModel, env, apiKeys) as any,
     system: filterReqObject?.systemPrompt || getSystemPrompt(),

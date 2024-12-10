@@ -13,7 +13,8 @@ import Cookies from 'js-cookie';
 import styles from './Settings.module.scss';
 import { Switch } from '~/components/ui/Switch';
 import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
-import FilterTab from './filters/FilterTab';
+import FilterTab from './filters/FilterTab.client';
+import { ClientOnly } from 'remix-utils/client-only';
 
 interface SettingsProps {
   open: boolean;
@@ -404,7 +405,11 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                       </div>
                     </div>
                   )}
-                  {activeTab === 'middlewares' && <FilterTab />}
+                  <ClientOnly>
+                    {()=><>
+                    {activeTab === 'middlewares' && <FilterTab />}
+                    </>}
+                    </ClientOnly>
                   {activeTab === 'debug' && isDebugEnabled && (
                     <div className="p-4">
                       <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Debug Tab</h3>
