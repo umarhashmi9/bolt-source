@@ -245,6 +245,7 @@ export const ChatImpl = memo(
         files: workbenchStore.files.get(),
         messages: [...messages, userMessage],
         systemPrompt: getSystemPrompt(),
+        inputs: {},
       };
       const resp = await executeFilterChain(filterReqObject);
 

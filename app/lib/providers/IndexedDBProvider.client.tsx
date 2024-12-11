@@ -17,26 +17,52 @@ export const IndexedDbProvider = ({
 }: IndexedDBProviderProps) => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    openDatabase(databaseName, version).then((newDb) => {
-      if (!newDb) {
-        setError('Error opening IndexedDB');
-        return;
-      }
+    let mounted = true;
 
-      setDb(newDb);
-      console.log(newDb);
-    });
+    const initDb = async () => {
+      try {
+        const newDb = await openDatabase(databaseName, version);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!newDb) {
+          setError('Error opening IndexedDB');
+        } else {
+          setDb(newDb);
+        }
+      } catch (err) {
+        if (!mounted) {
+          return;
+        }
+
+        setError(err instanceof Error ? err.message : 'Error opening IndexedDB');
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // Only initialize IndexedDB in browser environment
+    if (typeof window !== 'undefined') {
+      initDb();
+    }
 
     return () => {
+      mounted = false;
+
       if (db) {
         db.close();
       }
     };
   }, [databaseName, version]);
 
-  return <IndexedDbContext.Provider value={{ db, error }}>{children}</IndexedDbContext.Provider>;
+  return <IndexedDbContext.Provider value={{ db, isLoading, error }}>{children}</IndexedDbContext.Provider>;
 };
 
 // Custom hook to use the IndexedDB context

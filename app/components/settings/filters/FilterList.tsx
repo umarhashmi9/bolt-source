@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { FilterItem } from './types';
 import { FilterCard } from './FilterCard';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -9,6 +9,7 @@ import { classNames } from '~/utils/classNames';
 import TextBox from '~/components/ui/TextBox';
 import FilterEditor from './FilterEditor';
 import { toast } from 'react-toastify';
+import { importModuleFromString, middlewareSchema } from '~/lib/hooks/useFilters';
 
 interface FilterListProps {
   listItems: FilterItem[];
@@ -86,6 +87,7 @@ const FilterList = ({
   const [editingItem, setEditingItem] = useState<FilterItem | null>(null);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragStart = (e: any, item: FilterItem) => {
     setDraggedItem(item);
@@ -127,7 +129,7 @@ const FilterList = ({
     setEditContent(item.content);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (isCreating) {
       if (editName.length === 0) {
         toast.error('Please enter a name for the filter');
@@ -140,9 +142,19 @@ const FilterList = ({
       }
 
       const newId = Math.max(...items.map((item) => item.id), 0) + 1;
-      const newItem: FilterItem = { id: newId, name: editName, content: editContent, order: items.length };
-      onFilterCreate?.(newItem);
-      setItems((prevItems) => [...prevItems, newItem]);
+
+      try {
+        const { module: filterModule, cleanup } = await importModuleFromString(editContent);
+        const module = middlewareSchema.parse(filterModule);
+        const inputs = module.inputs;
+        const newItem: FilterItem = { id: newId, inputs, name: editName, content: editContent, order: items.length };
+        onFilterCreate?.(newItem);
+        setItems((prevItems) => [...prevItems, newItem]);
+        cleanup();
+      } catch (e: any) {
+        toast.error('Filter content is not valid: ', e.message);
+        return;
+      }
     } else if (editingItem) {
       const updatedItem = { ...editingItem, name: editName, content: editContent };
       setItems((prevItems) => prevItems.map((item) => (item.id === editingItem.id ? updatedItem : item)));
@@ -169,6 +181,69 @@ const FilterList = ({
     setEditName('');
     setEditContent(initialCode);
   };
+
+  const handleEditInput = (id: number, inputs: FilterItem['inputs']) => {
+    onFilterUpdate?.({
+      ...items[id],
+      inputs: inputs || items[id].inputs || [],
+    });
+  };
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importedData = JSON.parse(content) as FilterItem;
+
+        // Validate the imported data structure
+        const isValid = [importedData].every(
+          (item) =>
+            typeof item.id === 'number' &&
+            typeof item.name === 'string' &&
+            typeof item.content === 'string' &&
+            (!item.inputs ||
+              item.inputs.every(
+                (input) =>
+                  typeof input.name === 'string' &&
+                  (input.type === 'text' || input.type === 'number') &&
+                  (!input.value || typeof input.value === 'string' || typeof input.value === 'number'),
+              )),
+        );
+
+        if (!isValid) {
+          throw new Error('Invalid file format');
+        }
+
+        // Generate new IDs to avoid conflicts
+        const maxId = Math.max(...items.map((item) => item.id), 0);
+        const newItem = {
+          ...importedData,
+          id: maxId + 1,
+        };
+
+        setItems((prev) => [...prev, newItem]);
+        toast.success(`Imported ${newItem.name} filters successfully.`);
+      } catch (error: any) {
+        toast.error('Please ensure the JSON file has the correct format.', error.message);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset the input
+    event.target.value = '';
+  };
+
   const onContentChange = useCallback(
     (code: string) => {
       setEditContent(code);
@@ -179,9 +254,36 @@ const FilterList = ({
     setItems(listItems);
   }, [listItems]);
 
+  function handleActivationChange(id: number, enabled: boolean): void {
+    const item = items.find((item) => item.id === id);
+
+    if (!item) {
+      return;
+    }
+
+    const newItem = { ...item };
+    newItem.enabled = enabled;
+    onFilterUpdate?.(newItem);
+    setItems((prev) => {
+      return prev.map((item) => {
+        if (item.id === id) {
+          return newItem;
+        }
+
+        return item;
+      });
+    });
+  }
+
   return (
-    <div className="w-full max-w-md mx-auto p-4">
-      <div className="mb-4">
+    <div className="w-full mx-auto p-4">
+      <div className="mb-4 flex gap-2">
+        {/* add import button */}
+        <Button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2">
+          <div className="w-4 h-4 mr-2 i-ph:upload-simple " />
+          Import
+        </Button>
+        <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileChange} className="hidden" />
         <Button onClick={handleCreate} className="w-full flex items-center justify-center gap-2">
           <div className="w-4 h-4 mr-2 i-ph:plus-circle-thin" />
           New Filter
@@ -199,6 +301,8 @@ const FilterList = ({
             onEdit={handleEdit}
             onDelete={handleDelete}
             isDragging={draggedItem?.id === item.id}
+            onUpdateInputs={handleEditInput}
+            onActivationChange={handleActivationChange}
           />
         ))}
       </ul>

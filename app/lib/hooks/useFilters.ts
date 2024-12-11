@@ -3,16 +3,50 @@ import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
 import type { FilterItem } from '~/components/settings/filters/types';
 import type { FileMap } from '~/lib/stores/files';
 import type { Message } from 'ai';
-
+import { z } from 'zod';
 export interface FilterRequestObject {
   files: FileMap;
   messages: Message[];
   systemPrompt: string;
+  inputs: Record<string, number | string>;
 }
 
-export interface IMiddleware {
-  filter: (reqbj: any) => Promise<{ response?: string } | undefined>;
-}
+export const middlewareSchema = z.object({
+  inputs: z
+    .array(
+      z.object({
+        name: z.string(),
+        label: z.string(),
+        type: z.enum(['number', 'text']),
+        value: z.union([z.string(), z.number()]).optional(),
+      }),
+    )
+    .optional(),
+  filter: z
+    .function()
+    .args(z.any()) // accepts an arbitrary number of arguments
+    .returns(
+      z
+        .promise(
+          z.object({
+            response: z.string().optional(),
+          }),
+        )
+        .optional(),
+    ),
+});
+
+export type IMiddleware = z.infer<typeof middlewareSchema>;
+
+/*
+ * export interface IMiddleware {
+ *   inputs?:{
+ *     name:string,
+ *     type:'number'
+ *   }[]
+ *   filter: (reqbj: any) => Promise<{ response?: string } | undefined>;
+ * }
+ */
 
 const getAllFilters = async (db: IDBDatabase) => {
   return new Promise<FilterItem[]>((resolve, reject) => {
@@ -64,7 +98,7 @@ const deleteFilterFromDB = async (db: IDBDatabase, filterId: number) => {
   });
 };
 
-const importModuleFromString = async (stringOfCode: string) => {
+export const importModuleFromString = async (stringOfCode: string) => {
   // Create a Blob from the module code
   const blob = new Blob([stringOfCode], { type: 'application/javascript' });
   const blobUrl = URL.createObjectURL(blob);
@@ -162,9 +196,34 @@ export function useFilters() {
 
   const executeFilterChain = useCallback(
     async (reqbj: FilterRequestObject) => {
-      for (let i = 0; i < filters.length; i++) {
+      const enabledFilters = filters.filter((x) => x.enabled);
+
+      for (let i = 0; i < enabledFilters.length; i++) {
         const filter = filters[i];
         const { module, cleanup } = await importModuleFromString(filter.content);
+
+        // prepare and parse user filter configuration inputs
+        const inputs: Record<string, string | number> = {};
+        (filter.inputs || []).forEach((input) => {
+          if (!input.value) {
+            return;
+          }
+
+          const type = input.type;
+          let value = input.value;
+
+          if (type == 'number') {
+            try {
+              value = parseFloat(`${input.value || '0'}`);
+            } catch (error: any) {
+              console.warn('Failed to parse filter input', input, error.message);
+            }
+          }
+
+          inputs[input.name] = value;
+        });
+        reqbj.inputs = inputs;
+
         const resp = await module.filter(reqbj);
 
         if (resp?.response) {
@@ -174,6 +233,7 @@ export function useFilters() {
 
         cleanup();
       }
+
       return {};
     },
     [filters],

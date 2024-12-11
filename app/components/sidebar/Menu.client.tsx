@@ -38,8 +38,8 @@ const menuVariants = {
 type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
 export const Menu = () => {
+  const { db, isLoading: dbLoading } = useIndexedDB();
   const { duplicateCurrentChat, exportChat } = useChatHistory();
-  const { db } = useIndexedDB();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -58,7 +58,7 @@ export const Menu = () => {
         .then(setList)
         .catch((error) => toast.error(error.message));
     }
-  }, []);
+  }, [dbLoading]);
 
   const deleteItem = useCallback((event: React.UIEvent, item: ChatHistoryItem) => {
     event.preventDefault();
