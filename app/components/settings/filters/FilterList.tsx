@@ -183,10 +183,14 @@ const FilterList = ({
   };
 
   const handleEditInput = (id: number, inputs: FilterItem['inputs']) => {
-    onFilterUpdate?.({
-      ...items[id],
-      inputs: inputs || items[id].inputs || [],
-    });
+    const newItem = items.find((item) => item.id === id);
+
+    if (!newItem) {
+      return;
+    }
+
+    newItem.inputs = inputs;
+    onFilterUpdate?.(newItem);
   };
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -232,6 +236,7 @@ const FilterList = ({
           id: maxId + 1,
         };
 
+        onFilterCreate?.(newItem);
         setItems((prev) => [...prev, newItem]);
         toast.success(`Imported ${newItem.name} filters successfully.`);
       } catch (error: any) {

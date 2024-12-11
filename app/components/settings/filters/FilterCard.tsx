@@ -39,7 +39,7 @@ export const FilterCard: React.FC<FilterCardProps> = ({
     const index = newInputs.findIndex((input) => input.name === name);
     newInputs[index] = {
       ...newInputs[index],
-      value: newInputs[index].type === 'number' ? Number(value) : value,
+      value,
     };
     setLocalInputs(newInputs);
     onUpdateInputs(item.id, newInputs);
@@ -116,14 +116,14 @@ export const FilterCard: React.FC<FilterCardProps> = ({
       {isExpanded && item.inputs && (
         <div className="px-4 pb-4 pt-2 border-t mb-2 mt-2 border-bolt-elements-borderColor">
           <div className="space-y-3">
-            {item.inputs?.map((input, index) => (
+            {item.inputs?.map((input, _index) => (
               <div key={input.name} className="flex flex-col gap-1">
                 {/* <span className="font-medium">{item.name}</span> */}
                 <label htmlFor={`${item.id}-${input.name}`}>{input.label}</label>
                 <TextBox
                   id={`${item.id}-${input.name}`}
                   type={input.type}
-                  value={localInputs?.[index]?.value ?? input.value}
+                  value={localInputs?.find((input) => input.name === input.name)?.value ?? input.value}
                   onChange={(e) => handleInputChange(input.name, e.target.value)}
                   className="w-full"
                 />

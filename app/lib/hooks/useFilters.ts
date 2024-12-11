@@ -157,6 +157,25 @@ export function useFilters() {
     [db, isReady, filters],
   );
 
+  const editFilter = useCallback(
+    async (filter: FilterItem) => {
+      if (!isReady) {
+        return;
+      }
+
+      if (!db) {
+        return;
+      }
+
+      await addFilterToDB(db, { ...filter });
+
+      const newFilters = await getAllFilters(db);
+      newFilters.sort((a, b) => a.order - b.order);
+      setFilters(newFilters);
+    },
+    [db, isReady, filters],
+  );
+
   const deleteFilter = useCallback(
     async (filterId: number) => {
       if (!isReady) {
@@ -239,5 +258,5 @@ export function useFilters() {
     [filters],
   );
 
-  return { isReady, error, filters, addFilter, deleteFilter, updateOrder, executeFilterChain };
+  return { isReady, error, filters, addFilter, editFilter, deleteFilter, updateOrder, executeFilterChain };
 }
