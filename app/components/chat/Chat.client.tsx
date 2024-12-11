@@ -17,10 +17,11 @@ import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
 import { BaseChat } from './BaseChat';
 import Cookies from 'js-cookie';
-import type { ProviderInfo } from '~/utils/types';
 import { debounce } from '~/utils/debounce';
 import { useFilters, type FilterRequestObject } from '~/lib/hooks/useFilters';
 import { getSystemPrompt } from '~/lib/common/prompts';
+import { useSettings } from '~/lib/hooks/useSettings';
+import type { ProviderInfo } from '~/types/model';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -94,6 +95,7 @@ export const ChatImpl = memo(
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([]); // Move here
     const [imageDataList, setImageDataList] = useState<string[]>([]); // Move here
     const { executeFilterChain } = useFilters();
+    const { activeProviders } = useSettings();
 
     const [model, setModel] = useState(() => {
       const savedModel = Cookies.get('selectedModel');
@@ -343,6 +345,7 @@ export const ChatImpl = memo(
         setModel={handleModelChange}
         provider={provider}
         setProvider={handleProviderChange}
+        providerList={activeProviders}
         messageRef={messageRef}
         scrollRef={scrollRef}
         handleInputChange={(e) => {

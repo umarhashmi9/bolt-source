@@ -4,6 +4,7 @@ import { CONTINUE_PROMPT } from '~/lib/common/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
 import type { FilterRequestObject } from '~/lib/hooks/useFilters';
+import type { IProviderSetting } from '~/types/model';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -40,6 +41,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
   // Parse the cookie's value (returns an object or null if no cookie exists)
   const apiKeys = JSON.parse(parseCookies(cookieHeader || '').apiKeys || '{}');
+  const providerSettings: Record<string, IProviderSetting> = JSON.parse(
+    parseCookies(cookieHeader || '').providers || '{}',
+  );
 
   const stream = new SwitchableStream();
 
@@ -62,13 +66,27 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         messages.push({ role: 'assistant', content });
         messages.push({ role: 'user', content: CONTINUE_PROMPT });
 
-        const result = await streamText(messages, context.cloudflare.env, options, apiKeys, filterReqObject);
+        const result = await streamText({
+          messages,
+          env: context.cloudflare.env,
+          options,
+          apiKeys,
+          providerSettings,
+          filterReqObject,
+        });
 
         return stream.switchSource(result.toAIStream());
       },
     };
 
-    const result = await streamText(messages, context.cloudflare.env, options, apiKeys, filterReqObject);
+    const result = await streamText({
+      messages,
+      env: context.cloudflare.env,
+      options,
+      apiKeys,
+      providerSettings,
+      filterReqObject,
+    });
 
     stream.switchSource(result.toAIStream());
 
