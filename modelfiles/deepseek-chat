@@ -1,0 +1,2 @@
+FROM deepseek-chat
+PARAMETER num_ctx 92768
