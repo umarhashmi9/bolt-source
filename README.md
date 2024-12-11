@@ -1,18 +1,18 @@
-[![Bolt.new: AI-Powered Full-Stack Web Development in the Browser](./public/social_preview_index.jpg)](https://bolt.new)
+[![Bolt.diy: AI-Powered Full-Stack Web Development in the Browser](./public/social_preview_index.jpg)](https://github.com/stackblitz-labs/bolt.diy)
 
 ---
 
-## Bolt.new Fork by Cole Medin - oTToDev Overview
+## Bolt.diy 
 
-This fork of Bolt.new (oTToDev) enhances flexibility by allowing you to select your preferred Large Language Model (LLM) for each prompt. Currently, supported models include OpenAI, Anthropic, Ollama, OpenRouter, Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, and Groq. Additionally, it's easily extensible to support any model compatible with the Vercel AI SDK.
+This fork of Bolt.new called Bolt.diy enhances flexibility by allowing you to select your preferred Large Language Model (LLM) for each prompt. Currently, supported models include OpenAI, Anthropic, Ollama, OpenRouter, Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, and Groq. Additionally, it's easily extensible to support any model compatible with the Vercel AI SDK.
 
-For full documentation, visit the [oTToDev Docs](https://coleam00.github.io/bolt.new-any-llm/).
+For full documentation, visit the [oTToDev Docs](https://stackblitz-labs.github.io/bolt.diy/).
 
 ---
 
 ## Community
 
-Join the growing oTToDev community here: [oTToDev community](https://thinktank.ottomator.ai)
+Join the growing Bolt.diy community here: [Bolt.diy community](https://thinktank.ottomator.ai)
 
 ---
 
@@ -30,13 +30,13 @@ Join the growing oTToDev community here: [oTToDev community](https://thinktank.o
 
 ## Getting Started
 
-You can quickly explore oTToDev using the [hosted version](https://ottodev.cyopsys.com/). Here is a link to a thread where [aliasfox](https://thinktank.ottomator.ai/t/no-setup-required-batteries-not-included/1852) posted the hosted version mentioned. 
+You can quickly explore Bolt.diy using a [hosted version](https://ottodev.cyopsys.com/) that [aliasfox](https://thinktank.ottomator.ai/t/no-setup-required-batteries-not-included/1852) posted about here in the community fourms. 
 
 To contribute or self-host, follow the instructions below.
 
 ### Quick Start Guide
 
-The Quick Start Guide is below and [here is a link](https://coleam00.github.io/bolt.new-any-llm/#setup) to a more in deph guide if you experance any problems.
+The Quick Start Guide is below and [here is a link](https://stackblitz-labs.github.io/bolt.diy/#setup) to a more in deph guide if you experance any problems.
 
 #### Prerequisites
 - Install [Git](https://git-scm.com/downloads).
@@ -44,8 +44,8 @@ The Quick Start Guide is below and [here is a link](https://coleam00.github.io/b
 
 #### Clone the Repository
 ```bash
-git clone https://github.com/coleam00/bolt.new-any-llm.git
-cd bolt.new-any-llm/
+git clone https://github.com/stackblitz-labs/bolt.diy.git
+cd bolt.diy/
 ```
 
 #### Running the Application
@@ -78,7 +78,6 @@ With Docker, hot reloading applies—changes to the code will automatically refl
 
 To enable providers, navigate to the **Settings** menu and select the one(s) you would like to activate.  
 Some model providers are hidden by default because they are experimental. To access them, you will need to enable experimental models in the **Settings** menu.
-
 
 ---
 
@@ -123,7 +122,7 @@ Completed features ✅ and upcoming priorities ⬜:
 - ✅ Autogenerate Ollama models from what is downloaded (@yunatamos)
 - ✅ Filter models by provider (@jasonm23)
 - ✅ Download project as ZIP (@fabwaseem)
-- ✅ Improvements to the main Bolt.new prompt in (@kofi-bhr)
+- ✅ Improvements to the main Bolt.diy prompt (@kofi-bhr)
 - ✅ DeepSeek API Integration (@zenith110)
 - ✅ Mistral API Integration (@ArulGandhi)
 - ✅ "Open AI Like" API Integration (@ZerxZ)
