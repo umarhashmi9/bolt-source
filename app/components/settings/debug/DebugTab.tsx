@@ -20,7 +20,7 @@ export default function DebugTab() {
   const handleCheckForUpdate = useCallback(async () => {
     try {
       const response = await fetch('https://raw.githubusercontent.com/stackblitz-labs/bolt.diy/main/app/commit.json');
-      const data = await response.json();
+      const data: { commit: string } = await response.json();
       const latestCommitHash = data.commit;
 
       if (latestCommitHash !== versionHash) {
