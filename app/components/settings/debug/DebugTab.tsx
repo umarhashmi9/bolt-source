@@ -46,7 +46,7 @@ export default function DebugTab() {
       <p className="text-bolt-elements-textSecondary">OS: {navigator.platform}</p>
       <p className="text-bolt-elements-textSecondary">Browser: {navigator.userAgent}</p>
 
-      <h4 className="text-md font-medium text-bolt-elements-textPrimary mt-4">Active Features</h4>
+      <h4 className="text-md font-medium text-bolt-elements-textPrimary mt-4">Active Providers</h4>
       <ul>
         {activeProviders.map((name) => (
           <li key={name} className="text-bolt-elements-textSecondary">
