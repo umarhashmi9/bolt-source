@@ -23,7 +23,7 @@ export function useSettings() {
             ...currentProvider,
             settings: {
               ...parsedProviders[provider],
-              enabled: parsedProviders[provider].enabled || true,
+              enabled: parsedProviders[provider].enabled ?? true,
             },
           });
         });
