@@ -130,35 +130,36 @@ const FilterList = ({
   };
 
   const handleSaveEdit = async () => {
-    if (isCreating) {
-      if (editName.length === 0) {
-        toast.error('Please enter a name for the filter');
-        return;
-      }
+    if (editName.length === 0) {
+      toast.error('Please enter a name for the filter');
+      return;
+    }
 
-      if (editContent.length === 0) {
-        toast.error('Please enter a content for the filter');
-        return;
-      }
+    if (editContent.length === 0) {
+      toast.error('Please enter a content for the filter');
+      return;
+    }
 
-      const newId = Math.max(...items.map((item) => item.id), 0) + 1;
+    try {
+      const { module: filterModule, cleanup } = await importModuleFromString(editContent);
+      const module = middlewareSchema.parse(filterModule);
+      const inputs = module.inputs;
 
-      try {
-        const { module: filterModule, cleanup } = await importModuleFromString(editContent);
-        const module = middlewareSchema.parse(filterModule);
-        const inputs = module.inputs;
+      if (isCreating) {
+        const newId = Math.max(...items.map((item) => item.id), 0) + 1;
         const newItem: FilterItem = { id: newId, inputs, name: editName, content: editContent, order: items.length };
         onFilterCreate?.(newItem);
         setItems((prevItems) => [...prevItems, newItem]);
-        cleanup();
-      } catch (e: any) {
-        toast.error('Filter content is not valid: ', e.message);
-        return;
+      } else if (editingItem) {
+        const updatedItem = { ...editingItem, name: editName, content: editContent, inputs };
+        onFilterUpdate?.(updatedItem);
+        setItems((prevItems) => prevItems.map((item) => (item.id === editingItem.id ? updatedItem : item)));
       }
-    } else if (editingItem) {
-      const updatedItem = { ...editingItem, name: editName, content: editContent };
-      setItems((prevItems) => prevItems.map((item) => (item.id === editingItem.id ? updatedItem : item)));
-      onFilterUpdate?.(updatedItem);
+
+      cleanup();
+    } catch (err: any) {
+      toast.error('Please enter a valid content for the filter', err.message);
+      return;
     }
 
     handleCloseDialog();
@@ -183,13 +184,14 @@ const FilterList = ({
   };
 
   const handleEditInput = (id: number, inputs: FilterItem['inputs']) => {
-    const newItem = items.find((item) => item.id === id);
+    const fountItem = items.find((item) => item.id === id);
 
-    if (!newItem) {
+    if (!fountItem) {
       return;
     }
 
-    newItem.inputs = inputs;
+    const newItem = { ...fountItem, inputs: [...(inputs || [])] };
+    setItems((prevItems) => prevItems.map((item) => (item.id === newItem.id ? newItem : item)));
     onFilterUpdate?.(newItem);
   };
   const handleImportClick = () => {

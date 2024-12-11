@@ -31,7 +31,10 @@ export const FilterCard: React.FC<FilterCardProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [localInputs, setLocalInputs] = useState<FilterItem['inputs']>(
-    item.inputs?.map((input) => ({ ...input })) || [],
+    item.inputs?.map((input) => ({
+      ...input,
+      value: input.value ?? (input.type === 'number' ? 0 : ''),
+    })) || [],
   );
 
   const handleInputChange = (name: string, value: string | number) => {
@@ -123,8 +126,12 @@ export const FilterCard: React.FC<FilterCardProps> = ({
                 <TextBox
                   id={`${item.id}-${input.name}`}
                   type={input.type}
-                  value={localInputs?.find((input) => input.name === input.name)?.value ?? input.value}
-                  onChange={(e) => handleInputChange(input.name, e.target.value)}
+                  value={
+                    localInputs?.find((item) => item.name === input.name)?.value ?? (input.type === 'number' ? 0 : '')
+                  }
+                  onChange={(e) =>
+                    handleInputChange(input.name, input.type === 'number' ? Number(e.target.value) : e.target.value)
+                  }
                   className="w-full"
                 />
               </div>
