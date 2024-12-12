@@ -1,4 +1,5 @@
 import * as Tooltip from '@radix-ui/react-tooltip';
+import React from 'react';
 
 interface TooltipProps {
   tooltip: React.ReactNode;
@@ -12,24 +13,30 @@ interface TooltipProps {
   delay?: number;
 }
 
-const WithTooltip = ({
-  tooltip,
-  children,
-  sideOffset = 5,
-  className = '',
-  arrowClassName = '',
-  tooltipStyle = {},
-  position = 'top',
-  maxWidth = 250,
-  delay = 0,
-}: TooltipProps) => {
-  return (
-    <Tooltip.Root delayDuration={delay}>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content
-          side={position}
-          className={`
+const WithTooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
+  (
+    {
+      tooltip,
+      children,
+      sideOffset = 5,
+      className = '',
+      arrowClassName = '',
+      tooltipStyle = {},
+      position = 'top',
+      maxWidth = 250,
+      delay = 0,
+    }: TooltipProps,
+    ref,
+  ) => {
+    return (
+      <Tooltip.Root delayDuration={delay}>
+        <Tooltip.Trigger asChild>
+          <div ref={ref}>{children}</div>
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side={position}
+            className={`
             z-[2000]
             px-2.5
             py-1.5
@@ -49,25 +56,28 @@ const WithTooltip = ({
             data-[state=closed]:zoom-out-95
             ${className}
           `}
-          sideOffset={sideOffset}
-          style={{
-            maxWidth,
-            ...tooltipStyle,
-          }}
-        >
-          <div className="break-words">{tooltip}</div>
-          <Tooltip.Arrow
-            className={`
+            sideOffset={sideOffset}
+            style={{
+              maxWidth,
+              ...tooltipStyle,
+            }}
+          >
+            <div className="break-words">{tooltip}</div>
+            <Tooltip.Arrow
+              className={`
               fill-bolt-elements-background-depth-3
               ${arrowClassName}
             `}
-            width={12}
-            height={6}
-          />
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
-  );
-};
+              width={12}
+              height={6}
+            />
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    );
+  },
+);
+
+WithTooltip.displayName = 'WithTooltip';
 
 export default WithTooltip;

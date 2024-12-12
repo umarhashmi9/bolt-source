@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { type ChatHistoryItem } from '~/lib/persistence';
 import WithTooltip from '~/components/ui/Tooltip';
 import { useEditChatDescription } from '~/lib/hooks';
+import React from 'react';
 
 interface HistoryItemProps {
   item: ChatHistoryItem;
@@ -103,25 +104,39 @@ export function HistoryItem({ item, onDelete, onDuplicate, exportChat }: History
   );
 }
 
-const ChatActionButton = ({
-  toolTipContent,
-  icon,
-  className,
-  onClick,
-}: {
+interface ChatActionButtonProps {
   toolTipContent: string;
   icon: string;
   className?: string;
   onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   btnTitle?: string;
-}) => {
-  return (
-    <WithTooltip tooltip={toolTipContent}>
-      <button
-        type="button"
-        className={`scale-110 mr-2 hover:text-bolt-elements-item-contentAccent ${icon} ${className ? className : ''}`}
-        onClick={onClick}
-      />
-    </WithTooltip>
-  );
-};
+}
+
+const ChatActionButton = React.forwardRef<HTMLButtonElement, ChatActionButtonProps>(
+  (
+    {
+      toolTipContent,
+      icon,
+      className,
+      onClick,
+    }: {
+      toolTipContent: string;
+      icon: string;
+      className?: string;
+      onClick: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
+      btnTitle?: string;
+    },
+    ref,
+  ) => {
+    return (
+      <WithTooltip tooltip={toolTipContent}>
+        <button
+          ref={ref}
+          type="button"
+          className={`scale-110 mr-2 hover:text-bolt-elements-item-contentAccent ${icon} ${className ? className : ''}`}
+          onClick={onClick}
+        />
+      </WithTooltip>
+    );
+  },
+);
