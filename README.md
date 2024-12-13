@@ -1,19 +1,146 @@
-[![Bolt.new: AI-Powered Full-Stack Web Development in the Browser](./public/social_preview_index.jpg)](https://bolt.new)
 
-# Bolt.diy (Previously oTToDev)
+# Bolt.diy
+[![GitHub](https://img.shields.io/badge/GitHub-Bolt.diy-181717?style=for-the-badge&logo=github)](https://github.com/stackblitz-labs/bolt.diy)
+[![Discourse](https://img.shields.io/badge/Discourse-Community-blue?style=for-the-badge&logo=discourse)](https://thinktank.ottomator.ai/)
+[![Twitter](https://img.shields.io/badge/Twitter-@bolt__diy-1DA1F2?style=for-the-badge&logo=x)](https://x.com/bolt_diy)
+[![Bluesky](https://img.shields.io/badge/Bluesky-bolt.diy-3178C6?style=for-the-badge)](https://bsky.app/profile/bolt.diy)
 
-Welcome to Bolt.diy, the official open source version of Bolt.new (previously known as oTToDev and Bolt.new ANY LLM), which allows you to choose the LLM that you use for each prompt! Currently, you can use OpenAI, Anthropic, Ollama, OpenRouter, Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, or Groq models - and it is easily extended to use any other model supported by the Vercel AI SDK! See the instructions below for running this locally and extending it to include more models.
+> AI-Powered Full-Stack Web Development in Your Browser (Previously known as oTToDev)
 
-Check the [Bolt.diy Docs](https://stackblitz-labs.github.io/bolt.diy/) for more information. This documentation is still being updated after the transfer.
+[![Bolt.new Preview](./public/social_preview_index.jpg)](https://bolt.new)
 
-Bolt.diy was originally started by [Cole Medin](https://www.youtube.com/@ColeMedin) but has quickly grown into a massive community effort to build the BEST open source AI coding assistant!
+## 🚀 Overview
 
-## Join the community for Bolt.diy!
+Bolt.diy is the official open-source version of Bolt.new that empowers you to choose your preferred LLM for each prompt. Build, test, and deploy full-stack applications directly in your browser—no local setup required.
 
-https://thinktank.ottomator.ai
+### Supported LLM Providers
+- OpenAI
+- Anthropic
+- Ollama
+- OpenRouter
+- Gemini
+- LMStudio
+- Mistral
+- xAI
+- HuggingFace
+- DeepSeek
+- Groq
+- TogatherAI
+- And more via Vercel AI SDK!
+
+📚 For detailed information, visit the [Bolt.diy Documentation](https://stackblitz-labs.github.io/bolt.diy/).
+
+## 🌟 What Makes Bolt Different?
+
+Unlike traditional AI coding assistants, Bolt.diy offers:
+
+### 🔧 Full-Stack Development in Browser
+- Install and run npm packages
+- Execute Node.js servers
+- Interact with third-party APIs
+- Deploy to production from chat
+- Share via URL
+
+### 🤖 Complete AI Environment Control
+- Full filesystem access
+- Node server management
+- Package manager integration
+- Terminal access
+- Browser console control
+
+## 🛠️ Installation
+
+### Prerequisites
+1. [Git](https://git-scm.com/downloads)
+2. [Node.js](https://nodejs.org/en/download/)
+3. [Docker](https://www.docker.com/) (optional, for containerized setup)
+
+### Option 1: Standard Setup
+
+1. Clone the repository:
+```bash
+# For stable version (recommended)
+git clone -b stable https://github.com/your/repo.git
+
+# For latest development version
+git clone https://github.com/stackblitz-labs/bolt.diy.git
+```
+
+2. Configure environment:
+   - Rename `.env.example` to `.env.local`
+   - Add your API keys:
+     ```env
+     GROQ_API_KEY=XXX
+     OPENAI_API_KEY=XXX
+     ANTHROPIC_API_KEY=XXX
+     ...
+
+     # Optional configurations
+     VITE_LOG_LEVEL=debug
+     OLLAMA_API_BASE_URL=http://localhost:11434
+     DEFAULT_NUM_CTX=8192
+     ...
+     ```
+
+3. Install dependencies:
+```bash
+pnpm install
+```
+
+4. Start development server:
+```bash
+pnpm run dev
+```
+
+### Option 2: Docker Setup
+
+```bash
+# Development build
+npm run dockerbuild
+# OR
+docker build . --target bolt-ai-development
+
+# Production build
+npm run dockerbuild:prod
+# OR
+docker build . --target bolt-ai-production
+
+# Run with Docker Compose
+docker-compose --profile development up  # For development
+docker-compose --profile production up   # For production
+```
+
+## 🎯 Available Scripts
+
+```bash
+# Development
+pnpm run dev          # Start development server with hot reloading
+pnpm run build        # Build the project for production
+pnpm run preview      # Build and preview production locally
+
+# Testing & Quality
+pnpm test            # Run tests once
+pnpm run test:watch  # Run tests in watch mode
+pnpm run lint:fix    # Fix linting and formatting issues
+
+# Docker
+pnpm run dockerbuild        # Build development Docker image
+pnpm run dockerbuild:prod   # Build production Docker image
+pnpm run dockerrun         # Run Docker container with local environment
+
+# Type Checking
+pnpm run typecheck    # Run TypeScript type checking
+```
 
 
-## Requested Additions - Feel Free to Contribute!
+## 🤝 Community
+
+Join our community: https://thinktank.ottomator.ai
+
+Originally started by [Cole Medin](https://www.youtube.com/@ColeMedin), Bolt.diy has grown into a community-driven project.
+
+## ✅ Completed Features & Contributors
+
 
 - ✅ OpenRouter Integration (@coleam00)
 - ✅ Gemini Integration (@jonathands)
@@ -44,6 +171,9 @@ https://thinktank.ottomator.ai
 - ✅ Better prompt enhancing (@SujalXplores)
 - ✅ Attach images to prompts (@atrokhym)
 - ✅ Detect package.json and commands to auto install and run preview for folder and git import (@wonderwhy-er)
+
+## 🔄 Upcoming Features
+
 - ⬜ **HIGH PRIORITY** - Prevent Bolt from rewriting files as often (file locking and diffs)
 - ⬜ **HIGH PRIORITY** - Better prompting for smaller LLMs (code window sometimes doesn't start)
 - ⬜ **HIGH PRIORITY** - Run agents in the backend as opposed to a single model call
@@ -56,187 +186,9 @@ https://thinktank.ottomator.ai
 - ⬜ Perplexity Integration
 - ⬜ Vertex AI Integration
 
-## Bolt.new: AI-Powered Full-Stack Web Development in the Browser
-
-Bolt.new (and by extension Bolt.diy) is an AI-powered web development agent that allows you to prompt, run, edit, and deploy full-stack applications directly from your browser—no local setup required. If you're here to build your own AI-powered web dev agent using the Bolt open source codebase, [click here to get started!](./CONTRIBUTING.md)
-
-## What Makes Bolt.new Different
-
-Claude, v0, etc are incredible- but you can't install packages, run backends, or edit code. That’s where Bolt.new stands out:
-
-- **Full-Stack in the Browser**: Bolt.new integrates cutting-edge AI models with an in-browser development environment powered by **StackBlitz’s WebContainers**. This allows you to:
-  - Install and run npm tools and libraries (like Vite, Next.js, and more)
-  - Run Node.js servers
-  - Interact with third-party APIs
-  - Deploy to production from chat
-  - Share your work via a URL
-
-- **AI with Environment Control**: Unlike traditional dev environments where the AI can only assist in code generation, Bolt.new gives AI models **complete control** over the entire  environment including the filesystem, node server, package manager, terminal, and browser console. This empowers AI agents to handle the whole app lifecycle—from creation to deployment.
-
-Whether you’re an experienced developer, a PM, or a designer, Bolt.new allows you to easily build production-grade full-stack applications.
-
-For developers interested in building their own AI-powered development tools with WebContainers, check out the open-source Bolt codebase in this repo!
-
-## Setup
-
-Many of you are new users to installing software from Github. If you have any installation troubles reach out and submit an "issue" using the links above, or feel free to enhance this documentation by forking, editing the instructions, and doing a pull request.
-
-1. Install Git from https://git-scm.com/downloads
-
-2. Install Node.js from https://nodejs.org/en/download/ 
-
-Pay attention to the installer notes after completion. 
-
-On all operating systems, the path to Node.js should automatically be added to your system path. But you can check your path if you want to be sure. On Windows, you can search for "edit the system environment variables" in your system, select "Environment Variables..." once you are in the system properties, and then check for a path to Node in your "Path" system variable. On a Mac or Linux machine, it will tell you to check if /usr/local/bin is in your $PATH. To determine if usr/local/bin is included in $PATH open your Terminal and run:
-
-```
-echo $PATH .
-```
-
-If you see usr/local/bin in the output then you're good to go.
-
-3. Clone the repository (if you haven't already) by opening a Terminal window (or CMD with admin permissions) and then typing in this:
-
-```
-git clone https://github.com/stackblitz-labs/bolt.diy.git
-```
-
-3. Rename .env.example to .env.local and add your LLM API keys. You will find this file on a Mac at "[your name]/bold.new-any-llm/.env.example". For Windows and Linux the path will be similar.
-
-![image](https://github.com/user-attachments/assets/7e6a532c-2268-401f-8310-e8d20c731328)
-
-If you can't see the file indicated above, its likely you can't view hidden files. On Mac, open a Terminal window and enter this command below. On Windows, you will see the hidden files option in File Explorer Settings. A quick Google search will help you if you are stuck here.
-
-```
-defaults write com.apple.finder AppleShowAllFiles YES
-```
-
-**NOTE**: you only have to set the ones you want to use and Ollama doesn't need an API key because it runs locally on your computer:
-
-Get your GROQ API Key here: https://console.groq.com/keys
-
-Get your Open AI API Key by following these instructions: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
-
-Get your Anthropic API Key in your account settings: https://console.anthropic.com/settings/keys
-
-```
-GROQ_API_KEY=XXX
-OPENAI_API_KEY=XXX
-ANTHROPIC_API_KEY=XXX
-```
-
-Optionally, you can set the debug level:
-
-```
-VITE_LOG_LEVEL=debug
-```
-
-And if using Ollama set the DEFAULT_NUM_CTX, the example below uses 8K context and ollama running on localhost port 11434:
-
-```
-OLLAMA_API_BASE_URL=http://localhost:11434
-DEFAULT_NUM_CTX=8192
-```
-
-**Important**: Never commit your `.env.local` file to version control. It's already included in .gitignore.
-
-## Run with Docker
-
-Prerequisites:
-
-Git and Node.js as mentioned above, as well as Docker: https://www.docker.com/
-
-### 1a. Using Helper Scripts
-
-NPM scripts are provided for convenient building:
-
-```bash
-# Development build
-npm run dockerbuild
-
-# Production build
-npm run dockerbuild:prod
-```
-
-### 1b. Direct Docker Build Commands (alternative to using NPM scripts)
-
-You can use Docker's target feature to specify the build environment instead of using NPM scripts if you wish:
-
-```bash
-# Development build
-docker build . --target bolt-ai-development
-
-# Production build
-docker build . --target bolt-ai-production
-```
-
-### 2. Docker Compose with Profiles to Run the Container
-
-Use Docker Compose profiles to manage different environments:
-
-```bash
-# Development environment
-docker-compose --profile development up
-
-# Production environment
-docker-compose --profile production up
-```
-
-When you run the Docker Compose command with the development profile, any changes you
-make on your machine to the code will automatically be reflected in the site running
-on the container (i.e. hot reloading still applies!).
-
-## Run Without Docker
-
-1. Install dependencies using Terminal (or CMD in Windows with admin permissions):
-
-```
-pnpm install
-```
-
-If you get an error saying "command not found: pnpm" or similar, then that means pnpm isn't installed. You can install it via this:
-
-```
-sudo npm install -g pnpm
-```
-
-2. Start the application with the command:
-
-```bash
-pnpm run dev
-```
-## Available Scripts
-
-- `pnpm run dev`: Starts the development server.
-- `pnpm run build`: Builds the project.
-- `pnpm run start`: Runs the built application locally using Wrangler Pages. This script uses `bindings.sh` to set up necessary bindings so you don't have to duplicate environment variables.
-- `pnpm run preview`: Builds the project and then starts it locally, useful for testing the production build. Note, HTTP streaming currently doesn't work as expected with `wrangler pages dev`.
-- `pnpm test`: Runs the test suite using Vitest.
-- `pnpm run typecheck`: Runs TypeScript type checking.
-- `pnpm run typegen`: Generates TypeScript types using Wrangler.
-- `pnpm run deploy`: Builds the project and deploys it to Cloudflare Pages.
-- `pnpm run lint:fix`: Runs the linter and automatically fixes issues according to your ESLint configuration. 
-
-## Development
-
-To start the development server:
-
-```bash
-pnpm run dev
-```
-
-This will start the Remix Vite development server. You will need Google Chrome Canary to run this locally if you use Chrome! It's an easy install and a good browser for web development anyway.
-
-## How do I contribute to Bolt.diy?
-
-[Please check out our dedicated page for contributing to Bolt.diy here!](CONTRIBUTING.md)
-
-## What are the future plans for Bolt.diy?
-
-[Check out our Roadmap here!](https://roadmap.sh/r/ottodev-roadmap-2ovzo)
-
-Lot more updates to this roadmap coming soon!
-
-## FAQ
-
-[Please check out our dedicated page for FAQ's related to Bolt.diy here!](FAQ.md)
+## 📖 Additional Resources
+- [Contributing Guide](CONTRIBUTING.md)
+- [Project Roadmap](https://roadmap.sh/r/ottodev-roadmap-2ovzo)
+- [FAQ](FAQ.md)
+
+> **Note**: Never commit your `.env.local` file to version control. It's already included in .gitignore.
