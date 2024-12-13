@@ -26,6 +26,7 @@ export const ModelSelector = ({
     return activeProviders.length > 0 ? activeProviders : providerList;
   });
 
+
   // Set initial provider and model if not set
   useEffect(() => {
     if (!provider && enabledProviders.length > 0) {
@@ -65,7 +66,8 @@ export const ModelSelector = ({
     }
   }, [provider, modelList, model, setModel]);
 
-  if (enabledProviders.length === 0) {
+
+  if (providerList.length === 0) {
     return (
       <div className="mb-2 p-4 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary">
         <p className="text-center">
@@ -81,7 +83,7 @@ export const ModelSelector = ({
       <select
         value={provider?.name ?? ''}
         onChange={(e) => {
-          const newProvider = enabledProviders.find((p: ProviderInfo) => p.name === e.target.value);
+          const newProvider = providerList.find((p: ProviderInfo) => p.name === e.target.value);
 
           if (newProvider && setProvider) {
             setProvider(newProvider);
@@ -95,7 +97,7 @@ export const ModelSelector = ({
         }}
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
       >
-        {enabledProviders.map((provider: ProviderInfo) => (
+        {providerList.map((provider: ProviderInfo) => (
           <option key={provider.name} value={provider.name}>
             {provider.name}
           </option>
