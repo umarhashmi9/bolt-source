@@ -38,8 +38,8 @@ Unlike traditional AI coding assistants, Bolt.diy offers:
 - Install and run npm packages
 - Execute Node.js servers
 - Interact with third-party APIs
-- Deploy to production from chat
-- Share via URL
+- Deploy to production from chat ( pending)
+- Share via URL ( pending )
 
 ### 🤖 Complete AI Environment Control
 - Full filesystem access
