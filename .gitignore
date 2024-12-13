@@ -22,10 +22,12 @@ dist-ssr
 *.sln
 *.sw?
 
+
 /.history
 /.cache
 /build
 .env.local
+.env.example2
 .env
 .dev.vars
 *.vars
