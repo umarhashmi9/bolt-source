@@ -15,6 +15,14 @@ const logger = createScopedLogger('Constants');
 
 const PROVIDER_LIST: ProviderInfo[] = [
   {
+    name: 'Ollama',
+    staticModels: [],
+    getDynamicModels: getOllamaModels,
+    getApiKeyLink: 'https://ollama.com/download',
+    labelForGetApiKey: 'Download Ollama',
+    icon: 'i-ph:cloud-arrow-down',
+  },
+  {
     name: 'Anthropic',
     staticModels: [
       {
@@ -41,6 +49,7 @@ const PROVIDER_LIST: ProviderInfo[] = [
     ],
     getApiKeyLink: 'https://console.anthropic.com/settings/keys',
   },
+  /*
   {
     name: 'Ollama',
     staticModels: [],
@@ -49,6 +58,7 @@ const PROVIDER_LIST: ProviderInfo[] = [
     labelForGetApiKey: 'Download Ollama',
     icon: 'i-ph:cloud-arrow-down',
   },
+  */
   {
     name: 'OpenAILike',
     staticModels: [],
