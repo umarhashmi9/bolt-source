@@ -1,9 +1,6 @@
 name: Update Stable Branch
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     types: [closed]
     branches:
@@ -11,7 +8,7 @@ on:
 
 jobs:
   update-stable:
-    #if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'stable-release')
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'stable-release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -164,22 +161,23 @@ jobs:
 
       - name: Commit Version Update
         run: |
+          git pull
           git add package.json pnpm-lock.yaml changelog.md
           git commit -m "chore: bump version to ${{ steps.bump_version.outputs.new_version }}"
-          git push main
+          git push
 
       - name: Update Stable Branch
         run: |
           # Ensure stable branch exists
           git checkout stable 2>/dev/null || git checkout -b stable
           git merge main --no-ff -m "chore: merge main into stable for version ${{ steps.bump_version.outputs.new_version }}"
-          git push stable
+          git push --set-upstream origin stable
 
       - name: Create and Push Tag
         run: |
           VERSION="v${{ steps.bump_version.outputs.new_version }}"
           git tag -a "$VERSION" -m "Release $VERSION"
-          git push "$VERSION"
+          git push origin "$VERSION"
 
       # - name: Create GitHub Release
       #   env:
