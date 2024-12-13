@@ -2,7 +2,7 @@
 # Bolt.diy
 [![GitHub](https://img.shields.io/badge/GitHub-Bolt.diy-181717?style=for-the-badge&logo=github)](https://github.com/stackblitz-labs/bolt.diy)
 [![Discourse](https://img.shields.io/badge/Discourse-Community-blue?style=for-the-badge&logo=discourse)](https://thinktank.ottomator.ai/)
-[![Twitter](https://img.shields.io/badge/Twitter-@bolt__diy-1DA1F2?style=for-the-badge&logo=x)](https://x.com/bolt_diy)
+[![X](https://img.shields.io/badge/@bolt__diy-1DA1F2?style=for-the-badge&logo=x)](https://x.com/bolt_diy)
 [![Bluesky](https://img.shields.io/badge/Bluesky-bolt.diy-3178C6?style=for-the-badge)](https://bsky.app/profile/bolt.diy)
 
 > AI-Powered Full-Stack Web Development in Your Browser (Previously known as oTToDev)
