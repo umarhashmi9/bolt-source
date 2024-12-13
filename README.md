@@ -60,7 +60,7 @@ Unlike traditional AI coding assistants, Bolt.diy offers:
 1. Clone the repository:
 ```bash
 # For stable version (recommended)
-git clone -b stable https://github.com/your/repo.git
+git clone -b stable https://github.com/stackblitz-labs/bolt.diy
 
 # For latest development version
 git clone https://github.com/stackblitz-labs/bolt.diy.git
