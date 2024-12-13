@@ -19,13 +19,16 @@ export function useSettings() {
         const parsedProviders: Record<string, IProviderSetting> = JSON.parse(savedProviders);
         Object.keys(parsedProviders).forEach((provider) => {
           const currentProvider = providers[provider];
-          providersStore.setKey(provider, {
-            ...currentProvider,
-            settings: {
-              ...parsedProviders[provider],
-              enabled: parsedProviders[provider].enabled ?? true,
-            },
-          });
+
+          if (currentProvider) {
+            providersStore.setKey(provider, {
+              ...currentProvider,
+              settings: {
+                ...parsedProviders[provider],
+                enabled: parsedProviders[provider].enabled ?? true,
+              },
+            });
+          }
         });
       } catch (error) {
         console.error('Failed to parse providers from cookies:', error);
@@ -45,7 +48,7 @@ export function useSettings() {
     if (savedLocalModels) {
       isLocalModelsEnabled.set(savedLocalModels === 'true');
     }
-  }, []);
+  }, []); // Remove providers from dependency array since we only want this to run on mount
 
   // writing values to cookies on change
   useEffect(() => {

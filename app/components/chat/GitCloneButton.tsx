@@ -39,18 +39,25 @@ interface GitCloneButtonProps {
 export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
   const { ready, gitClone } = useGit();
   const onClick = async (_e: any) => {
+    console.log('Git clone button clicked');
+
     if (!ready) {
+      console.log('Git not ready');
       return;
     }
 
     const repoUrl = prompt('Enter the Git url');
+    console.log('Got repo URL:', repoUrl);
 
     if (repoUrl) {
+      console.log('Cloning repo...');
+
       const { workdir, data } = await gitClone(repoUrl);
+      console.log('Cloned repo to:', workdir);
 
       if (importChat) {
         const filePaths = Object.keys(data).filter((filePath) => !ig.ignores(filePath));
-        console.log(filePaths);
+        console.log('Filtered file paths:', filePaths);
 
         const textDecoder = new TextDecoder('utf-8');
 
@@ -64,14 +71,20 @@ export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
             };
           })
           .filter((f) => f.content);
+        console.log('Converted file contents:', fileContents.length, 'files');
 
         // Detect and create commands message
+        console.log('Detecting project commands...');
+
         const commands = await detectProjectCommands(fileContents);
+        console.log('Detected commands:', commands);
+
         const commandsMessage = createCommandsMessage(commands);
+        console.log('Created commands message:', commandsMessage);
 
         // Create files message
         const filesMessage: Message = {
-          role: 'assistant',
+          role: 'assistant' as const,
           content: `Cloning the repo ${repoUrl} into ${workdir}
 <boltArtifact id="imported-files" title="Git Cloned Files" type="bundled">           
 ${fileContents
@@ -86,14 +99,18 @@ ${file.content}
           id: generateId(),
           createdAt: new Date(),
         };
+        console.log('Created files message');
 
         const messages = [filesMessage];
 
         if (commandsMessage) {
           messages.push(commandsMessage);
+          console.log('Added commands message');
         }
 
+        console.log('Importing chat...');
         await importChat(`Git Project:${repoUrl.split('/').slice(-1)[0]}`, messages);
+        console.log('Chat imported');
       }
     }
   };

@@ -109,6 +109,19 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [modelList, setModelList] = useState(MODEL_LIST);
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
 
+    useEffect(() => {
+      const loadModels = async () => {
+        try {
+          const updatedModelList = await initializeModelList();
+          setModelList(updatedModelList);
+        } catch (error) {
+          console.error('Failed to initialize model list:', error);
+        }
+      };
+
+      loadModels();
+    }, [apiKeys]);
+
     const handleTranscriptChange = useCallback(
       (transcript: string) => {
         if (handleInputChange) {

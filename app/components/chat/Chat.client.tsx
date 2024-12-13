@@ -98,9 +98,22 @@ export const ChatImpl = memo(
       const savedModel = Cookies.get('selectedModel');
       return savedModel || DEFAULT_MODEL;
     });
+
     const [provider, setProvider] = useState(() => {
       const savedProvider = Cookies.get('selectedProvider');
-      return PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER;
+      const enabledProviders = PROVIDER_LIST.filter((p) => activeProviders[p.name]);
+
+      // First try to find the saved provider among enabled providers
+      if (savedProvider) {
+        const savedProviderInfo = enabledProviders.find((p) => p.name === savedProvider);
+
+        if (savedProviderInfo) {
+          return savedProviderInfo;
+        }
+      }
+
+      // If no saved provider or it's not enabled, return first enabled provider or default
+      return enabledProviders[0] || DEFAULT_PROVIDER;
     });
 
     const { showChat } = useStore(chatStore);

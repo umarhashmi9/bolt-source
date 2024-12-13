@@ -50,9 +50,14 @@ const PROVIDER_LIST: ProviderInfo[] = [
     icon: 'i-ph:cloud-arrow-down',
   },
   {
-    name: 'OpenAILike',
-    staticModels: [],
-    getDynamicModels: getOpenAILikeModels,
+    name: 'OpenAI',
+    staticModels: [
+      { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-4', label: 'GPT-4', provider: 'OpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
+    ],
+    getApiKeyLink: 'https://platform.openai.com/api-keys',
   },
   {
     name: 'Cohere',
@@ -69,6 +74,11 @@ const PROVIDER_LIST: ProviderInfo[] = [
       { name: 'c4ai-aya-expanse-32b', label: 'c4AI Aya Expanse 32b', provider: 'Cohere', maxTokenAllowed: 4096 },
     ],
     getApiKeyLink: 'https://dashboard.cohere.com/api-keys',
+  },
+  {
+    name: 'OpenAILike',
+    getDynamicModels: getOpenAILikeModels,
+    staticModels: [],
   },
   {
     name: 'OpenRouter',
@@ -219,16 +229,6 @@ const PROVIDER_LIST: ProviderInfo[] = [
     getApiKeyLink: 'https://huggingface.co/settings/tokens',
   },
 
-  {
-    name: 'OpenAI',
-    staticModels: [
-      { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-4', label: 'GPT-4', provider: 'OpenAI', maxTokenAllowed: 8000 },
-      { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
-    ],
-    getApiKeyLink: 'https://platform.openai.com/api-keys',
-  },
   {
     name: 'xAI',
     staticModels: [{ name: 'grok-beta', label: 'xAI Grok Beta', provider: 'xAI', maxTokenAllowed: 8000 }],
@@ -402,31 +402,50 @@ async function getOpenAILikeModels(
 ): Promise<ModelInfo[]> {
   try {
     const baseUrl = settings?.baseUrl || import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
+    const provider = 'OpenAILike';
 
     if (!baseUrl) {
+      console.warn('No OpenAI-Like base URL provided');
       return [];
     }
 
-    let apiKey = '';
+    const apiKey = apiKeys?.[provider] || import.meta.env.OPENAI_LIKE_API_KEY || '';
 
-    if (apiKeys && apiKeys.OpenAILike) {
-      apiKey = apiKeys.OpenAILike;
+    if (!apiKey) {
+      console.warn('No OpenAI-Like API key provided');
+      return [];
     }
 
     const response = await fetch(`${baseUrl}/models`, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`.trim(),
       },
     });
-    const res = (await response.json()) as any;
 
-    return res.data.map((model: any) => ({
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn('OpenAI-Like API request failed:', response.status, errorText);
+
+      return [];
+    }
+
+    const res = (await response.json()) as { data: Array<{ id: string; object: string }> };
+
+    if (!res?.data || !Array.isArray(res.data)) {
+      console.warn('OpenAI-Like API response does not have the expected structure:', res);
+      return [];
+    }
+
+    return res.data.map((model) => ({
       name: model.id,
-      label: model.id,
-      provider: 'OpenAILike',
+
+      // Format the label to be more readable by removing the 'hf:' prefix and organization
+      label: model.id.replace('hf:', '').split('/').pop() || model.id,
+      provider,
+      maxTokenAllowed: 8192, // Default token limit
     }));
   } catch (e) {
-    console.error('Error getting OpenAILike models:', e);
+    console.error('Error getting OpenAI-Like models:', e);
     return [];
   }
 }
@@ -501,16 +520,14 @@ async function initializeModelList(providerSettings?: Record<string, IProviderSe
   } catch (error: any) {
     logger.warn(`Failed to fetch apikeys from cookies: ${error?.message}`);
   }
-  MODEL_LIST = [
-    ...(
-      await Promise.all(
-        PROVIDER_LIST.filter(
-          (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
-        ).map((p) => p.getDynamicModels(apiKeys, providerSettings?.[p.name])),
-      )
-    ).flat(),
-    ...staticModels,
-  ];
+
+  const dynamicModels = await Promise.all(
+    PROVIDER_LIST.filter(
+      (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
+    ).map((p) => p.getDynamicModels(apiKeys, providerSettings?.[p.name])),
+  );
+
+  MODEL_LIST = [...dynamicModels.flat(), ...staticModels];
 
   return MODEL_LIST;
 }

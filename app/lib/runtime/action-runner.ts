@@ -1,6 +1,5 @@
 import { WebContainer } from '@webcontainer/api';
 import { atom, map, type MapStore } from 'nanostores';
-import * as nodePath from 'node:path';
 import type { BoltAction } from '~/types/actions';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -33,6 +32,20 @@ export type ActionStateUpdate =
   | (Omit<BaseActionUpdate, 'status'> & { status: 'failed'; error: string });
 
 type ActionsMap = MapStore<Record<string, ActionState>>;
+
+// Browser-compatible path utilities
+function dirname(path: string): string {
+  const normalizedPath = path.replace(/\/+/g, '/').replace(/\/$/, '');
+  const lastSlashIndex = normalizedPath.lastIndexOf('/');
+
+  if (lastSlashIndex === -1) {
+    return '.';
+  }
+
+  const dir = normalizedPath.slice(0, lastSlashIndex);
+
+  return dir || '/';
+}
 
 export class ActionRunner {
   #webcontainer: Promise<WebContainer>;
@@ -203,7 +216,7 @@ export class ActionRunner {
 
     const webcontainer = await this.#webcontainer;
 
-    let folder = nodePath.dirname(action.filePath);
+    let folder = dirname(action.filePath);
 
     // remove trailing slashes
     folder = folder.replace(/\/+$/g, '');

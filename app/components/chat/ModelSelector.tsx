@@ -1,7 +1,7 @@
 import type { ProviderInfo } from '~/types/model';
 import type { ModelInfo } from '~/utils/types';
 import { useEffect, useState } from 'react';
-import Cookies from 'js-cookie';
+import { useSettings } from '~/lib/hooks/useSettings';
 
 interface ModelSelectorProps {
   model?: string;
@@ -21,61 +21,49 @@ export const ModelSelector = ({
   modelList,
   providerList,
 }: ModelSelectorProps) => {
-  // Load enabled providers from cookies
+  const { activeProviders } = useSettings();
   const [enabledProviders, setEnabledProviders] = useState(() => {
-    const savedProviders = Cookies.get('providers');
-
-    if (savedProviders) {
-      try {
-        const parsedProviders = JSON.parse(savedProviders);
-        return providerList.filter((p) => parsedProviders[p.name]);
-      } catch (error) {
-        console.error('Failed to parse providers from cookies:', error);
-        return providerList;
-      }
-    }
-
-    return providerList;
+    return activeProviders.length > 0 ? activeProviders : providerList;
   });
 
-  // Update enabled providers when cookies change
+  // Set initial provider and model if not set
   useEffect(() => {
-    // Function to update providers from cookies
-    const updateProvidersFromCookies = () => {
-      const savedProviders = Cookies.get('providers');
+    if (!provider && enabledProviders.length > 0) {
+      const firstProvider = enabledProviders[0];
+      setProvider?.(firstProvider);
 
-      if (savedProviders) {
-        try {
-          const parsedProviders = JSON.parse(savedProviders);
-          const newEnabledProviders = providerList.filter((p) => parsedProviders[p.name]);
-          setEnabledProviders(newEnabledProviders);
+      const firstModel = modelList.find((m) => m.provider === firstProvider.name);
 
-          // If current provider is disabled, switch to first enabled provider
-          if (provider && !parsedProviders[provider.name] && newEnabledProviders.length > 0) {
-            const firstEnabledProvider = newEnabledProviders[0];
-            setProvider?.(firstEnabledProvider);
-
-            // Also update the model to the first available one for the new provider
-            const firstModel = modelList.find((m) => m.provider === firstEnabledProvider.name);
-
-            if (firstModel) {
-              setModel?.(firstModel.name);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to parse providers from cookies:', error);
-        }
+      if (firstModel) {
+        setModel?.(firstModel.name);
       }
-    };
+    }
+  }, [provider, enabledProviders, modelList, setProvider, setModel]);
 
-    // Initial update
-    updateProvidersFromCookies();
+  // Update enabled providers when activeProviders changes
+  useEffect(() => {
+    if (activeProviders.length > 0) {
+      setEnabledProviders(activeProviders);
 
-    // Set up an interval to check for cookie changes
-    const interval = setInterval(updateProvidersFromCookies, 1000);
+      // If current provider is not in active providers, switch to first enabled provider
+      if (provider && !activeProviders.find((p) => p.name === provider.name)) {
+        const firstEnabledProvider = activeProviders[0];
+        setProvider?.(firstEnabledProvider);
+      }
+    }
+  }, [activeProviders, provider, setProvider]);
 
-    return () => clearInterval(interval);
-  }, [providerList, provider, setProvider, modelList, setModel]);
+  // Update model when provider changes
+  useEffect(() => {
+    if (provider) {
+      const availableModels = modelList.filter((m) => m.provider === provider.name);
+
+      if (availableModels.length > 0 && (!model || !availableModels.find((m) => m.name === model))) {
+        const firstModel = availableModels[0];
+        setModel?.(firstModel.name);
+      }
+    }
+  }, [provider, modelList, model, setModel]);
 
   if (enabledProviders.length === 0) {
     return (
@@ -99,7 +87,7 @@ export const ModelSelector = ({
             setProvider(newProvider);
           }
 
-          const firstModel = [...modelList].find((m) => m.provider === e.target.value);
+          const firstModel = modelList.find((m) => m.provider === e.target.value);
 
           if (firstModel && setModel) {
             setModel(firstModel.name);
@@ -120,7 +108,7 @@ export const ModelSelector = ({
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all lg:max-w-[70%]"
       >
         {[...modelList]
-          .filter((e) => e.provider == provider?.name && e.name)
+          .filter((e) => e.provider === provider?.name && e.name)
           .map((modelOption, index) => (
             <option key={index} value={modelOption.name}>
               {modelOption.label}
