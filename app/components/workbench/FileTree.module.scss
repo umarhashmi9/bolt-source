@@ -1,0 +1,7 @@
+.nodeButton {
+  padding-left: calc(6px + var(--node-depth) * 16px);
+}
+
+:global([data-node-depth]) {
+  --node-depth: attr(data-node-depth number);
+}

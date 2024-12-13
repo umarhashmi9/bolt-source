@@ -48,7 +48,12 @@ export function Chat() {
       <ToastContainer
         closeButton={({ closeToast }) => {
           return (
-            <button className="Toastify__close-button" onClick={closeToast}>
+            <button
+              className="Toastify__close-button"
+              onClick={closeToast}
+              title="Close"
+              aria-label="Close notification"
+            >
               <div className="i-ph:x text-lg" />
             </button>
           );

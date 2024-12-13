@@ -69,3 +69,21 @@ export function getBaseURL(cloudflareEnv: Env, provider: string) {
       return '';
   }
 }
+
+export function getResourceName(cloudflareEnv: Env, provider: string) {
+  switch (provider) {
+    case 'AzureOpenAI':
+      return env.AZURE_OPENAI_RESOURCE_NAME || cloudflareEnv.AZURE_OPENAI_RESOURCE_NAME;
+    default:
+      return '';
+  }
+}
+
+export function getApiVersion(cloudflareEnv: Env, provider: string) {
+  switch (provider) {
+    case 'AzureOpenAI':
+      return env.AZURE_OPENAI_API_VERSION || cloudflareEnv.AZURE_OPENAI_API_VERSION;
+    default:
+      return '';
+  }
+}

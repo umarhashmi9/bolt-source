@@ -2,9 +2,10 @@
  * @ts-nocheck
  * Preventing TS checks with files presented in the video for a better presentation.
  */
-import { getAPIKey, getBaseURL } from '~/lib/.server/llm/api-key';
+import { getAPIKey, getApiVersion, getBaseURL, getResourceName } from '~/lib/.server/llm/api-key';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
+import { createAzure } from '@ai-sdk/azure';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ollama } from 'ollama-ai-provider';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
@@ -47,6 +48,16 @@ export function getOpenAIModel(apiKey: OptionalApiKey, model: string) {
   });
 
   return openai(model);
+}
+
+export function getAzureOpenAIModel(apiKey: OptionalApiKey, resourceName: string, apiVersion: string, model: string) {
+  const azure = createAzure({
+    apiKey,
+    resourceName,
+    apiVersion,
+  });
+
+  return azure(model);
 }
 
 export function getMistralModel(apiKey: OptionalApiKey, model: string) {
@@ -142,12 +153,16 @@ export function getModel(
 
   const apiKey = getAPIKey(env, provider, apiKeys); // Then assign
   const baseURL = providerSettings?.[provider].baseUrl || getBaseURL(env, provider);
+  const resourceName = getResourceName(env, provider);
+  const apiVersion = getApiVersion(env, provider);
 
   switch (provider) {
     case 'Anthropic':
       return getAnthropicModel(apiKey, model);
     case 'OpenAI':
       return getOpenAIModel(apiKey, model);
+    case 'AzureOpenAI':
+      return getAzureOpenAIModel(apiKey, resourceName, apiVersion, model);
     case 'Groq':
       return getGroqModel(apiKey, model);
     case 'HuggingFace':

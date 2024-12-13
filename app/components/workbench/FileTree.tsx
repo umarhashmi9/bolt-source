@@ -2,10 +2,10 @@ import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { FileMap } from '~/lib/stores/files';
 import { classNames } from '~/utils/classNames';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
+import styles from './FileTree.module.scss';
 
 const logger = createScopedLogger('FileTree');
 
-const NODE_PADDING_LEFT = 8;
 const DEFAULT_HIDDEN_FILES = [/\/node_modules\//, /\/\.next/, /\/\.astro/];
 
 interface Props {
@@ -222,11 +222,13 @@ interface ButtonProps {
 function NodeButton({ depth, iconClasses, onClick, className, children }: ButtonProps) {
   return (
     <button
+      type="button"
       className={classNames(
         'flex items-center gap-1.5 w-full pr-2 border-2 border-transparent text-faded py-0.5',
+        styles.nodeButton,
         className,
       )}
-      style={{ paddingLeft: `${6 + depth * NODE_PADDING_LEFT}px` }}
+      data-node-depth={depth}
       onClick={() => onClick?.()}
     >
       <div className={classNames('scale-120 shrink-0', iconClasses)}></div>

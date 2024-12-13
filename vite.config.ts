@@ -12,14 +12,20 @@ export default defineConfig((config) => {
     },
     plugins: [
       nodePolyfills({
-        include: ['path', 'buffer'],
+        include: ['buffer'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+        protocolImports: true,
       }),
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {
           v3_fetcherPersist: true,
           v3_relativeSplatPath: true,
-          v3_throwAbortReason: true
+          v3_throwAbortReason: true,
         },
       }),
       UnoCSS(),
@@ -27,12 +33,17 @@ export default defineConfig((config) => {
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
-    envPrefix: ["VITE_", "OPENAI_LIKE_API_", "OLLAMA_API_BASE_URL", "LMSTUDIO_API_BASE_URL","TOGETHER_API_BASE_URL"],
+    envPrefix: ['VITE_', 'OPENAI_LIKE_API_', 'OLLAMA_API_BASE_URL', 'LMSTUDIO_API_BASE_URL', 'TOGETHER_API_BASE_URL'],
     css: {
       preprocessorOptions: {
         scss: {
           api: 'modern-compiler',
         },
+      },
+    },
+    resolve: {
+      alias: {
+        path: 'path-browserify',
       },
     },
   };

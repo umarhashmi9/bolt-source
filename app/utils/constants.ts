@@ -230,6 +230,16 @@ const PROVIDER_LIST: ProviderInfo[] = [
     getApiKeyLink: 'https://platform.openai.com/api-keys',
   },
   {
+    name: 'AzureOpenAI',
+    staticModels: [
+      { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'AzureOpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-4-32k', label: 'GPT-4 32k', provider: 'AzureOpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-4', label: 'GPT-4', provider: 'AzureOpenAI', maxTokenAllowed: 8000 },
+      { name: 'gpt-4o', label: 'GPT-4o', provider: 'AzureOpenAI', maxTokenAllowed: 8000 },
+    ],
+    getApiKeyLink: 'https://oai.azure.com',
+  },
+  {
     name: 'xAI',
     staticModels: [{ name: 'grok-beta', label: 'xAI Grok Beta', provider: 'xAI', maxTokenAllowed: 8000 }],
     getApiKeyLink: 'https://docs.x.ai/docs/quickstart#creating-an-api-key',

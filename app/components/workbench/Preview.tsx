@@ -3,6 +3,8 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { PortDropdown } from './PortDropdown';
+import styles from './Preview.module.scss';
+import classNames from 'classnames';
 
 type ResizeSide = 'left' | 'right' | null;
 
@@ -188,26 +190,10 @@ export const Preview = memo(() => {
 
   // A small helper component for the handle's "grip" icon
   const GripIcon = () => (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100%',
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        style={{
-          color: 'rgba(0,0,0,0.5)',
-          fontSize: '10px',
-          lineHeight: '5px',
-          userSelect: 'none',
-          marginLeft: '1px',
-        }}
-      >
-        ••• •••
-      </div>
+    <div className={styles.gripIcon}>
+      <div className={styles.gripDot} />
+      <div className={styles.gripDot} />
+      <div className={styles.gripDot} />
     </div>
   );
 
@@ -227,6 +213,8 @@ export const Preview = memo(() => {
             ref={inputRef}
             className="w-full bg-transparent outline-none"
             type="text"
+            aria-label="Preview URL"
+            placeholder="Enter URL"
             value={url}
             onChange={(event) => {
               setUrl(event.target.value);
@@ -271,17 +259,17 @@ export const Preview = memo(() => {
 
       <div className="flex-1 border-t border-bolt-elements-borderColor flex justify-center items-center overflow-auto">
         <div
-          style={{
-            width: isDeviceModeOn ? `${widthPercent}%` : '100%',
-            height: '100%', // Always full height
-            overflow: 'visible',
-            background: '#fff',
-            position: 'relative',
-            display: 'flex',
-          }}
+          className={classNames(styles.previewContainer, { [styles.deviceMode]: isDeviceModeOn })}
+          data-preview-width={`${widthPercent}%`}
         >
           {activePreview ? (
-            <iframe ref={iframeRef} className="border-none w-full h-full bg-white" src={iframeUrl} allowFullScreen />
+            <iframe
+              ref={iframeRef}
+              className="border-none w-full h-full bg-white"
+              src={iframeUrl}
+              allowFullScreen
+              title="Preview content"
+            />
           ) : (
             <div className="flex w-full h-full justify-center items-center bg-white">No preview available</div>
           )}
@@ -291,48 +279,15 @@ export const Preview = memo(() => {
               {/* Left handle */}
               <div
                 onMouseDown={(e) => startResizing(e, 'left')}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '15px',
-                  marginLeft: '-15px',
-                  height: '100%',
-                  cursor: 'ew-resize',
-                  background: 'rgba(255,255,255,.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background 0.2s',
-                  userSelect: 'none',
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.5)')}
-                onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.2)')}
+                className={classNames(styles.resizeHandle, styles.left)}
                 title="Drag to resize width"
               >
                 <GripIcon />
               </div>
-
               {/* Right handle */}
               <div
                 onMouseDown={(e) => startResizing(e, 'right')}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  right: 0,
-                  width: '15px',
-                  marginRight: '-15px',
-                  height: '100%',
-                  cursor: 'ew-resize',
-                  background: 'rgba(255,255,255,.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background 0.2s',
-                  userSelect: 'none',
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.5)')}
-                onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,.2)')}
+                className={classNames(styles.resizeHandle, styles.right)}
                 title="Drag to resize width"
               >
                 <GripIcon />

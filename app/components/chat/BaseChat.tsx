@@ -27,8 +27,6 @@ import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 
-const TEXTAREA_MIN_HEIGHT = 76;
-
 interface BaseChatProps {
   textareaRef?: React.RefObject<HTMLTextAreaElement> | undefined;
   messageRef?: RefCallback<HTMLDivElement> | undefined;
@@ -89,7 +87,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     },
     ref,
   ) => {
-    const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(() => {
       const savedKeys = Cookies.get('apiKeys');
 
@@ -278,6 +275,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         ref={ref}
         className={classNames(styles.BaseChat, 'relative flex h-full w-full overflow-hidden')}
         data-chat-visible={showChat}
+        data-chat-started={chatStarted}
       >
         <ClientOnly>{() => <Menu />}</ClientOnly>
         <div ref={scrollRef} className="flex flex-col lg:flex-row overflow-y-auto w-full h-full">
@@ -340,7 +338,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       <stop offset="100%" stopColor="white" stopOpacity="0%"></stop>
                     </linearGradient>
                   </defs>
-                  <rect className={classNames(styles.PromptEffectLine)} pathLength="100" strokeLinecap="round"></rect>
+                  <rect
+                    className={classNames(styles.PromptEffectLine)}
+                    pathLength="100"
+                    strokeLinecap="round"
+                    rx={8}
+                  ></rect>
                   <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                 </svg>
                 <div>
@@ -387,22 +390,23 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       'w-full pl-4 pt-4 pr-16 focus:outline-none resize-none text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary bg-transparent text-sm',
                       'transition-all duration-200',
                       'hover:border-bolt-elements-focus',
+                      styles.chatTextarea,
                     )}
                     onDragEnter={(e) => {
                       e.preventDefault();
-                      e.currentTarget.style.border = '2px solid #1488fc';
+                      e.currentTarget.dataset.dragActive = 'true';
                     }}
                     onDragOver={(e) => {
                       e.preventDefault();
-                      e.currentTarget.style.border = '2px solid #1488fc';
+                      e.currentTarget.dataset.dragActive = 'true';
                     }}
                     onDragLeave={(e) => {
                       e.preventDefault();
-                      e.currentTarget.style.border = '1px solid var(--bolt-elements-borderColor)';
+                      e.currentTarget.dataset.dragActive = 'false';
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
-                      e.currentTarget.style.border = '1px solid var(--bolt-elements-borderColor)';
+                      e.currentTarget.dataset.dragActive = 'false';
 
                       const files = Array.from(e.dataTransfer.files);
                       files.forEach((file) => {
@@ -418,6 +422,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         }
                       });
                     }}
+                    data-drag-active="false"
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         if (event.shiftKey) {
@@ -439,10 +444,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       handleInputChange?.(event);
                     }}
                     onPaste={handlePaste}
-                    style={{
-                      minHeight: TEXTAREA_MIN_HEIGHT,
-                      maxHeight: TEXTAREA_MAX_HEIGHT,
-                    }}
                     placeholder="How can Bolt help you today?"
                     translate="no"
                   />
