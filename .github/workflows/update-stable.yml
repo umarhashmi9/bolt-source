@@ -3,7 +3,7 @@ name: Update Stable Branch
 on:
   push:
     branches:
-      - workflow-fix
+      - main
   pull_request:
     types: [closed]
     branches:
