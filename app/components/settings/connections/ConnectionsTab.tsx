@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { logStore } from '~/lib/stores/logs';
-import {
-  lookupSavedPassword,
-  saveGitAuth,
-  isEncryptionInitialized,
-  ensureEncryption,
-} from '~/lib/hooks/useCredentials';
+import { lookupSavedPassword, saveGitAuth, ensureEncryption } from '~/lib/hooks/useCredentials';
 
 export default function ConnectionsTab() {
   const [credentials, setCredentials] = useState({
     github: { username: '', token: '' },
     gitlab: { username: '', token: '' },
   });
-  const [isEncrypted, setIsEncrypted] = useState(isEncryptionInitialized());
 
   useEffect(() => {
     initializeEncryption();
@@ -22,7 +16,6 @@ export default function ConnectionsTab() {
     const success = await ensureEncryption();
 
     if (success) {
-      setIsEncrypted(true);
       loadSavedCredentials();
     }
   };
@@ -78,28 +71,6 @@ export default function ConnectionsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="p-4 border border-bolt-elements-borderColor rounded-lg bg-bolt-elements-background-depth-3">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Encryption Status</h3>
-          <div className="flex items-center">
-            {isEncrypted ? (
-              <>
-                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                <span className="text-sm text-bolt-elements-textSecondary">Encryption Active</span>
-              </>
-            ) : (
-              <>
-                <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                <span className="text-sm text-bolt-elements-textSecondary">Initializing Encryption...</span>
-              </>
-            )}
-          </div>
-        </div>
-        <p className="text-sm text-bolt-elements-textSecondary mb-2">
-          Your credentials are automatically encrypted before being stored.
-        </p>
-      </div>
-
       {Object.entries(providers).map(([key, provider]) => (
         <div
           key={key}
