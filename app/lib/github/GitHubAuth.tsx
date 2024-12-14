@@ -13,7 +13,7 @@ interface GitHubErrorResponse {
   error_description?: string;
 }
 
-interface DeviceCodeResponse {
+interface DeviceCodeResponse extends GitHubErrorResponse {
   device_code: string;
   user_code: string;
   verification_uri: string;
@@ -21,26 +21,36 @@ interface DeviceCodeResponse {
   interval: number;
 }
 
-interface AccessTokenResponse {
+interface AccessTokenResponse extends GitHubErrorResponse {
   access_token?: string;
-  error?: string;
-  error_description?: string;
 }
 
 export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [deviceCode, setDeviceCode] = useState<string | null>(null);
   const [userCode, setUserCode] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   const { isGitHubAuth } = useSettings();
 
+  // Reset states when auth completes
+  const handleAuthSuccess = useCallback(
+    (token: string) => {
+      setUserCode(null);
+      setVerificationUrl(null);
+      setIsPolling(false);
+      setIsLoading(false);
+      onAuthComplete?.(token);
+    },
+    [onAuthComplete],
+  );
+
   const pollForToken = useCallback(
     async (code: string, interval: number, attempts = 0) => {
       if (attempts >= GITHUB_CONFIG.maxPollAttempts) {
         setIsPolling(false);
         onError?.(new Error('Authentication timed out. Please try again.'));
+
         return;
       }
 
@@ -52,22 +62,22 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
           grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
         });
 
-        const response = await fetch(`${GITHUB_CONFIG.proxyUrl}?${params}`, {
+        const response = await fetch(`/api/github/proxy?${params}`, {
           method: 'POST',
           headers: {
-            Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
         });
 
-        const data = await response.json();
+        const data = (await response.json()) as AccessTokenResponse;
 
-        if (response.status === 202) {
+        if (data.error === 'authorization_pending') {
           // Authorization is pending, continue polling
           setTimeout(() => pollForToken(code, interval, attempts + 1), interval * 1000);
           return;
         }
 
-        if (!response.ok) {
+        if (data.error || data.error_description) {
           throw new Error(data.error_description || data.error || 'Authentication failed');
         }
 
@@ -75,10 +85,8 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
           throw new Error('Invalid response from GitHub');
         }
 
-        // Store the token in localStorage before completing auth
         localStorage.setItem('github_token', data.access_token);
-        setIsPolling(false);
-        onAuthComplete?.(data.access_token);
+        handleAuthSuccess(data.access_token);
       } catch (error: any) {
         setIsPolling(false);
         onError?.(error);
@@ -87,7 +95,7 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
     [onAuthComplete, onError],
   );
 
-  const initializeAuth = useCallback(async () => {
+  const handleStartAuth = useCallback(async () => {
     try {
       setIsLoading(true);
 
@@ -97,30 +105,28 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
         scope: GITHUB_CONFIG.scope,
       });
 
-      const response = await fetch(`${GITHUB_CONFIG.proxyUrl}?${params}`, {
+      const response = await fetch(`/api/github/proxy?${params}`, {
         method: 'POST',
         headers: {
-          Accept: 'application/json',
+          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        const data = await response.json();
+      const data = (await response.json()) as DeviceCodeResponse;
+
+      if (data.error || data.error_description) {
         throw new Error(data.error_description || data.error || 'Failed to start authentication process');
       }
-
-      const data: DeviceCodeResponse = await response.json();
 
       if (!data.device_code || !data.user_code || !data.verification_uri) {
         throw new Error('Invalid response from GitHub');
       }
 
-      setDeviceCode(data.device_code);
       setUserCode(data.user_code);
       setVerificationUrl(data.verification_uri);
       setIsPolling(true);
 
-      pollForToken(data.device_code, data.interval || GITHUB_CONFIG.pollInterval);
+      pollForToken(data.device_code, data.interval || 5);
     } catch (error: any) {
       setIsLoading(false);
       onError?.(error);
@@ -160,20 +166,24 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
   if (userCode && verificationUrl) {
     return (
       <div className="flex flex-col items-center gap-4 p-4 bg-white rounded-lg">
-        <p className="text-gray-500">Enter this code at <a href={verificationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600">{verificationUrl}</a></p>
+        <p className="text-gray-500">
+          Enter this code at{' '}
+          <a
+            href={verificationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-600"
+          >
+            {verificationUrl}
+          </a>
+        </p>
         <div className="flex items-center gap-2">
-          <code className="bg-gray-100 px-4 py-2 rounded-lg text-lg font-mono">
-            {userCode}
-          </code>
+          <code className="bg-gray-100 px-4 py-2 rounded-lg text-lg font-mono">{userCode}</code>
           <button
             onClick={handleCopyCode}
             className="text-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"
           >
-            {showCopied ? (
-              <div className="i-ph:check text-xl" />
-            ) : (
-              <div className="i-ph:copy text-xl" />
-            )}
+            {showCopied ? <div className="i-ph:check text-xl" /> : <div className="i-ph:copy text-xl" />}
           </button>
         </div>
         {isPolling && (
@@ -188,7 +198,7 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
   return React.cloneElement(children as React.ReactElement, {
     onClick: (e: React.MouseEvent) => {
       e.preventDefault();
-      initializeAuth();
+      handleStartAuth();
       (children as React.ReactElement).props.onClick?.(e);
     },
   });

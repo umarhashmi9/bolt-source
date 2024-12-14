@@ -1,4 +1,66 @@
-import type { ActionFunctionArgs } from '@remix-run/cloudflare';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/cloudflare';
+
+interface GitHubErrorResponse {
+  error?: string;
+  error_description?: string;
+}
+
+interface GitHubResponse extends GitHubErrorResponse {
+  [key: string]: unknown;
+}
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const targetEndpoint = url.searchParams.get('endpoint');
+  const clientId = url.searchParams.get('client_id');
+
+  if (!targetEndpoint || !clientId) {
+    return new Response('Missing required parameters', { status: 400 });
+  }
+
+  const githubUrl = `https://github.com${targetEndpoint}`;
+  const params = new URLSearchParams();
+
+  // Forward all query parameters to GitHub
+  url.searchParams.forEach((value, key) => {
+    if (key !== 'endpoint') {
+      params.append(key, value);
+    }
+  });
+
+  try {
+    const response = await fetch(`${githubUrl}?${params}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const data = (await response.json()) as GitHubResponse;
+
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to proxy request',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    );
+  }
+}
 
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
@@ -37,7 +99,7 @@ export async function action({ request }: ActionFunctionArgs) {
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as GitHubResponse;
 
     // Check if the response is an error
     if (data.error) {
@@ -58,13 +120,19 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Failed to proxy request', details: error.message }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to proxy request',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       },
-    });
+    );
   }
 }
 
