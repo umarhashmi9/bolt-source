@@ -3,9 +3,8 @@ import { logStore } from '~/lib/stores/logs';
 import {
   lookupSavedPassword,
   saveGitAuth,
-  ensureEncryption,
   isEncryptionInitialized,
-  hasMasterKeyStored,
+  ensureEncryption,
 } from '~/lib/hooks/useCredentials';
 
 export default function ConnectionsTab() {
@@ -14,6 +13,29 @@ export default function ConnectionsTab() {
     gitlab: { username: '', token: '' },
   });
   const [isEncrypted, setIsEncrypted] = useState(isEncryptionInitialized());
+
+  useEffect(() => {
+    initializeEncryption();
+  }, []);
+
+  const initializeEncryption = async () => {
+    const success = await ensureEncryption();
+
+    if (success) {
+      setIsEncrypted(true);
+      loadSavedCredentials();
+    }
+  };
+
+  const loadSavedCredentials = async () => {
+    for (const [, config] of Object.entries(providers)) {
+      const auth = await lookupSavedPassword(config.url);
+
+      if (auth?.username && auth?.password) {
+        config.setCredentials(auth.username, auth.password);
+      }
+    }
+  };
 
   const providers = {
     github: {
@@ -40,46 +62,7 @@ export default function ConnectionsTab() {
     },
   };
 
-  useEffect(() => {
-    // If we have a stored key but it's not initialized, prompt for password
-    if (hasMasterKeyStored() && !isEncrypted) {
-      handleSetupEncryption();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isEncrypted) {
-      loadSavedCredentials();
-    }
-  }, [isEncrypted]);
-
-  const handleSetupEncryption = async () => {
-    const success = await ensureEncryption();
-
-    if (success) {
-      setIsEncrypted(true);
-    }
-  };
-
-  const loadSavedCredentials = async () => {
-    for (const [provider, config] of Object.entries(providers)) {
-      console.log('loadSaved', provider, config);
-
-      const auth = await lookupSavedPassword(config.url);
-      console.log('auth', auth);
-
-      if (auth?.username && auth?.password) {
-        console.log('user and pass', auth.username, auth.password);
-        config.setCredentials(auth.username, auth.password);
-      }
-    }
-  };
-
   const handleSaveConnection = async (provider: keyof typeof providers) => {
-    if (!(await ensureEncryption())) {
-      return;
-    }
-
     const { url, username, token, title } = providers[provider];
 
     await saveGitAuth(url, {
@@ -102,26 +85,18 @@ export default function ConnectionsTab() {
             {isEncrypted ? (
               <>
                 <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                <span className="text-sm text-bolt-elements-textSecondary">Encryption Key Set</span>
+                <span className="text-sm text-bolt-elements-textSecondary">Encryption Active</span>
               </>
             ) : (
               <>
                 <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                <span className="text-sm text-bolt-elements-textSecondary mr-4">Encryption Key Not Set</span>
-                <button
-                  onClick={handleSetupEncryption}
-                  className="bg-bolt-elements-button-primary-background rounded-lg px-4 py-2 transition-colors duration-200 hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text"
-                >
-                  Setup Encryption
-                </button>
+                <span className="text-sm text-bolt-elements-textSecondary">Initializing Encryption...</span>
               </>
             )}
           </div>
         </div>
         <p className="text-sm text-bolt-elements-textSecondary mb-2">
-          {isEncrypted
-            ? 'Your credentials are securely encrypted. You can safely store and manage your Git credentials.'
-            : 'Setup encryption to securely store your Git credentials. Your credentials will be encrypted before being saved.'}
+          Your credentials are automatically encrypted before being stored.
         </p>
       </div>
 
