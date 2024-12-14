@@ -6,5 +6,5 @@ export const GITHUB_CONFIG = {
   accessTokenEndpoint: '/login/oauth/access_token',
   userApiUrl: 'https://api.github.com/user',
   pollInterval: 5,
-  maxPollAttempts: 12, 
+  maxPollAttempts: 12,
 } as const;

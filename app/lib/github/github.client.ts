@@ -11,8 +11,8 @@ export interface GitHubUser {
 export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
   const response = await fetch(GITHUB_CONFIG.userApiUrl, {
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
     },
   });
 

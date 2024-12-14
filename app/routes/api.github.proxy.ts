@@ -15,15 +15,23 @@ export async function action({ request }: ActionFunctionArgs) {
   const githubUrl = `https://github.com${targetEndpoint}`;
   const body: Record<string, string> = { client_id: clientId };
 
-  if (deviceCode) body.device_code = deviceCode;
-  if (grantType) body.grant_type = grantType;
-  if (scope) body.scope = scope;
+  if (deviceCode) {
+    body.device_code = deviceCode;
+  }
+
+  if (grantType) {
+    body.grant_type = grantType;
+  }
+
+  if (scope) {
+    body.scope = scope;
+  }
 
   try {
     const response = await fetch(githubUrl, {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
@@ -37,7 +45,7 @@ export async function action({ request }: ActionFunctionArgs) {
         'Access-Control-Allow-Origin': '*',
       },
     });
-  } catch (error) {
+  } catch {
     return new Response(JSON.stringify({ error: 'Failed to proxy request' }), {
       status: 500,
       headers: {

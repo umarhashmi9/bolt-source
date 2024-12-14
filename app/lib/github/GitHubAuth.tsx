@@ -28,51 +28,55 @@ interface AccessTokenResponse {
 
 export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [deviceCode, setDeviceCode] = useState<string | null>(null);
+  const [, setDeviceCode] = useState<string | null>(null);
   const [userCode, setUserCode] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
-  const pollForToken = useCallback(async (code: string, interval: number) => {
-    try {
-      const params = new URLSearchParams({
-        endpoint: GITHUB_CONFIG.accessTokenEndpoint,
-        client_id: GITHUB_CONFIG.clientId,
-        device_code: code,
-        grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-      });
+  const pollForToken = useCallback(
+    async (code: string, interval: number) => {
+      try {
+        const params = new URLSearchParams({
+          endpoint: GITHUB_CONFIG.accessTokenEndpoint,
+          client_id: GITHUB_CONFIG.clientId,
+          device_code: code,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        });
 
-      const response = await fetch(`${GITHUB_CONFIG.proxyUrl}?${params}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
+        const response = await fetch(`${GITHUB_CONFIG.proxyUrl}?${params}`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+
+        const data: AccessTokenResponse = await response.json();
+
+        if (data.access_token) {
+          localStorage.setItem('github_token', data.access_token);
+          setIsPolling(false);
+          setIsLoading(false);
+          onAuthComplete?.(data.access_token);
+        } else if (data.error === 'authorization_pending') {
+          // Continue polling
+          setTimeout(() => pollForToken(code, interval), interval * 1000);
+        } else {
+          throw new Error(data.error_description || 'Authentication failed');
         }
-      });
-
-      const data: AccessTokenResponse = await response.json();
-
-      if (data.access_token) {
-        localStorage.setItem('github_token', data.access_token);
+      } catch (error: any) {
         setIsPolling(false);
         setIsLoading(false);
-        onAuthComplete?.(data.access_token);
-      } else if (data.error === 'authorization_pending') {
-        // Continue polling
-        setTimeout(() => pollForToken(code, interval), interval * 1000);
-      } else {
-        throw new Error(data.error_description || 'Authentication failed');
+        onError?.(error);
       }
-    } catch (error: any) {
-      setIsPolling(false);
-      setIsLoading(false);
-      onError?.(error);
-    }
-  }, [onAuthComplete, onError]);
+    },
+    [onAuthComplete, onError],
+  );
 
   const startAuth = useCallback(async () => {
     try {
       setIsLoading(true);
-      
+
       const params = new URLSearchParams({
         endpoint: GITHUB_CONFIG.deviceCodeEndpoint,
         client_id: GITHUB_CONFIG.clientId,
@@ -82,14 +86,16 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
       const response = await fetch(`${GITHUB_CONFIG.proxyUrl}?${params}`, {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
-        }
+          Accept: 'application/json',
+        },
       });
 
       if (!response.ok) {
         let errorMessage = `Failed to start authentication process (${response.status})`;
+
         try {
           const errorData: GitHubErrorResponse = await response.json();
+
           if (errorData.error) {
             errorMessage = errorData.error_description || errorData.error;
           }
@@ -100,7 +106,7 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
       }
 
       const data: DeviceCodeResponse = await response.json();
-      
+
       if (!data.device_code || !data.user_code || !data.verification_uri) {
         throw new Error('Invalid response from GitHub');
       }
@@ -109,13 +115,21 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
       setUserCode(data.user_code);
       setVerificationUrl(data.verification_uri);
       setIsPolling(true);
-      
+
       pollForToken(data.device_code, data.interval || 5);
     } catch (error: any) {
       setIsLoading(false);
       onError?.(error);
     }
   }, [pollForToken, onError]);
+
+  const handleCopy = useCallback(() => {
+    if (userCode) {
+      navigator.clipboard.writeText(userCode);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    }
+  }, [userCode]);
 
   useEffect(() => {
     return () => {
@@ -127,14 +141,26 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
     return (
       <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-white">
         <p className="text-lg font-medium">Enter this code on GitHub:</p>
-        <div className="text-2xl font-bold tracking-wide bg-gray-100 p-2 rounded">
-          {userCode}
+        <div className="relative w-full max-w-sm">
+          <div
+            className="text-2xl font-bold tracking-wide bg-gray-100 p-2 rounded select-all cursor-pointer text-center"
+            onClick={(e) => {
+              handleCopy();
+
+              const target = e.currentTarget;
+              target.classList.add('bg-green-100');
+              setTimeout(() => target.classList.remove('bg-green-100'), 200);
+            }}
+          >
+            {userCode}
+          </div>
+          {showCopied && <div className="text-sm text-[#9C7DFF] text-center mt-2">Copied!</div>}
         </div>
         <a
           href={verificationUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 hover:text-blue-600"
+          className="text-[#9C7DFF] hover:text-[#8A5FFF]"
         >
           Click here to open GitHub
         </a>

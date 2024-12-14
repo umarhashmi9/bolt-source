@@ -9,12 +9,13 @@ export function useGitHubAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('github_token');
+
       if (token) {
         try {
           const userInfo = await getGitHubUser(token);
           setUser(userInfo);
           setIsAuthenticated(true);
-        } catch (error) {
+        } catch {
           // Token might be invalid, remove it
           localStorage.removeItem('github_token');
           setIsAuthenticated(false);
@@ -22,6 +23,7 @@ export function useGitHubAuth() {
       } else {
         setIsAuthenticated(false);
       }
+
       setIsLoading(false);
     };
 
@@ -33,8 +35,8 @@ export function useGitHubAuth() {
       const userInfo = await getGitHubUser(token);
       setUser(userInfo);
       setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Failed to get user info:', error);
+    } catch (_error) {
+      console.error('Failed to get user info:', _error);
     }
   }, []);
 
@@ -49,6 +51,6 @@ export function useGitHubAuth() {
     isLoading,
     user,
     handleAuthComplete,
-    handleLogout
+    handleLogout,
   };
 }
