@@ -1,38 +1,17 @@
 import type { WebContainer } from '@webcontainer/api';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { webcontainer as webcontainerPromise } from '~/lib/webcontainer';
-import git, { type GitAuth, type PromiseFsClient } from 'isomorphic-git';
+import git, { type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
-import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
-
-const lookupSavedPassword = (url: string) => {
-  const domain = url.split('/')[2];
-  const gitCreds = Cookies.get(`git:${domain}`);
-
-  if (!gitCreds) {
-    return null;
-  }
-
-  try {
-    const { username, password } = JSON.parse(gitCreds || '{}');
-    return { username, password };
-  } catch (error) {
-    console.log(`Failed to parse Git Cookie ${error}`);
-    return null;
-  }
-};
-
-const saveGitAuth = (url: string, auth: GitAuth) => {
-  const domain = url.split('/')[2];
-  Cookies.set(`git:${domain}`, JSON.stringify(auth));
-};
+import { ensureEncryption, lookupSavedPassword, saveGitAuth } from './useCredentials';
 
 export function useGit() {
   const [ready, setReady] = useState(false);
   const [webcontainer, setWebcontainer] = useState<WebContainer>();
   const [fs, setFs] = useState<PromiseFsClient>();
   const fileData = useRef<Record<string, { data: any; encoding?: string }>>({});
+
   useEffect(() => {
     webcontainerPromise.then((container) => {
       fileData.current = {};
@@ -63,30 +42,33 @@ export function useGit() {
           depth: 1,
           singleBranch: true,
           corsProxy: 'https://cors.isomorphic-git.org',
-          onAuth: (url) => {
-            // let domain=url.split("/")[2]
+          onAuth: async (url) => {
+            if (!(await ensureEncryption())) {
+              return { cancel: true };
+            }
 
-            let auth = lookupSavedPassword(url);
+            const auth = await lookupSavedPassword(url);
 
             if (auth) {
               return auth;
             }
 
             if (confirm('This repo is password protected. Ready to enter a username & password?')) {
-              auth = {
-                username: prompt('Enter username'),
-                password: prompt('Enter password'),
-              };
-              return auth;
-            } else {
-              return { cancel: true };
+              const username = prompt('Enter username');
+              const password = prompt('Enter password');
+
+              if (username && password) {
+                return { username, password };
+              }
             }
+
+            return { cancel: true };
           },
           onAuthFailure: (url, _auth) => {
             toast.error(`Error Authenticating with ${url.split('/')[2]}`);
           },
-          onAuthSuccess: (url, auth) => {
-            saveGitAuth(url, auth);
+          onAuthSuccess: async (url, auth) => {
+            await saveGitAuth(url, auth);
           },
         });
 
