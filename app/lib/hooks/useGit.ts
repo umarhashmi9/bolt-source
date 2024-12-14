@@ -49,48 +49,58 @@ export function useGit() {
       }
 
       fileData.current = {};
-      await git.clone({
-        fs,
-        http,
-        dir: webcontainer.workdir,
-        url,
-        depth: 1,
-        singleBranch: true,
-        corsProxy: 'https://cors.isomorphic-git.org',
-        onAuth: (url) => {
-          // let domain=url.split("/")[2]
 
-          let auth = lookupSavedPassword(url);
+      try {
+        if (url.startsWith('git@')) {
+          throw new Error('SSH protocol is not supported. Please use HTTPS URL instead.');
+        }
 
-          if (auth) {
-            return auth;
-          }
+        await git.clone({
+          fs,
+          http,
+          dir: webcontainer.workdir,
+          url,
+          depth: 1,
+          singleBranch: true,
+          corsProxy: 'https://cors.isomorphic-git.org',
+          onAuth: (url) => {
+            // let domain=url.split("/")[2]
 
-          if (confirm('This repo is password protected. Ready to enter a username & password?')) {
-            auth = {
-              username: prompt('Enter username'),
-              password: prompt('Enter password'),
-            };
-            return auth;
-          } else {
-            return { cancel: true };
-          }
-        },
-        onAuthFailure: (url, _auth) => {
-          toast.error(`Error Authenticating with ${url.split('/')[2]}`);
-        },
-        onAuthSuccess: (url, auth) => {
-          saveGitAuth(url, auth);
-        },
-      });
+            let auth = lookupSavedPassword(url);
 
-      const data: Record<string, { data: any; encoding?: string }> = {};
+            if (auth) {
+              return auth;
+            }
 
-      for (const [key, value] of Object.entries(fileData.current)) {
-        data[key] = value;
+            if (confirm('This repo is password protected. Ready to enter a username & password?')) {
+              auth = {
+                username: prompt('Enter username'),
+                password: prompt('Enter password'),
+              };
+              return auth;
+            } else {
+              return { cancel: true };
+            }
+          },
+          onAuthFailure: (url, _auth) => {
+            toast.error(`Error Authenticating with ${url.split('/')[2]}`);
+          },
+          onAuthSuccess: (url, auth) => {
+            saveGitAuth(url, auth);
+          },
+        });
+
+        const data: Record<string, { data: any; encoding?: string }> = {};
+
+        for (const [key, value] of Object.entries(fileData.current)) {
+          data[key] = value;
+        }
+
+        return { workdir: webcontainer.workdir, data };
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to clone repository');
+        throw error;
       }
-
-      return { workdir: webcontainer.workdir, data };
     },
     [webcontainer],
   );
