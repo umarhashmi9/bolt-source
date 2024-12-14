@@ -3,6 +3,7 @@ import {
   isDebugMode,
   isEventLogsEnabled,
   isLocalModelsEnabled,
+  isGitHubAuthEnabled,
   LOCAL_PROVIDERS,
   providersStore,
 } from '~/lib/stores/settings';
@@ -16,6 +17,7 @@ export function useSettings() {
   const debug = useStore(isDebugMode);
   const eventLogs = useStore(isEventLogsEnabled);
   const isLocalModel = useStore(isLocalModelsEnabled);
+  const isGitHubAuth = useStore(isGitHubAuthEnabled);
   const [activeProviders, setActiveProviders] = useState<ProviderInfo[]>([]);
 
   // reading values from cookies on mount
@@ -59,6 +61,13 @@ export function useSettings() {
 
     if (savedLocalModels) {
       isLocalModelsEnabled.set(savedLocalModels === 'true');
+    }
+
+    // load GitHub authentication from cookies
+    const savedGitHubAuth = Cookies.get('isGitHubAuthEnabled');
+
+    if (savedGitHubAuth) {
+      isGitHubAuthEnabled.set(savedGitHubAuth === 'true');
     }
   }, []);
 
@@ -111,6 +120,20 @@ export function useSettings() {
     Cookies.set('isLocalModelsEnabled', String(enabled));
   }, []);
 
+  const enableGitHubAuth = useCallback((enabled: boolean) => {
+    isGitHubAuthEnabled.set(enabled);
+    logStore.logSystem(`GitHub authentication ${enabled ? 'enabled' : 'disabled'}`);
+    Cookies.set('isGitHubAuthEnabled', String(enabled));
+
+    // Clean up GitHub data when feature is disabled
+    if (!enabled) {
+      localStorage.removeItem('github_token');
+      Cookies.remove('githubUsername');
+      Cookies.remove('githubToken');
+      Cookies.remove('git:github.com');
+    }
+  }, []);
+
   return {
     providers,
     activeProviders,
@@ -121,5 +144,7 @@ export function useSettings() {
     enableEventLogs,
     isLocalModel,
     enableLocalModels,
+    isGitHubAuth,
+    enableGitHubAuth,
   };
 }

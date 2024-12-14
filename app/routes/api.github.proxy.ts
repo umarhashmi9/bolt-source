@@ -39,14 +39,26 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const data = await response.json();
 
+    // Check if the response is an error
+    if (data.error) {
+      return new Response(JSON.stringify(data), {
+        status: data.error === 'authorization_pending' ? 202 : 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
     return new Response(JSON.stringify(data), {
+      status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
     });
-  } catch {
-    return new Response(JSON.stringify({ error: 'Failed to proxy request' }), {
+  } catch (error) {
+    return new Response(JSON.stringify({ error: 'Failed to proxy request', details: error.message }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
