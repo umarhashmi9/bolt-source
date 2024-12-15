@@ -15,8 +15,10 @@ import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import * as nodePath from 'node:path';
 import { extractRelativePath } from '~/utils/diff';
 import { description } from '~/lib/persistence';
-import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+import type { File } from '~/lib/stores/files';
 
 export interface ArtifactState {
   id: string;
@@ -408,28 +410,30 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
+  async pushToGitHub(repoName: string, username: string, token: string) {
     try {
-      // Use cookies if username and token are not provided
-      const githubToken = ghToken || Cookies.get('githubToken');
-      const owner = githubUsername || Cookies.get('githubUsername');
+      const octokit = new Octokit({
+        auth: token,
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      });
 
-      if (!githubToken || !owner) {
-        throw new Error('GitHub token or username is not set in cookies or provided.');
-      }
-
-      // Initialize Octokit with the auth token
-      const octokit = new Octokit({ auth: githubToken });
-
-      // Check if the repository already exists before creating it
       let repo: RestEndpointMethodTypes['repos']['get']['response']['data'];
 
       try {
-        const resp = await octokit.repos.get({ owner, repo: repoName });
+        const resp = await octokit.repos.get({ owner: username, repo: repoName });
         repo = resp.data;
-      } catch (error) {
-        if (error instanceof Error && 'status' in error && error.status === 404) {
-          // Repository doesn't exist, so create a new one
+      } catch (error: any) {
+        if (error.status === 404) {
+          // Project doesn't exist, ask for confirmation
+          const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);
+
+          if (!shouldCreate) {
+            throw new Error('Repository creation cancelled');
+          }
+
+          // Create new repository after confirmation
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
             private: false,
@@ -437,8 +441,7 @@ export class WorkbenchStore {
           });
           repo = newRepo;
         } else {
-          console.log('cannot create repo!');
-          throw error; // Some other error occurred
+          throw error;
         }
       }
 
@@ -449,7 +452,6 @@ export class WorkbenchStore {
         throw new Error('No files found to push');
       }
 
-      // Create blobs for each file
       const blobs = await Promise.all(
         Object.entries(files).map(async ([filePath, dirent]) => {
           if (dirent?.type === 'file' && dirent.content) {
@@ -466,21 +468,19 @@ export class WorkbenchStore {
         }),
       );
 
-      const validBlobs = blobs.filter(Boolean); // Filter out any undefined blobs
+      const validBlobs = blobs.filter(Boolean);
 
       if (validBlobs.length === 0) {
         throw new Error('No valid files to push');
       }
 
-      // Get the latest commit SHA (assuming main branch, update dynamically if needed)
       const { data: ref } = await octokit.git.getRef({
         owner: repo.owner.login,
         repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
+        ref: `heads/${repo.default_branch || 'main'}`,
       });
       const latestCommitSha = ref.object.sha;
 
-      // Create a new tree
       const { data: newTree } = await octokit.git.createTree({
         owner: repo.owner.login,
         repo: repo.name,
@@ -493,7 +493,6 @@ export class WorkbenchStore {
         })),
       });
 
-      // Create a new commit
       const { data: newCommit } = await octokit.git.createCommit({
         owner: repo.owner.login,
         repo: repo.name,
@@ -502,18 +501,164 @@ export class WorkbenchStore {
         parents: [latestCommitSha],
       });
 
-      // Update the reference
       await octokit.git.updateRef({
         owner: repo.owner.login,
         repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
+        ref: `heads/${repo.default_branch || 'main'}`,
         sha: newCommit.sha,
       });
 
-      alert(`Repository created and code pushed: ${repo.html_url}`);
+      toast.success(`Repository created and code pushed: ${repo.html_url}`);
+
+      return repo.html_url;
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
-      throw error; // Rethrow the error for further handling
+
+      if (error instanceof Error) {
+        if (error.message === 'Repository creation cancelled') {
+          throw error;
+        }
+
+        if ('status' in error && error.status === 401) {
+          toast.error('Authentication failed. Please check your GitHub token in the Connections tab.');
+        } else {
+          toast.error('Failed to push to GitHub. Please try again.');
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  async pushToGitLab(repoName: string, username: string, token: string) {
+    try {
+      const gitlab = axios.create({
+        baseURL: 'https://gitlab.com/api/v4',
+        headers: {
+          'PRIVATE-TOKEN': token,
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000,
+      });
+
+      gitlab.interceptors.response.use(
+        (response) => response,
+        (error) => {
+          if (error.response?.status === 401) {
+            throw new Error('Authentication failed');
+          }
+
+          throw error;
+        },
+      );
+
+      let project;
+
+      try {
+        // First try to get existing project
+        const projectPath = encodeURIComponent(`${username}/${repoName}`);
+        const { data } = await gitlab.get(`/projects/${projectPath}`);
+        project = data;
+        console.log('Found existing project:', project);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          // Project doesn't exist, create it
+          try {
+            const { data } = await gitlab.post('/projects', {
+              name: repoName,
+              visibility: 'public',
+              initialize_with_readme: false,
+            });
+            project = data;
+            console.log('Created new project:', project);
+          } catch (createError: any) {
+            console.error('Error creating project:', createError);
+            throw new Error(createError.response?.data?.message || 'Failed to create project');
+          }
+        } else {
+          console.error('Error accessing project:', error);
+          throw new Error('Failed to access project. Please check if you have the correct permissions.');
+        }
+      }
+
+      // Get all files
+      const files = this.files.get();
+
+      if (!files || Object.keys(files).length === 0) {
+        throw new Error('No files found to push');
+      }
+
+      const validFiles = Object.entries(files).filter((entry): entry is [string, File] => {
+        const [, dirent] = entry;
+        return dirent?.type === 'file' && typeof dirent?.content === 'string';
+      });
+
+      if (validFiles.length === 0) {
+        throw new Error('No valid files to push');
+      }
+
+      // Get existing files in the repository
+      let existingFiles: string[] = [];
+
+      try {
+        const { data: treeData } = await gitlab.get(`/projects/${project.id}/repository/tree`, {
+          params: {
+            ref: project.default_branch || 'main',
+            recursive: true,
+            per_page: 100,
+          },
+        });
+        existingFiles = treeData.map((file: any) => file.path);
+      } catch (error: any) {
+        // If we can't get the tree (e.g., empty repository), assume no files exist
+        if (error.response?.status !== 404) {
+          console.error('Error getting repository tree:', error);
+        }
+      }
+
+      // Create actions for each file
+      const actions = validFiles.map(([filePath, dirent]) => {
+        const relativePath = extractRelativePath(filePath);
+        return {
+          action: existingFiles.includes(relativePath) ? 'update' : 'create',
+          file_path: relativePath,
+          content: dirent.content,
+        };
+      });
+
+      try {
+        await gitlab.post(`/projects/${project.id}/repository/commits`, {
+          branch: project.default_branch || 'main',
+          commit_message: 'Update from your app',
+          actions,
+        });
+
+        toast.success(`Repository updated and code pushed: ${project.web_url}`);
+
+        return project.web_url;
+      } catch (commitError: any) {
+        console.error('Commit error:', commitError);
+
+        if (commitError.response?.data?.message) {
+          throw new Error(`Failed to commit changes: ${commitError.response.data.message}`);
+        }
+
+        throw commitError;
+      }
+    } catch (error) {
+      console.error('Error pushing to GitLab:', error);
+
+      if (error instanceof Error) {
+        if (error.message === 'Authentication failed') {
+          toast.error('Authentication failed. Please check your GitLab token in the Connections tab.');
+        } else {
+          toast.error(`Failed to push to GitLab: ${error.message}`);
+        }
+      } else {
+        toast.error('Failed to push to GitLab. Please try again.');
+      }
+
+      throw error;
     }
   }
 }
