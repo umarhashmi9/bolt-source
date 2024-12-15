@@ -6,16 +6,60 @@ import { logStore } from '~/lib/stores/logs';
 export default function ConnectionsTab() {
   const [githubUsername, setGithubUsername] = useState(Cookies.get('githubUsername') || '');
   const [githubToken, setGithubToken] = useState(Cookies.get('githubToken') || '');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveConnection = () => {
-    Cookies.set('githubUsername', githubUsername);
-    Cookies.set('githubToken', githubToken);
-    logStore.logSystem('GitHub connection settings updated', {
-      username: githubUsername,
-      hasToken: !!githubToken,
-    });
-    toast.success('GitHub credentials saved successfully!');
-    Cookies.set('git:github.com', JSON.stringify({ username: githubToken, password: 'x-oauth-basic' }));
+  const verifyGitHubCredentials = async (username: string, token: string) => {
+    try {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      const data = await response.json();
+      if (data.login !== username) {
+        throw new Error('Username does not match the provided token');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('GitHub verification failed:', error);
+      return false;
+    }
+  };
+
+  const handleSaveConnection = async () => {
+    if (!githubUsername || !githubToken) {
+      toast.error('Please provide both username and token');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const isValid = await verifyGitHubCredentials(githubUsername, githubToken);
+      
+      if (!isValid) {
+        toast.error('Failed to verify GitHub credentials. Please check your username and token.');
+        return;
+      }
+
+      Cookies.set('githubUsername', githubUsername);
+      Cookies.set('githubToken', githubToken);
+      logStore.logSystem('GitHub connection settings updated', {
+        username: githubUsername,
+        hasToken: !!githubToken,
+      });
+      Cookies.set('git:github.com', JSON.stringify({ username: githubToken, password: 'x-oauth-basic' }));
+      toast.success('GitHub credentials verified and saved successfully!');
+    } catch (error) {
+      toast.error('An error occurred while saving credentials');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -44,9 +88,10 @@ export default function ConnectionsTab() {
       <div className="flex mb-4">
         <button
           onClick={handleSaveConnection}
-          className="bg-bolt-elements-button-primary-background rounded-lg px-4 py-2 mr-2 transition-colors duration-200 hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text"
+          disabled={isSaving}
+          className="bg-bolt-elements-button-primary-background rounded-lg px-4 py-2 mr-2 transition-colors duration-200 hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Save Connection
+          {isSaving ? 'Verifying...' : 'Save Connection'}
         </button>
       </div>
     </div>
