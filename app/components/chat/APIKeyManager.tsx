@@ -82,7 +82,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
               ) : (
                 <>
                   <div className="i-ph:x-circle-fill text-red-500 w-4 h-4" />
-                  <span className="text-xs text-red-500">Not Set</span>
+                  <span className="text-xs text-red-500">Not Set (Please set via UI or ENV_VAR)</span>
                 </>
               )}
             </div>
