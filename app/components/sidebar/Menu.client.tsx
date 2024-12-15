@@ -221,9 +221,13 @@ export const Menu = () => {
             </Dialog>
           </DialogRoot>
         </div>
-        <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
-          <SettingsButton onClick={() => setIsSettingsOpen(true)} />
-          <ThemeSwitch />
+        <div className="flex items-center relative border-t border-bolt-elements-borderColor p-4">
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <SettingsButton onClick={() => setIsSettingsOpen(true)} />
+          </div>
+          <div className="ml-auto">
+            <ThemeSwitch />
+          </div>
         </div>
       </div>
       <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
