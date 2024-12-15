@@ -1,5 +1,8 @@
+import Cookies from 'js-cookie';
 import type { ModelInfo, OllamaApiResponse, OllamaModel } from './types';
-import type { ProviderInfo } from '~/types/model';
+import type { ProviderInfo, IProviderSetting } from '~/types/model';
+import { createScopedLogger } from './logger';
+import { logStore } from '~/lib/stores/logs';
 
 export const WORK_DIR_NAME = 'project';
 export const WORK_DIR = `/home/${WORK_DIR_NAME}`;
@@ -7,6 +10,9 @@ export const MODIFICATIONS_TAG_NAME = 'bolt_file_modifications';
 export const MODEL_REGEX = /^\[Model: (.*?)\]\n\n/;
 export const PROVIDER_REGEX = /\[Provider: (.*?)\]\n\n/;
 export const DEFAULT_MODEL = 'claude-3-5-sonnet-latest';
+export const PROMPT_COOKIE_KEY = 'cachedPrompt';
+
+const logger = createScopedLogger('Constants');
 
 const PROVIDER_LIST: ProviderInfo[] = [
   {
@@ -121,22 +127,24 @@ const PROVIDER_LIST: ProviderInfo[] = [
     name: 'Google',
     staticModels: [
       { name: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash', provider: 'Google', maxTokenAllowed: 8192 },
+      { name: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash', provider: 'Google', maxTokenAllowed: 8192 },
       { name: 'gemini-1.5-flash-002', label: 'Gemini 1.5 Flash-002', provider: 'Google', maxTokenAllowed: 8192 },
       { name: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash-8b', provider: 'Google', maxTokenAllowed: 8192 },
       { name: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro', provider: 'Google', maxTokenAllowed: 8192 },
       { name: 'gemini-1.5-pro-002', label: 'Gemini 1.5 Pro-002', provider: 'Google', maxTokenAllowed: 8192 },
-      { name: 'gemini-exp-1121', label: 'Gemini exp-1121', provider: 'Google', maxTokenAllowed: 8192 },
+      { name: 'gemini-exp-1206', label: 'Gemini exp-1206', provider: 'Google', maxTokenAllowed: 8192 },
     ],
     getApiKeyLink: 'https://aistudio.google.com/app/apikey',
   },
   {
     name: 'Groq',
     staticModels: [
-      { name: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
       { name: 'llama-3.1-8b-instant', label: 'Llama 3.1 8b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
       { name: 'llama-3.2-11b-vision-preview', label: 'Llama 3.2 11b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
+      { name: 'llama-3.2-90b-vision-preview', label: 'Llama 3.2 90b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },      
       { name: 'llama-3.2-3b-preview', label: 'Llama 3.2 3b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
       { name: 'llama-3.2-1b-preview', label: 'Llama 3.2 1b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
+      { name: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70b (Groq)', provider: 'Groq', maxTokenAllowed: 8000 },
     ],
     getApiKeyLink: 'https://console.groq.com/keys',
   },
@@ -259,6 +267,32 @@ const PROVIDER_LIST: ProviderInfo[] = [
     labelForGetApiKey: 'Get LMStudio',
     icon: 'i-ph:cloud-arrow-down',
   },
+  {
+    name: 'Together',
+    getDynamicModels: getTogetherModels,
+    staticModels: [
+      {
+        name: 'Qwen/Qwen2.5-Coder-32B-Instruct',
+        label: 'Qwen/Qwen2.5-Coder-32B-Instruct',
+        provider: 'Together',
+        maxTokenAllowed: 8000,
+      },
+      {
+        name: 'meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo',
+        label: 'meta-llama/Llama-3.2-90B-Vision-Instruct-Turbo',
+        provider: 'Together',
+        maxTokenAllowed: 8000,
+      },
+
+      {
+        name: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+        label: 'Mixtral 8x7B Instruct',
+        provider: 'Together',
+        maxTokenAllowed: 8192,
+      },
+    ],
+    getApiKeyLink: 'https://api.together.xyz/settings/api-keys',
+  },
 ];
 
 export const DEFAULT_PROVIDER = PROVIDER_LIST[0];
@@ -267,8 +301,66 @@ const staticModels: ModelInfo[] = PROVIDER_LIST.map((p) => p.staticModels).flat(
 
 export let MODEL_LIST: ModelInfo[] = [...staticModels];
 
-const getOllamaBaseUrl = () => {
-  const defaultBaseUrl = import.meta.env.OLLAMA_API_BASE_URL || 'http://localhost:11434';
+export async function getModelList(
+  apiKeys: Record<string, string>,
+  providerSettings?: Record<string, IProviderSetting>,
+) {
+  MODEL_LIST = [
+    ...(
+      await Promise.all(
+        PROVIDER_LIST.filter(
+          (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
+        ).map((p) => p.getDynamicModels(apiKeys, providerSettings?.[p.name])),
+      )
+    ).flat(),
+    ...staticModels,
+  ];
+  return MODEL_LIST;
+}
+
+async function getTogetherModels(apiKeys?: Record<string, string>, settings?: IProviderSetting): Promise<ModelInfo[]> {
+  try {
+    const baseUrl = settings?.baseUrl || import.meta.env.TOGETHER_API_BASE_URL || '';
+    const provider = 'Together';
+
+    if (!baseUrl) {
+      return [];
+    }
+
+    let apiKey = import.meta.env.OPENAI_LIKE_API_KEY ?? '';
+
+    if (apiKeys && apiKeys[provider]) {
+      apiKey = apiKeys[provider];
+    }
+
+    if (!apiKey) {
+      return [];
+    }
+
+    const response = await fetch(`${baseUrl}/models`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    const res = (await response.json()) as any;
+    const data: any[] = (res || []).filter((model: any) => model.type == 'chat');
+
+    return data.map((m: any) => ({
+      name: m.id,
+      label: `${m.display_name} - in:$${m.pricing.input.toFixed(
+        2,
+      )} out:$${m.pricing.output.toFixed(2)} - context ${Math.floor(m.context_length / 1000)}k`,
+      provider,
+      maxTokenAllowed: 8000,
+    }));
+  } catch (e) {
+    console.error('Error getting OpenAILike models:', e);
+    return [];
+  }
+}
+
+const getOllamaBaseUrl = (settings?: IProviderSetting) => {
+  const defaultBaseUrl = settings?.baseUrl || import.meta.env.OLLAMA_API_BASE_URL || 'http://localhost:11434';
 
   // Check if we're in the browser
   if (typeof window !== 'undefined') {
@@ -282,9 +374,9 @@ const getOllamaBaseUrl = () => {
   return isDocker ? defaultBaseUrl.replace('localhost', 'host.docker.internal') : defaultBaseUrl;
 };
 
-async function getOllamaModels(): Promise<ModelInfo[]> {
+async function getOllamaModels(apiKeys?: Record<string, string>, settings?: IProviderSetting): Promise<ModelInfo[]> {
   try {
-    const baseUrl = getOllamaBaseUrl();
+    const baseUrl = getOllamaBaseUrl(settings);
     const response = await fetch(`${baseUrl}/api/tags`);
     const data = (await response.json()) as OllamaApiResponse;
 
@@ -294,21 +386,31 @@ async function getOllamaModels(): Promise<ModelInfo[]> {
       provider: 'Ollama',
       maxTokenAllowed: 8000,
     }));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
+  } catch (e: any) {
+    logStore.logError('Failed to get Ollama models', e, { baseUrl: settings?.baseUrl });
+    logger.warn('Failed to get Ollama models: ', e.message || '');
+
     return [];
   }
 }
 
-async function getOpenAILikeModels(): Promise<ModelInfo[]> {
+async function getOpenAILikeModels(
+  apiKeys?: Record<string, string>,
+  settings?: IProviderSetting,
+): Promise<ModelInfo[]> {
   try {
-    const baseUrl = import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
+    const baseUrl = settings?.baseUrl || import.meta.env.OPENAI_LIKE_API_BASE_URL || '';
 
     if (!baseUrl) {
       return [];
     }
 
-    const apiKey = import.meta.env.OPENAI_LIKE_API_KEY ?? '';
+    let apiKey = '';
+
+    if (apiKeys && apiKeys.OpenAILike) {
+      apiKey = apiKeys.OpenAILike;
+    }
+
     const response = await fetch(`${baseUrl}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -321,8 +423,8 @@ async function getOpenAILikeModels(): Promise<ModelInfo[]> {
       label: model.id,
       provider: 'OpenAILike',
     }));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
+    console.error('Error getting OpenAILike models:', e);
     return [];
   }
 }
@@ -360,9 +462,9 @@ async function getOpenRouterModels(): Promise<ModelInfo[]> {
     }));
 }
 
-async function getLMStudioModels(): Promise<ModelInfo[]> {
+async function getLMStudioModels(_apiKeys?: Record<string, string>, settings?: IProviderSetting): Promise<ModelInfo[]> {
   try {
-    const baseUrl = import.meta.env.LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
+    const baseUrl = settings?.baseUrl || import.meta.env.LMSTUDIO_API_BASE_URL || 'http://localhost:1234';
     const response = await fetch(`${baseUrl}/v1/models`);
     const data = (await response.json()) as any;
 
@@ -371,23 +473,42 @@ async function getLMStudioModels(): Promise<ModelInfo[]> {
       label: model.id,
       provider: 'LMStudio',
     }));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
+  } catch (e: any) {
+    logStore.logError('Failed to get LMStudio models', e, { baseUrl: settings?.baseUrl });
+    logger.warn('Failed to get LMStudio models: ', e.message || '');
+
     return [];
   }
 }
 
-async function initializeModelList(): Promise<ModelInfo[]> {
+async function initializeModelList(providerSettings?: Record<string, IProviderSetting>): Promise<ModelInfo[]> {
+  let apiKeys: Record<string, string> = {};
+
+  try {
+    const storedApiKeys = Cookies.get('apiKeys');
+
+    if (storedApiKeys) {
+      const parsedKeys = JSON.parse(storedApiKeys);
+
+      if (typeof parsedKeys === 'object' && parsedKeys !== null) {
+        apiKeys = parsedKeys;
+      }
+    }
+  } catch (error: any) {
+    logStore.logError('Failed to fetch API keys from cookies', error);
+    logger.warn(`Failed to fetch apikeys from cookies: ${error?.message}`);
+  }
   MODEL_LIST = [
     ...(
       await Promise.all(
         PROVIDER_LIST.filter(
           (p): p is ProviderInfo & { getDynamicModels: () => Promise<ModelInfo[]> } => !!p.getDynamicModels,
-        ).map((p) => p.getDynamicModels()),
+        ).map((p) => p.getDynamicModels(apiKeys, providerSettings?.[p.name])),
       )
     ).flat(),
     ...staticModels,
   ];
+
   return MODEL_LIST;
 }
 

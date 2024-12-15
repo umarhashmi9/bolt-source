@@ -2,7 +2,7 @@ import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { StreamingTextResponse, parseStreamPart } from 'ai';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
-import type { ProviderInfo } from '~/types/model';
+import type { IProviderSetting, ProviderInfo } from '~/types/model';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -11,8 +11,28 @@ export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
 }
 
+function parseCookies(cookieHeader: string) {
+  const cookies: any = {};
+
+  // Split the cookie string by semicolons and spaces
+  const items = cookieHeader.split(';').map((cookie) => cookie.trim());
+
+  items.forEach((item) => {
+    const [name, ...rest] = item.split('=');
+
+    if (name && rest) {
+      // Decode the name and value, and join value parts in case it contains '='
+      const decodedName = decodeURIComponent(name.trim());
+      const decodedValue = decodeURIComponent(rest.join('=').trim());
+      cookies[decodedName] = decodedValue;
+    }
+  });
+
+  return cookies;
+}
+
 async function enhancerAction({ context, request }: ActionFunctionArgs) {
-  const { message, model, provider, apiKeys } = await request.json<{
+  const { message, model, provider } = await request.json<{
     message: string;
     model: string;
     provider: ProviderInfo;
@@ -36,17 +56,44 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
     });
   }
 
+  const cookieHeader = request.headers.get('Cookie');
+
+  // Parse the cookie's value (returns an object or null if no cookie exists)
+  const apiKeys = JSON.parse(parseCookies(cookieHeader || '').apiKeys || '{}');
+  const providerSettings: Record<string, IProviderSetting> = JSON.parse(
+    parseCookies(cookieHeader || '').providers || '{}',
+  );
+
   try {
-    const result = await streamText(
-      [
+    const result = await streamText({
+      messages: [
         {
           role: 'user',
           content:
             `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
             stripIndents`
+            You are a professional prompt engineer specializing in crafting precise, effective prompts.
+          Your task is to enhance prompts by making them more specific, actionable, and effective.
+
           I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
 
-          IMPORTANT: Only respond with the improved prompt and nothing else!
+          For valid prompts:
+          - Make instructions explicit and unambiguous
+          - Add relevant context and constraints
+          - Remove redundant information
+          - Maintain the core intent
+          - Ensure the prompt is self-contained
+          - Use professional language
+
+          For invalid or unclear prompts:
+          - Respond with a clear, professional guidance message
+          - Keep responses concise and actionable
+          - Maintain a helpful, constructive tone
+          - Focus on what the user should provide
+          - Use a standard template for consistency
+
+          IMPORTANT: Your response must ONLY contain the enhanced prompt text.
+          Do not include any explanations, metadata, or wrapper tags.
 
           <original_prompt>
             ${message}
@@ -54,10 +101,10 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
         `,
         },
       ],
-      context.cloudflare.env,
-      undefined,
+      env: context.cloudflare.env,
       apiKeys,
-    );
+      providerSettings,
+    });
 
     const transformStream = new TransformStream({
       transform(chunk, controller) {
@@ -79,7 +126,7 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       },
     });
 
-    const transformedStream = result.toAIStream().pipeThrough(transformStream);
+    const transformedStream = result.toDataStream().pipeThrough(transformStream);
 
     return new StreamingTextResponse(transformedStream);
   } catch (error: unknown) {

@@ -3,11 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
+import { IconButton } from '~/components/ui/IconButton';
 import { db, deleteById, getAll, chatId, type ChatHistoryItem, setMessages, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
+import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 
 const menuVariants = {
   closed: {
@@ -33,11 +35,16 @@ const menuVariants = {
 type DialogContent = { type: 'delete'; item: ChatHistoryItem } | null;
 
 export function Menu() {
-  const { duplicateCurrentChat } = useChatHistory();
+  const { duplicateCurrentChat, exportChat } = useChatHistory();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+
+  const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
+    items: list,
+    searchFields: ['description'],
+  });
 
   const loadEntries = useCallback(() => {
     if (db) {
@@ -133,7 +140,7 @@ export function Menu() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      
+
       input.onchange = async (e) => {
         try {
           const file = (e.target as HTMLInputElement).files?.[0];
@@ -147,7 +154,7 @@ export function Menu() {
               const content = e.target?.result as string;
               logger.info('Parsing backup file content:', content.slice(0, 200) + '...');
               const backupData = JSON.parse(content);
-              
+
               // Basic validation with detailed logging
               logger.info('Validating backup data:', {
                 hasVersion: !!backupData.version,
@@ -163,7 +170,7 @@ export function Menu() {
               }
 
               let chatHistory;
-              
+
               // Handle different backup formats
               if (backupData.version && backupData.history) {
                 // Our standard format
@@ -180,11 +187,11 @@ export function Menu() {
                 chatHistory = backupData;
               } else {
                 // Try to find any object with chat-like properties
-                const possibleChats = Object.values(backupData).find(value => 
-                  Array.isArray(value) || 
+                const possibleChats = Object.values(backupData).find(value =>
+                  Array.isArray(value) ||
                   (typeof value === 'object' && value !== null && 'messages' in value)
                 );
-                
+
                 if (possibleChats) {
                   chatHistory = Array.isArray(possibleChats) ? possibleChats : [possibleChats];
                   logger.info('Found possible chat data in alternate format', {
@@ -267,11 +274,11 @@ export function Menu() {
       initial="closed"
       animate={open ? 'open' : 'closed'}
       variants={menuVariants}
-      className="flex flex-col side-menu fixed top-0 w-[350px] h-full bg-bolt-elements-background-depth-2 border-r rounded-r-3xl border-bolt-elements-borderColor z-sidebar shadow-xl shadow-bolt-elements-sidebar-dropdownShadow text-sm"
+      className="flex selection-accent flex-col side-menu fixed top-0 w-[350px] h-full bg-bolt-elements-background-depth-2 border-r rounded-r-3xl border-bolt-elements-borderColor z-sidebar shadow-xl shadow-bolt-elements-sidebar-dropdownShadow text-sm"
     >
       <div className="flex items-center h-[var(--header-height)]">{/* Placeholder */}</div>
       <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
-        <div className="p-4">
+        <div className="p-4 select-none">
           <a
             href="/"
             className="flex gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
@@ -279,6 +286,17 @@ export function Menu() {
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
           </a>
+        </div>
+        <div className="pl-4 pr-4 my-2">
+          <div className="relative w-full">
+            <input
+              className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
+              type="search"
+              placeholder="Search"
+              onChange={handleSearchChange}
+              aria-label="Search chats"
+            />
+          </div>
         </div>
         <div className="flex items-center justify-between pl-6 pr-5 my-2">
           <div className="text-bolt-elements-textPrimary font-medium">Your Chats</div>
@@ -301,16 +319,26 @@ export function Menu() {
             />
           </div>
         </div>
-        <div className="flex-1 overflow-scroll pl-4 pr-5 pb-5">
-          {list.length === 0 && <div className="pl-2 text-bolt-elements-textTertiary">No previous conversations</div>}
+        <div className="flex-1 overflow-auto pl-4 pr-5 pb-5">
+          {filteredList.length === 0 && (
+            <div className="pl-2 text-bolt-elements-textTertiary">
+              {list.length === 0 ? 'No previous conversations' : 'No matches found'}
+            </div>
+          )}
           <DialogRoot open={dialogContent !== null}>
-            {binDates(list).map(({ category, items }) => (
+            {binDates(filteredList).map(({ category, items }) => (
               <div key={category} className="mt-4 first:mt-0 space-y-1">
                 <div className="text-bolt-elements-textTertiary sticky top-0 z-1 bg-bolt-elements-background-depth-2 pl-2 pt-2 pb-1">
                   {category}
                 </div>
                 {items.map((item) => (
-                  <HistoryItem key={item.id} item={item} onDelete={handleDeleteClick} onDuplicate={handleDuplicate} />
+                  <HistoryItem
+                    key={item.id}
+                    item={item}
+                    exportChat={exportChat}
+                    onDelete={(event) => handleDeleteClick(event, item)}
+                    onDuplicate={() => handleDuplicate(item.id)}
+                  />
                 ))}
               </div>
             ))}

@@ -4,7 +4,16 @@ import { atom } from 'nanostores';
 import type { Message } from 'ai';
 import { toast } from 'react-toastify';
 import { workbenchStore } from '~/lib/stores/workbench';
-import { getMessages, getNextId, getUrlId, openDatabase, setMessages, duplicateChat } from './db';
+import { logStore } from '~/lib/stores/logs'; // Import logStore
+import {
+  getMessages,
+  getNextId,
+  getUrlId,
+  openDatabase,
+  setMessages,
+  duplicateChat,
+  createChatFromMessages,
+} from './db';
 
 export interface ChatHistoryItem {
   id: string;
@@ -35,7 +44,9 @@ export function useChatHistory() {
       setReady(true);
 
       if (persistenceEnabled) {
-        toast.error(`Chat persistence is unavailable`);
+        const error = new Error('Chat persistence is unavailable');
+        logStore.logError('Chat persistence initialization failed', error);
+        toast.error('Chat persistence is unavailable');
       }
 
       return;
@@ -55,12 +66,13 @@ export function useChatHistory() {
             description.set(storedMessages.description);
             chatId.set(storedMessages.id);
           } else {
-            navigate(`/`, { replace: true });
+            navigate('/', { replace: true });
           }
 
           setReady(true);
         })
         .catch((error) => {
+          logStore.logError('Failed to load chat messages', error);
           toast.error(error.message);
         });
     }
@@ -112,6 +124,45 @@ export function useChatHistory() {
         toast.error('Failed to duplicate chat');
         console.log(error);
       }
+    },
+    importChat: async (description: string, messages: Message[]) => {
+      if (!db) {
+        return;
+      }
+
+      try {
+        const newId = await createChatFromMessages(db, description, messages);
+        window.location.href = `/chat/${newId}`;
+        toast.success('Chat imported successfully');
+      } catch (error) {
+        if (error instanceof Error) {
+          toast.error('Failed to import chat: ' + error.message);
+        } else {
+          toast.error('Failed to import chat');
+        }
+      }
+    },
+    exportChat: async (id = urlId) => {
+      if (!db || !id) {
+        return;
+      }
+
+      const chat = await getMessages(db, id);
+      const chatData = {
+        messages: chat.messages,
+        description: chat.description,
+        exportDate: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-${new Date().toISOString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     },
   };
 }
