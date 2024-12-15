@@ -555,7 +555,9 @@ export class WorkbenchStore {
       let project;
 
       try {
-        const { data } = await gitlab.get(`/projects/${encodeURIComponent(`${username}/${repoName}`)}`);
+        // Use proper URL encoding for the project path
+        const projectPath = encodeURIComponent(`${username}/${repoName}`);
+        const { data } = await gitlab.get(`/projects/${projectPath}`);
         project = data;
       } catch (error: any) {
         if (error.response?.status === 404) {
@@ -566,13 +568,21 @@ export class WorkbenchStore {
             throw new Error('Repository creation cancelled');
           }
 
-          // Create new project after confirmation
-          const { data } = await gitlab.post('/projects', {
-            name: repoName,
-            visibility: 'public',
-            initialize_with_readme: true,
-          });
-          project = data;
+          try {
+            // Create new project after confirmation
+            const { data } = await gitlab.post('/projects', {
+              name: repoName,
+              visibility: 'public',
+              initialize_with_readme: false,
+            });
+            project = data;
+          } catch (createError: any) {
+            if (createError.response?.status === 400) {
+              throw new Error(`Failed to create project: ${createError.response.data.message}`);
+            }
+
+            throw createError;
+          }
         } else {
           // Re-throw other errors
           throw error;
@@ -586,31 +596,61 @@ export class WorkbenchStore {
         throw new Error('No files found to push');
       }
 
-      const actions = Object.entries(files)
-        .filter((entry): entry is [string, File] => {
-          const [, dirent] = entry;
-
-          if (actions.length === 0) {
-            throw new Error('No valid files to push');
-          }
-
-          return dirent?.type === 'file' && typeof dirent?.content === 'string';
-        })
-        .map(([filePath, dirent]) => ({
-          action: 'create',
-          file_path: extractRelativePath(filePath),
-          content: dirent.content,
-        }));
-
-      await gitlab.post(`/projects/${project.id}/repository/commits`, {
-        branch: project.default_branch || 'main',
-        commit_message: 'Initial commit from your app',
-        actions,
+      const validFiles = Object.entries(files).filter((entry): entry is [string, File] => {
+        const [, dirent] = entry;
+        return dirent?.type === 'file' && typeof dirent?.content === 'string';
       });
 
-      toast.success(`Repository created and code pushed: ${project.web_url}`);
+      if (validFiles.length === 0) {
+        throw new Error('No valid files to push');
+      }
 
-      return project.web_url;
+      // Get existing files in the repository
+      let existingFiles: string[] = [];
+
+      try {
+        const { data: treeData } = await gitlab.get(`/projects/${project.id}/repository/tree`, {
+          params: {
+            ref: project.default_branch || 'main',
+            recursive: true,
+            per_page: 100,
+          },
+        });
+        existingFiles = treeData.map((file: any) => file.path);
+      } catch (error: any) {
+        // If we can't get the tree (e.g., empty repository), assume no files exist
+        if (error.response?.status !== 404) {
+          console.error('Error getting repository tree:', error);
+        }
+      }
+
+      // Create actions for each file
+      const actions = validFiles.map(([filePath, dirent]) => {
+        const relativePath = extractRelativePath(filePath);
+        return {
+          action: existingFiles.includes(relativePath) ? 'update' : 'create',
+          file_path: relativePath,
+          content: dirent.content,
+        };
+      });
+
+      try {
+        await gitlab.post(`/projects/${project.id}/repository/commits`, {
+          branch: project.default_branch || 'main',
+          commit_message: 'Update from your app',
+          actions,
+        });
+
+        toast.success(`Repository updated and code pushed: ${project.web_url}`);
+
+        return project.web_url;
+      } catch (commitError: any) {
+        if (commitError.response?.data?.message) {
+          throw new Error(`Failed to commit changes: ${commitError.response.data.message}`);
+        }
+
+        throw commitError;
+      }
     } catch (error) {
       console.error('Error pushing to GitLab:', error);
 
