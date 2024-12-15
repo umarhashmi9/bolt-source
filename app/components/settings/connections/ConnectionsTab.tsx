@@ -12,6 +12,7 @@ export default function ConnectionsTab() {
   const [githubUsername, setGithubUsername] = useState(Cookies.get('githubUsername') || '');
   const [githubToken, setGithubToken] = useState(Cookies.get('githubToken') || '');
   const [isSaving, setIsSaving] = useState(false);
+  const isConnected = !!(githubUsername && githubToken);
 
   const verifyGitHubCredentials = async (username: string, token: string) => {
     try {
@@ -35,6 +36,16 @@ export default function ConnectionsTab() {
       console.error('GitHub verification failed:', error);
       return false;
     }
+  };
+
+  const handleDisconnect = () => {
+    Cookies.remove('githubUsername');
+    Cookies.remove('githubToken');
+    Cookies.remove('git:github.com');
+    setGithubUsername('');
+    setGithubToken('');
+    logStore.logSystem('GitHub connection removed');
+    toast.success('GitHub connection removed successfully!');
   };
 
   const handleSaveConnection = async () => {
@@ -77,7 +88,8 @@ export default function ConnectionsTab() {
             type="text"
             value={githubUsername}
             onChange={(e) => setGithubUsername(e.target.value)}
-            className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
+            disabled={isConnected}
+            className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor disabled:opacity-50"
           />
         </div>
         <div className="flex-1">
@@ -86,18 +98,28 @@ export default function ConnectionsTab() {
             type="password"
             value={githubToken}
             onChange={(e) => setGithubToken(e.target.value)}
-            className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
+            disabled={isConnected}
+            className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor disabled:opacity-50"
           />
         </div>
       </div>
       <div className="flex mb-4">
-        <button
-          onClick={handleSaveConnection}
-          disabled={isSaving}
-          className="bg-bolt-elements-button-primary-background rounded-lg px-4 py-2 mr-2 transition-colors duration-200 hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSaving ? 'Verifying...' : 'Save Connection'}
-        </button>
+        {isConnected ? (
+          <button
+            onClick={handleDisconnect}
+            className="bg-red-500 hover:bg-red-600 rounded-lg px-4 py-2 mr-2 transition-colors duration-200 text-white"
+          >
+            Disconnect Account
+          </button>
+        ) : (
+          <button
+            onClick={handleSaveConnection}
+            disabled={isSaving}
+            className="bg-bolt-elements-button-primary-background rounded-lg px-4 py-2 mr-2 transition-colors duration-200 hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? 'Verifying...' : 'Save Connection'}
+          </button>
+        )}
       </div>
     </div>
   );
