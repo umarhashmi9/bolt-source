@@ -14,4 +14,5 @@ interface Env {
   GOOGLE_GENERATIVE_AI_API_KEY: string;
   MISTRAL_API_KEY: string;
   XAI_API_KEY: string;
+  GEMINI_API_KEY: string;
 }

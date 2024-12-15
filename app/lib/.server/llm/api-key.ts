@@ -39,6 +39,8 @@ export function getAPIKey(cloudflareEnv: Env, provider: string, userApiKeys?: Re
       return env.TOGETHER_API_KEY || cloudflareEnv.TOGETHER_API_KEY;
     case 'xAI':
       return env.XAI_API_KEY || cloudflareEnv.XAI_API_KEY;
+    case 'Gemini':
+      return env.GEMINI_API_KEY || cloudflareEnv.GEMINI_API_KEY;
     case 'Cohere':
       return env.COHERE_API_KEY;
     case 'AzureOpenAI':
