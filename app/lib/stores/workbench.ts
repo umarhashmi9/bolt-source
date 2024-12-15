@@ -548,44 +548,36 @@ export class WorkbenchStore {
             throw new Error('Authentication failed');
           }
 
-          throw new Error(error.response?.data?.message || error.message);
+          throw error;
         },
       );
 
       let project;
 
       try {
-        // Use proper URL encoding for the project path
+        // First try to get existing project
         const projectPath = encodeURIComponent(`${username}/${repoName}`);
         const { data } = await gitlab.get(`/projects/${projectPath}`);
         project = data;
+        console.log('Found existing project:', project);
       } catch (error: any) {
         if (error.response?.status === 404) {
-          // Project doesn't exist, ask for confirmation
-          const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);
-
-          if (!shouldCreate) {
-            throw new Error('Repository creation cancelled');
-          }
-
+          // Project doesn't exist, create it
           try {
-            // Create new project after confirmation
             const { data } = await gitlab.post('/projects', {
               name: repoName,
               visibility: 'public',
               initialize_with_readme: false,
             });
             project = data;
+            console.log('Created new project:', project);
           } catch (createError: any) {
-            if (createError.response?.status === 400) {
-              throw new Error(`Failed to create project: ${createError.response.data.message}`);
-            }
-
-            throw createError;
+            console.error('Error creating project:', createError);
+            throw new Error(createError.response?.data?.message || 'Failed to create project');
           }
         } else {
-          // Re-throw other errors
-          throw error;
+          console.error('Error accessing project:', error);
+          throw new Error('Failed to access project. Please check if you have the correct permissions.');
         }
       }
 
@@ -645,6 +637,8 @@ export class WorkbenchStore {
 
         return project.web_url;
       } catch (commitError: any) {
+        console.error('Commit error:', commitError);
+
         if (commitError.response?.data?.message) {
           throw new Error(`Failed to commit changes: ${commitError.response.data.message}`);
         }
@@ -655,10 +649,6 @@ export class WorkbenchStore {
       console.error('Error pushing to GitLab:', error);
 
       if (error instanceof Error) {
-        if (error.message === 'Repository creation cancelled') {
-          throw error;
-        }
-
         if (error.message === 'Authentication failed') {
           toast.error('Authentication failed. Please check your GitLab token in the Connections tab.');
         } else {
