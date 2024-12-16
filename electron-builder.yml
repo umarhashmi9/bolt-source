@@ -1,7 +1,7 @@
 #
 # https://www.electron.build/configuration/configuration
 #
-copyright: Copyright © 2024 ${author}
+copyright: Copyright 2024 Derek X Wang
 asar: false
 
 appId: com.bolt.local
@@ -11,18 +11,22 @@ directories:
   # buildResources: resource
   output: dist
 files:
-  - "!**/*"
+  - build/**/*
   - package.json
-  - build
-  - node_modules
+  - node_modules/**/*
+extraMetadata:
+  main: build/electron/main/index.mjs
 asarUnpack:
   - resources/**
+  - build/client/**/*
+  - build/server/**/*
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
 mac:
+  icon: icons/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -34,6 +38,7 @@ mac:
     - zip
     #- dmg
     #- mas # not supported. Mac Application Store
+  identity: null
   publish: &publish
     - provider: github
       private: false
