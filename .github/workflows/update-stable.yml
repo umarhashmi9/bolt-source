@@ -111,7 +111,6 @@ jobs:
             elif [[ $1 =~ ^test: ]]; then echo "✅ Tests";
             elif [[ $1 =~ ^build: ]]; then echo "🛠️ Build System";
             elif [[ $1 =~ ^ci: ]]; then echo "⚙️ CI";
-            elif [[ $1 =~ ^chore: ]]; then echo "🔧 Chores";
             else echo "🔍 Other Changes";
             fi
           }
@@ -119,26 +118,50 @@ jobs:
           # Generate categorized changelog
           declare -A CATEGORIES
           declare -A COMMITS_BY_CATEGORY
+          declare -A ALL_AUTHORS
+          declare -A NEW_CONTRIBUTORS
+          
+          # Get all historical authors before the compare base
+          while IFS= read -r author; do
+            ALL_AUTHORS["$author"]=1
+          done < <(git log "${COMPARE_BASE}" --pretty=format:"%ae" | sort -u)
           
           # Get commits since last tag or all commits if no tag exists
           while IFS= read -r commit_line; do
             HASH=$(echo "$commit_line" | cut -d'|' -f1)
             MSG=$(echo "$commit_line" | cut -d'|' -f2)
             PR_NUM=$(echo "$commit_line" | cut -d'|' -f3)
+            AUTHOR=$(echo "$commit_line" | cut -d'|' -f4)
+            AUTHOR_EMAIL=$(echo "$commit_line" | cut -d'|' -f5)
+            
+            # Check if this is a first-time contributor
+            if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
+              NEW_CONTRIBUTORS["$AUTHOR"]=1
+              ALL_AUTHORS["$AUTHOR_EMAIL"]=1
+            fi
             
             CATEGORY=$(get_commit_type "$MSG")
             CATEGORIES["$CATEGORY"]=1
             
-            # Format commit message with PR link if available
+            # Format commit message with PR link and contributor if available
+            FORMATTED_MSG="${MSG#*: }"
             if [ -n "$PR_NUM" ]; then
-              COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${MSG#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+              if [ -n "$AUTHOR" ]; then
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${FORMATTED_MSG} ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) [@$AUTHOR](https://github.com/$AUTHOR)"$'\n'
+              else
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${FORMATTED_MSG} ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+              fi
             else
-              COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${MSG#*: }"$'\n'
+              if [ -n "$AUTHOR" ]; then
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${FORMATTED_MSG} [@$AUTHOR](https://github.com/$AUTHOR)"$'\n'
+              else
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${FORMATTED_MSG}"$'\n'
+              fi
             fi
-          done < <(git log "${COMPARE_BASE}..HEAD" --pretty=format:"%H|%s|%(trailers:key=PR-Number,valueonly)" --reverse)
+          done < <(git log "${COMPARE_BASE}..HEAD" --pretty=format:"%H|%s|%(trailers:key=PR-Number,valueonly)|%(authorname)|%(authorEmail)" --reverse)
           
           # Write categorized commits to changelog
-          for category in "✨ Features" "🐛 Bug Fixes" "📚 Documentation" "💎 Styles" "♻️ Code Refactoring" "⚡️ Performance Improvements" "✅ Tests" "🛠️ Build System" "⚙️ CI" "🔧 Chores" "🔍 Other Changes"; do
+          for category in "✨ Features" "🐛 Bug Fixes" "📚 Documentation" "💎 Styles" "♻️ Code Refactoring" "⚡️ Performance Improvements" "✅ Tests" "🛠️ Build System" "⚙️ CI" "🔍 Other Changes"; do
             if [ -n "${COMMITS_BY_CATEGORY[$category]}" ]; then
               echo "#### $category" >> changelog.md
               echo "" >> changelog.md
@@ -146,6 +169,18 @@ jobs:
               echo "" >> changelog.md
             fi
           done
+          
+          # Add first-time contributors section if there are any
+          if [ ${#NEW_CONTRIBUTORS[@]} -gt 0 ]; then
+            echo "### 🎉 First-time Contributors" >> changelog.md
+            echo "" >> changelog.md
+            echo "We extend a warm welcome to our new contributors! Thank you for your first contribution:" >> changelog.md
+            echo "" >> changelog.md
+            for contributor in "${!NEW_CONTRIBUTORS[@]}"; do
+              echo "* [@$contributor](https://github.com/$contributor)" >> changelog.md
+            done
+            echo "" >> changelog.md
+          fi
           
           # Add compare link if not first release
           if [ -n "$LATEST_TAG" ]; then
