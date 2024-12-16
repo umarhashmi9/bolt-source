@@ -100,12 +100,6 @@ export class BoltShell {
 
     const state = this.executionState.get();
 
-    /*
-     * interrupt the current execution
-     *  this.#shellInputStream?.write('\x03');
-     */
-    this.terminal.input('\x03');
-
     if (state && state.executionPrms) {
       await state.executionPrms;
     }
@@ -204,9 +198,12 @@ export class BoltShell {
 
       if (osc === 'exit') {
         exitCode = parseInt(code, 10);
+        new Promise((resolve) => setTimeout(resolve, 500));
+        break;
       }
 
       if (osc === waitCode) {
+        new Promise((resolve) => setTimeout(resolve, 500));
         break;
       }
     }

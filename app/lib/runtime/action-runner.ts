@@ -75,7 +75,7 @@ export class ActionRunner {
     });
   }
 
-  async runAction(data: ActionCallbackData, isStreaming: boolean = false) {
+  runAction(data: ActionCallbackData, isStreaming: boolean = false) {
     const { actionId } = data;
     const action = this.actions.get()[actionId];
 
@@ -101,7 +101,7 @@ export class ActionRunner {
         console.error('Action failed:', error);
       });
 
-    await this.#currentExecutionPromise;
+    this.#currentExecutionPromise;
 
     return;
   }
@@ -150,24 +150,25 @@ export class ActionRunner {
     }
   }
 
-  async #runShellAction(action: ActionState) {
+  #runShellAction(action: ActionState) {
     if (action.type !== 'shell') {
       unreachable('Expected shell action');
     }
 
     const shell = this.#shellTerminal();
-    await shell.ready();
+    shell.ready();
 
     if (!shell || !shell.terminal || !shell.process) {
       unreachable('Shell terminal not found');
     }
 
-    const resp = await shell.executeCommand(this.runnerId.get(), action.content);
-    logger.debug(`${action.type} Shell Response: [exit code:${resp?.exitCode}]`);
+    const resp = shell.executeCommand(this.runnerId.get(), action.content);
+    // logger.debug(`${action.type} Shell Response: [exit code:${resp?.exitCode}]`);
 
-    if (resp?.exitCode != 0) {
-      throw new Error('Failed To Execute Shell Command');
-    }
+    // if (resp?.exitCode != 0) {
+    //   throw new Error('Failed To Execute Shell Command');
+    // }
+    return resp;
   }
 
   async #runStartAction(action: ActionState) {
