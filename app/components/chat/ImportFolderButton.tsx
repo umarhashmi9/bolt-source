@@ -19,14 +19,8 @@ export const ImportFolderButton: React.FC<ImportFolderButtonProps> = ({ classNam
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let allFiles = Array.from(e.target.files || []) as FileWithPath[];
 
-    // Get all .gitignore files in any folder
     const gitignoreFiles = allFiles.filter((file) => file.webkitRelativePath.endsWith('.gitignore'));
-    const gitignorePatterns: string[] = [
-      '.git/**',
-      '.git/*',
-      'node_modules/**', // Example: also ignore node_modules
-      '.env*', // Example: ignore environment files
-    ];
+    const gitignorePatterns: string[] = ['.git/**', '.git/*', 'node_modules/**', '.env*'];
 
     // Process all .gitignore files
     for (const gitignoreFile of gitignoreFiles) {
