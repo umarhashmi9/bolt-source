@@ -1,6 +1,7 @@
 import { toast } from 'react-toastify';
 import Cookies from 'js-cookie';
 import type { GitAuth } from 'isomorphic-git';
+import { logStore } from '../stores/logs';
 
 let masterKey: CryptoKey | null = null;
 
@@ -33,7 +34,7 @@ const initializeMasterKey = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Failed to initialize master key:', error);
+    logStore.logError('Failed to initialize master key:', error);
     return false;
   }
 };
@@ -77,7 +78,7 @@ const decrypt = async (encryptedText: string): Promise<string> => {
 
     return decoder.decode(decryptedData);
   } catch (error) {
-    console.error('Decryption failed:', error);
+    logStore.logError('Decryption failed:', error);
     throw error;
   }
 };
@@ -117,7 +118,7 @@ const getLegacyCredentials = async (domain: string): Promise<GitAuth | null> => 
 
     return { username, password: token };
   } catch (error) {
-    console.error('Failed to decrypt legacy credentials:', error);
+    logStore.logError('Failed to decrypt legacy credentials:', error);
 
     const provider = domain.split('.')[0];
     Cookies.remove(`${provider}Username`);
@@ -148,15 +149,15 @@ const migrateLegacyCredentials = async (domain: string, auth: GitAuth): Promise<
     legacyKeys.forEach((key) => {
       if (Cookies.get(key)) {
         Cookies.remove(key);
-        console.log(`Removed legacy cookie: ${key}`);
+        logStore.logSystem(`Removed legacy cookie: ${key}`);
       }
     });
 
-    console.log(`Successfully migrated ${provider} credentials to new format and cleaned up legacy data`);
+    logStore.logSystem(`Successfully migrated ${provider} credentials to new format and cleaned up legacy data`);
 
     return true;
   } catch (error) {
-    console.error('Failed to migrate legacy credentials:', error);
+    logStore.logError('Failed to migrate legacy credentials:', error);
     return false;
   }
 };
@@ -179,7 +180,7 @@ const getNewFormatCredentials = async (domain: string): Promise<GitAuth | null> 
 
     return { username, password };
   } catch (error) {
-    console.error('Failed to parse or decrypt Git Cookie:', error);
+    logStore.logError('Failed to parse or decrypt Git Cookie:', error);
     Cookies.remove(domain);
 
     return null;
@@ -220,10 +221,10 @@ const saveGitAuth = async (url: string, auth: GitAuth) => {
 
   const domain = getDomain(url);
 
-  if (!auth.username || !auth.password) {
-    toast.error('Username and token are required');
-    return;
-  }
+  // if (!auth.username || !auth.password) {
+  //   toast.error('Username and token are required');
+  //   return;
+  // }
 
   try {
     const encryptedCreds = await encrypt(
@@ -233,11 +234,28 @@ const saveGitAuth = async (url: string, auth: GitAuth) => {
       }),
     );
     Cookies.set(domain, encryptedCreds);
-    toast.success(`${domain} credentials saved successfully!`);
+    logStore.logSystem(`${domain} connection settings updated`, {
+      username: auth.username,
+      hasToken: !!auth.password,
+    });
+    toast.success(`${domain} credentials verified and saved successfully!`);
   } catch (error) {
-    console.error('Failed to encrypt credentials:', error);
+    logStore.logError('Failed to encrypt credentials:', error);
     toast.error('Failed to save credentials securely');
   }
 };
 
-export { lookupSavedPassword, saveGitAuth, isEncryptionInitialized, ensureEncryption };
+const removeGitAuth = async (url: string) => {
+  const domain = getDomain(url);
+
+  try {
+    Cookies.remove(domain);
+    logStore.logSystem(`${domain} connection removed`);
+    toast.success(`${domain} connection removed successfully!`);
+  } catch (error) {
+    logStore.logError('Failed to encrypt credentials:', error);
+    toast.error('Failed to save credentials securely');
+  }
+};
+
+export { lookupSavedPassword, saveGitAuth, removeGitAuth, isEncryptionInitialized, ensureEncryption };
