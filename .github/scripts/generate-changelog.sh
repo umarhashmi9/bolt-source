@@ -16,8 +16,8 @@ fi
 # Set default values for required environment variables if not in GitHub Actions
 if [ -z "$GITHUB_ACTIONS" ]; then
     : "${GITHUB_SERVER_URL:=https://github.com}"
-    : "${GITHUB_REPOSITORY:=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[\/:]\(.*\)\.git/\1/')}"
-    : "${NEW_VERSION:=0.0.2}"
+    # : "${GITHUB_REPOSITORY:=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[\/:]\(.*\)\.git/\1/')}"
+    # : "${NEW_VERSION:=0.0.2}"
     : "${GITHUB_OUTPUT:=/tmp/github_output}"
     touch "$GITHUB_OUTPUT"
 fi
@@ -51,6 +51,7 @@ get_commit_type() {
     elif [[ $msg =~ ^test: ]]; then echo "Tests"
     elif [[ $msg =~ ^build: ]]; then echo "Build System"
     elif [[ $msg =~ ^ci: ]]; then echo "CI"
+    elif [[ $msg =~ ^chore: ]]; then echo ""  # Skip chore commits
     else echo "Other Changes"
     fi
 }
@@ -86,18 +87,22 @@ while IFS= read -r commit_line; do
             NEW_CONTRIBUTORS["$AUTHOR"]=1
             ALL_AUTHORS["$AUTHOR_EMAIL"]=1
         fi
-        
+
         CATEGORY=$(get_commit_type "$PR_TITLE")
-        CATEGORIES["$CATEGORY"]=1
         
-        # Format PR entry with link and contributor
-        if [ -n "$AUTHOR" ]; then
-            COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) [@$AUTHOR](https://github.com/$AUTHOR)"$'\n'
-        else
-            COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+        if [ -n "$CATEGORY" ]; then  # Only process if category is not empty
+            CATEGORIES["$CATEGORY"]=1
+            
+            GITHUB_USERNAME=$(gh pr view $PR_NUM --json author --jq .author.login)
+
+            if [ -n "$GITHUB_USERNAME" ]; then
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) [@$GITHUB_USERNAME](https://github.com/$GITHUB_USERNAME)"$'\n'
+            else
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+            fi
         fi
     fi
-done < <(git log "${COMPARE_BASE}..HEAD" --merges --pretty=format:"%H|%s|%(authorname)|%(authorEmail)|%b" --reverse)
+done < <(git log "${COMPARE_BASE}..HEAD" --merges --pretty=format:"%H|%s|%aE|%ae|%b" --reverse)
 
 # Write categorized commits to changelog
 for category in "Features" "Bug Fixes" "Documentation" "Styles" "Code Refactoring" "Performance Improvements" "Tests" "Build System" "CI" "Other Changes"; do
