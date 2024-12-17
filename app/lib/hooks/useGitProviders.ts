@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { lookupSavedPassword, saveGitAuth, ensureEncryption, removeGitAuth } from './useCredentials';
-import { gitProviders, type ProviderState, type ProviderCredentials } from '~/utils/gitProviders';
+import { gitProviders, type ProviderState, type ProviderCredentials, type GitHubUser, type GitLabUser } from '~/utils/gitProviders';
 
 const initialCredentials: ProviderState = {
   github: { username: '', token: '', isConnected: false, isVerifying: false },
@@ -33,8 +33,8 @@ export function useGitProviders() {
           ...prev,
           [key]: {
             ...prev[key],
-            username: auth.username,
-            token: auth.password,
+            username: auth.username || '',
+            token: auth.password || '',
             isConnected: true,
           },
         }));
@@ -53,34 +53,35 @@ export function useGitProviders() {
       const apiUrl = providerKey === 'github' ? 'https://api.github.com/user' : 'https://gitlab.com/api/v4/user';
 
       // Different authorization header format for GitHub and GitLab
-      const headers =
-        providerKey === 'github'
-          ? {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            }
-          : {
-              'PRIVATE-TOKEN': token,
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-            };
+      let headers;
+      if (providerKey === 'github') {
+        headers = {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        };
+      } else {
+        headers = {
+          'PRIVATE-TOKEN': token,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        };
+      }
 
-      const response = await fetch(apiUrl, { headers });
+      const response = await fetch(apiUrl, { headers: headers });
       const data = await response.json();
-      console.log('response', data);
 
       // Verify the response data
       const isValid =
-        response.ok &&
-        ((providerKey === 'github' && data.login === username) ||
-          (providerKey === 'gitlab' && data.username === username));
+      response.ok &&
+      ((providerKey === 'github' && (data as GitHubUser).login === username) ||
+        (providerKey === 'gitlab' && (data as GitLabUser).username === username));
 
       setCredentials((prev) => ({
         ...prev,
         [providerKey]: {
           ...prev[providerKey],
-          isConnected: isValid,
+          isConnected: !!isValid,
           isVerifying: false,
         },
       }));

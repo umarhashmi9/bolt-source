@@ -12,6 +12,14 @@ export interface ProviderCredentials {
   isVerifying: boolean;
 }
 
+export interface GitHubUser {
+  login: string;
+}
+
+export interface GitLabUser {
+  username: string;
+}
+
 export type ProviderState = Record<string, ProviderCredentials>;
 
 export const gitProviders: Record<string, GitProvider> = {
