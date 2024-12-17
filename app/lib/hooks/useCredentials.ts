@@ -1,7 +1,7 @@
 import { toast } from 'react-toastify';
 import Cookies from 'js-cookie';
 import type { GitAuth } from 'isomorphic-git';
-import { logStore } from '../stores/logs';
+import { logStore } from '~/lib/stores/logs';
 
 let masterKey: CryptoKey | null = null;
 
@@ -220,11 +220,6 @@ const saveGitAuth = async (url: string, auth: GitAuth) => {
   }
 
   const domain = getDomain(url);
-
-  // if (!auth.username || !auth.password) {
-  //   toast.error('Username and token are required');
-  //   return;
-  // }
 
   try {
     const encryptedCreds = await encrypt(

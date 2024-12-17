@@ -18,7 +18,6 @@ export default function ConnectionsTab() {
       {Object.entries(providers).map(([key, provider]) => (
         <ProviderCard
           key={key}
-          providerKey={key}
           provider={provider}
           credentials={credentials[key]}
           isExpanded={expandedProviders[key]}

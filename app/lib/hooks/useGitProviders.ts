@@ -18,6 +18,7 @@ export function useGitProviders() {
 
   const initializeEncryption = async () => {
     const success = await ensureEncryption();
+
     if (success) {
       loadSavedCredentials();
     }
@@ -26,8 +27,9 @@ export function useGitProviders() {
   const loadSavedCredentials = async () => {
     for (const [key, provider] of Object.entries(gitProviders)) {
       const auth = await lookupSavedPassword(provider.url);
+
       if (auth?.username && auth?.password) {
-        setCredentials(prev => ({
+        setCredentials((prev) => ({
           ...prev,
           [key]: {
             ...prev[key],
@@ -42,40 +44,39 @@ export function useGitProviders() {
 
   const verifyCredentials = async (providerKey: string, username: string, token: string) => {
     const provider = gitProviders[providerKey];
-    setCredentials(prev => ({
+    setCredentials((prev) => ({
       ...prev,
       [providerKey]: { ...prev[providerKey], isVerifying: true },
     }));
 
     try {
-      const apiUrl = providerKey === 'github' 
-        ? 'https://api.github.com/user'
-        : 'https://gitlab.com/api/v4/user';
+      const apiUrl = providerKey === 'github' ? 'https://api.github.com/user' : 'https://gitlab.com/api/v4/user';
 
       // Different authorization header format for GitHub and GitLab
-      const headers = providerKey === 'github'
-        ? {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          }
-        : {
-            'PRIVATE-TOKEN': token,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          };
+      const headers =
+        providerKey === 'github'
+          ? {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            }
+          : {
+              'PRIVATE-TOKEN': token,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            };
 
       const response = await fetch(apiUrl, { headers });
       const data = await response.json();
-      console.log('response',data)
-      
+      console.log('response', data);
+
       // Verify the response data
-      const isValid = response.ok && (
-        (providerKey === 'github' && data.login === username) ||
-        (providerKey === 'gitlab' && data.username === username)
-      );
-      
-      setCredentials(prev => ({
+      const isValid =
+        response.ok &&
+        ((providerKey === 'github' && data.login === username) ||
+          (providerKey === 'gitlab' && data.username === username));
+
+      setCredentials((prev) => ({
         ...prev,
         [providerKey]: {
           ...prev[providerKey],
@@ -91,7 +92,7 @@ export function useGitProviders() {
       return isValid;
     } catch (error) {
       console.error(`Error verifying ${provider.title} credentials:`, error);
-      setCredentials(prev => ({
+      setCredentials((prev) => ({
         ...prev,
         [providerKey]: {
           ...prev[providerKey],
@@ -99,6 +100,7 @@ export function useGitProviders() {
           isVerifying: false,
         },
       }));
+
       return false;
     }
   };
@@ -124,7 +126,7 @@ export function useGitProviders() {
   const handleDisconnect = async (providerKey: string) => {
     const provider = gitProviders[providerKey];
     await removeGitAuth(provider.url);
-    setCredentials(prev => ({
+    setCredentials((prev) => ({
       ...prev,
       [providerKey]: {
         ...prev[providerKey],
@@ -135,18 +137,15 @@ export function useGitProviders() {
     }));
   };
 
-  const updateProviderCredentials = (
-    providerKey: string,
-    updates: Partial<ProviderCredentials>
-  ) => {
-    setCredentials(prev => ({
+  const updateProviderCredentials = (providerKey: string, updates: Partial<ProviderCredentials>) => {
+    setCredentials((prev) => ({
       ...prev,
       [providerKey]: { ...prev[providerKey], ...updates },
     }));
   };
 
   const toggleProvider = (provider: string) => {
-    setExpandedProviders(prev => ({
+    setExpandedProviders((prev) => ({
       ...prev,
       [provider]: !prev[provider],
     }));
