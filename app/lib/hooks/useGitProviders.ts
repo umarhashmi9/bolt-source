@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { lookupSavedPassword, saveGitAuth, ensureEncryption, removeGitAuth } from './useCredentials';
-import { gitProviders, type ProviderState, type ProviderCredentials, type GitHubUser, type GitLabUser } from '~/utils/gitProviders';
+import {
+  gitProviders,
+  type ProviderState,
+  type ProviderCredentials,
+  type GitHubUser,
+  type GitLabUser,
+} from '~/utils/gitProviders';
 
 const initialCredentials: ProviderState = {
   github: { username: '', token: '', isConnected: false, isVerifying: false },
@@ -54,6 +60,7 @@ export function useGitProviders() {
 
       // Different authorization header format for GitHub and GitLab
       let headers;
+
       if (providerKey === 'github') {
         headers = {
           Authorization: `Bearer ${token}`,
@@ -68,14 +75,14 @@ export function useGitProviders() {
         };
       }
 
-      const response = await fetch(apiUrl, { headers: headers });
+      const response = await fetch(apiUrl, { headers });
       const data = await response.json();
 
       // Verify the response data
       const isValid =
-      response.ok &&
-      ((providerKey === 'github' && (data as GitHubUser).login === username) ||
-        (providerKey === 'gitlab' && (data as GitLabUser).username === username));
+        response.ok &&
+        ((providerKey === 'github' && (data as GitHubUser).login === username) ||
+          (providerKey === 'gitlab' && (data as GitLabUser).username === username));
 
       setCredentials((prev) => ({
         ...prev,
