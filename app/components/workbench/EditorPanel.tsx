@@ -20,6 +20,7 @@ import { FileBreadcrumb } from './FileBreadcrumb';
 import { FileTree } from './FileTree';
 import { DEFAULT_TERMINAL_SIZE, TerminalTabs } from './terminal/TerminalTabs';
 import { workbenchStore } from '~/lib/stores/workbench';
+import WithTooltip from '~/components/ui/Tooltip';
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -53,6 +54,8 @@ export const EditorPanel = memo(
   }: EditorPanelProps) => {
     renderLogger.trace('EditorPanel');
 
+    // const activeTab = useState<'files' | 'git'>('files');
+
     const theme = useStore(themeStore);
     const showTerminal = useStore(workbenchStore.showTerminal);
 
@@ -72,21 +75,28 @@ export const EditorPanel = memo(
       <PanelGroup direction="vertical">
         <Panel defaultSize={showTerminal ? DEFAULT_EDITOR_SIZE : 100} minSize={20}>
           <PanelGroup direction="horizontal">
-            <Panel defaultSize={20} minSize={10} collapsible>
-              <div className="flex flex-col border-r border-bolt-elements-borderColor h-full">
-                <PanelHeader>
-                  <div className="i-ph:tree-structure-duotone shrink-0" />
-                  Files
-                </PanelHeader>
-                <FileTree
-                  className="h-full"
-                  files={files}
-                  hideRoot
-                  unsavedFiles={unsavedFiles}
-                  rootFolder={WORK_DIR}
-                  selectedFile={selectedFile}
-                  onFileSelect={onFileSelect}
-                />
+            <Panel defaultSize={25} minSize={15} collapsible>
+              <div className="flex h-full">
+                <div className="flex flex-col w-8 min-w-8 border-r border-bolt-elements-borderColor h-full">
+                  <WithTooltip tooltip="Files">
+                    <div className="i-ph:files-fill mx-auto m-4 text-lg text-bolt-elements-textSecondary hover:text-bolt-elements-item-contentAccent" />
+                  </WithTooltip>
+                </div>
+                <div className="flex flex-col flex-1 border-r border-bolt-elements-borderColor h-full">
+                  <PanelHeader>
+                    <div className="i-ph:tree-structure-duotone shrink-0" />
+                    Files
+                  </PanelHeader>
+                  <FileTree
+                    className="h-full"
+                    files={files}
+                    hideRoot
+                    unsavedFiles={unsavedFiles}
+                    rootFolder={WORK_DIR}
+                    selectedFile={selectedFile}
+                    onFileSelect={onFileSelect}
+                  />
+                </div>
               </div>
             </Panel>
             <PanelResizeHandle />
