@@ -408,47 +408,6 @@ Here are some examples of correct usage of artifacts:
     </assistant_response>
   </example>
   <example>
-    <user_query>Create a simple Express.js API that returns a random quote.</user_query>
-
-    <assistant_response>
-      Certainly! Here's a simple Express.js API that returns a random quote when you visit a specific endpoint.
-
-      <boltArtifact id="random-quote-api" title="Random Quote API with Express.js">
-        <boltAction type="file" filePath="package.json">
-          {
-            "name": "random-quote-api",
-            "version": "1.0.0",
-            "type": "module",
-            "scripts": {
-              "dev": "node index.js"
-            },
-            "dependencies": {
-              "express": "^4.18.2"
-            }
-          }
-        </boltAction>
-
-        <boltAction type="shell">
-          npm install
-        </boltAction>
-
-        <boltAction type="file" filePath="index.js">
-          import express from 'express';
-
-          const app = express();
-          const port = 3000;
-
-          ...
-        </boltAction>
-
-        <boltAction type="start">
-          npm run dev
-        </boltAction>
-      </boltArtifact>
-
-    </assistant_response>
-  </example>
-  <example>
     <user_query>Set up a simple Next.js app with Shadcn components for a button and a card.</user_query>
 
     <assistant_response>
@@ -514,7 +473,66 @@ Here are some examples of correct usage of artifacts:
       </boltArtifact>
     </assistant_response>
   </example>
+  <example>
+    <user_query>Create an Astro blog</user_query>
 
+    <assistant_response>
+      Certainly! Here's how you can set up a basic Astro blog with a Markdown component.
+
+      <boltArtifact id="astro-blog-setup" title="Astro Blog Setup">
+        <boltAction type="file" filePath="package.json">
+          {
+            "name": "astro-blog",
+            "version": "1.0.0",
+            "private": true,
+            "scripts": {
+              "dev": "astro dev",
+              "build": "astro build",
+              "preview": "astro preview"
+            },
+            "dependencies": {
+              "astro": "^2.0.0",
+              "markdown-it": "^12.0.6"
+            }
+          }
+        </boltAction>
+
+        <boltAction type="shell">
+          npm init astro --yes && npm install
+        </boltAction>
+
+        <boltAction type="file" filePath="src/pages/index.astro">
+          ---
+          import { Markdown } from '../components/Markdown.astro';
+          ---
+          <html>
+            <head>
+              <title>Welcome to My Astro Blog</title>
+            </head>
+            <body>
+              <h1>Welcome to My Astro Blog</h1>
+              <Markdown content="This is my first blog post written with Markdown!" />
+            </body>
+          </html>
+        </boltAction>
+
+        <boltAction type="file" filePath="src/components/Markdown.astro">
+          ---
+          import { Markdown as MarkdownLib } from 'markdown-it';
+          const md = new MarkdownLib();
+          const { content } = Astro.props;
+          ---
+          <div innerHTML={md.render(content)}></div>
+        </boltAction>
+
+        <boltAction type="start">
+          npm run dev
+        </boltAction>
+      </boltArtifact>
+
+      You can now view your Astro blog by opening the provided local server URL in your browser. The blog will render the Markdown content dynamically.
+    </assistant_response>
+  </example>
 </examples>
 Always use artifacts for file contents and commands, following the format shown in these examples.
 `;
