@@ -185,6 +185,32 @@ This ensures that you're running the latest version of bolt.diy and can take adv
 
 ---
 
+## Using the Development Container
+
+### Prerequisites
+
+- Ensure Docker is installed: [Download Docker](https://www.docker.com/)
+
+### Steps
+
+1. **Open the Repository in a Dev Container**:  
+   If you are using Visual Studio Code, you can open the repository in a dev container by following these steps:
+   - Install the "Remote - Containers" extension from the Visual Studio Code marketplace.
+   - Open the command palette (F1) and select "Remote-Containers: Open Folder in Container..."
+   - Select the folder containing the repository.
+
+2. **Post-Create Command**:  
+   After the container is created, the following command will be executed:
+   ```bash
+   pip install cowsay && cowsay -c ghostbusters -t 'This Development Container Kicks Ass!'
+   ```
+
+### Purpose
+
+The `.devcontainer/devcontainer.json` file specifies the development container configuration. It uses the Docker image `mcr.microsoft.com/devcontainers/universal:focal` and sets the default terminal to `zsh`.
+
+---
+
 ## Available Scripts
 
 - **`pnpm run dev`**: Starts the development server.
