@@ -135,14 +135,14 @@ export default defineConfig({
           },
           button: {
             primary: {
-              background: 'var(--bolt-elements-button-primary-background)',
-              backgroundHover: 'var(--bolt-elements-button-primary-backgroundHover)',
-              text: 'var(--bolt-elements-button-primary-text)',
+              background: '#19255a',
+              backgroundHover: '#19255a',
+              text: 'white',
             },
             secondary: {
-              background: 'var(--bolt-elements-button-secondary-background)',
-              backgroundHover: 'var(--bolt-elements-button-secondary-backgroundHover)',
-              text: 'var(--bolt-elements-button-secondary-text)',
+              background: '#19255a',
+              backgroundHover: '#19255a',
+              text: 'white',
             },
             danger: {
               background: 'var(--bolt-elements-button-danger-background)',
