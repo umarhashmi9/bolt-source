@@ -3,8 +3,7 @@ import { ensureEncryption, lookupSavedPassword } from '~/lib/auth';
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import axios from 'axios';
 import { extractRelativePath } from '~/utils/diff';
-import type { FileMap } from '../stores/files';
-import type { Dirent } from 'fs';
+import type { FileMap } from '~/lib/stores/files';
 
 export const handleGitPush = async (provider: 'github' | 'gitlab', getFiles: FileMap) => {
   const repoName = prompt(
@@ -80,9 +79,6 @@ const pushToGitHub = async (repoName: string, username: string, token: string, f
         throw error;
       }
     }
-
-    // Get all files
-    // const files = workbenchStore.files.get();
 
     if (!files || Object.keys(files).length === 0) {
       throw new Error('No files found to push');
@@ -167,7 +163,6 @@ const pushToGitHub = async (repoName: string, username: string, token: string, f
 };
 
 const pushToGitLab = async (repoName: string, username: string, token: string, files: FileMap) => {
-  console.log('files', files);
   try {
     const gitlab = axios.create({
       baseURL: 'https://gitlab.com/api/v4',
@@ -221,8 +216,6 @@ const pushToGitLab = async (repoName: string, username: string, token: string, f
       throw new Error('No files found to push');
     }
 
-    console.log('Object.entries(files)', Object.entries(files));
-
     const actions = await Promise.all(
       Object.entries(files)
         .filter((entry) => {
@@ -231,6 +224,7 @@ const pushToGitLab = async (repoName: string, username: string, token: string, f
         })
         .map(async ([filePath, dirent]) => {
           const relativePath = extractRelativePath(filePath);
+
           try {
             await axios.get(`/projects/${project.id}/repository/files/${encodeURIComponent(relativePath)}`, {
               params: { ref: project.default_branch || 'main' },
@@ -240,14 +234,14 @@ const pushToGitLab = async (repoName: string, username: string, token: string, f
                 'Content-Type': 'application/json',
               },
             });
-            console.log('Bestand bestaat, gebruik update');
+
             return {
               action: 'update',
               file_path: relativePath,
               content: dirent.content,
             };
           } catch (error) {
-            console.log('Bestand bestaat niet, gebruik create');
+            console.error('File on gitlab', error);
             return {
               action: 'create',
               file_path: relativePath,

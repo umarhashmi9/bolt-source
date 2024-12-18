@@ -132,9 +132,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
-  const getWorkbenchFiles = useCallback((provider: "github" | "gitlab") => {
+  const getWorkbenchFiles = useCallback((provider: 'github' | 'gitlab') => {
     const docs = workbenchStore.files.get();
-    handleGitPush(provider, docs)
+    handleGitPush(provider, docs);
   }, []);
 
   return (
