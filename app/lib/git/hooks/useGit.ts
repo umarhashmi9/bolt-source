@@ -4,7 +4,7 @@ import { webcontainer as webcontainerPromise } from '~/lib/webcontainer';
 import git, { type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
 import { toast } from 'react-toastify';
-import { ensureEncryption, lookupSavedPassword, saveGitAuth } from './useCredentials';
+import { ensureEncryption, lookupSavedPassword, saveGitAuth } from '~/lib/auth';
 
 export function useGit() {
   const [ready, setReady] = useState(false);
@@ -137,14 +137,10 @@ const getFs = (
 
       return await webcontainer.fs.rm(relativePath, { recursive: true, ...options });
     },
-
-    // Mock implementations for missing functions
     unlink: async (path: string) => {
-      // unlink is just removing a single file
       const relativePath = pathUtils.relative(webcontainer.workdir, path);
       return await webcontainer.fs.rm(relativePath, { recursive: false });
     },
-
     stat: async (path: string) => {
       try {
         const relativePath = pathUtils.relative(webcontainer.workdir, path);
@@ -161,7 +157,7 @@ const getFs = (
           isDirectory: () => fileInfo.isDirectory(),
           isSymbolicLink: () => false,
           size: 1,
-          mode: 0o666, // Default permissions
+          mode: 0o666,
           mtimeMs: Date.now(),
           uid: 1000,
           gid: 1000,
@@ -177,36 +173,16 @@ const getFs = (
         throw err;
       }
     },
-
     lstat: async (path: string) => {
-      /*
-       * For basic usage, lstat can return the same as stat
-       * since we're not handling symbolic links
-       */
       return await getFs(webcontainer, record).promises.stat(path);
     },
-
     readlink: async (path: string) => {
-      /*
-       * Since WebContainer doesn't support symlinks,
-       * we'll throw a "not a symbolic link" error
-       */
       throw new Error(`EINVAL: invalid argument, readlink '${path}'`);
     },
-
     symlink: async (target: string, path: string) => {
-      /*
-       * Since WebContainer doesn't support symlinks,
-       * we'll throw a "operation not supported" error
-       */
       throw new Error(`EPERM: operation not permitted, symlink '${target}' -> '${path}'`);
     },
-
     chmod: async (_path: string, _mode: number) => {
-      /*
-       * WebContainer doesn't support changing permissions,
-       * but we can pretend it succeeded for compatibility
-       */
       return await Promise.resolve();
     },
   },
@@ -214,45 +190,35 @@ const getFs = (
 
 const pathUtils = {
   dirname: (path: string) => {
-    // Handle empty or just filename cases
     if (!path || !path.includes('/')) {
       return '.';
     }
 
-    // Remove trailing slashes
     path = path.replace(/\/+$/, '');
 
-    // Get directory part
     return path.split('/').slice(0, -1).join('/') || '/';
   },
 
   basename: (path: string, ext?: string) => {
-    // Remove trailing slashes
     path = path.replace(/\/+$/, '');
 
-    // Get the last part of the path
     const base = path.split('/').pop() || '';
 
-    // If extension is provided, remove it from the result
     if (ext && base.endsWith(ext)) {
       return base.slice(0, -ext.length);
     }
 
     return base;
   },
+
   relative: (from: string, to: string): string => {
-    // Handle empty inputs
     if (!from || !to) {
       return '.';
     }
 
-    // Normalize paths by removing trailing slashes and splitting
     const normalizePathParts = (p: string) => p.replace(/\/+$/, '').split('/').filter(Boolean);
-
     const fromParts = normalizePathParts(from);
     const toParts = normalizePathParts(to);
-
-    // Find common parts at the start of both paths
     let commonLength = 0;
     const minLength = Math.min(fromParts.length, toParts.length);
 
@@ -264,16 +230,10 @@ const pathUtils = {
       commonLength++;
     }
 
-    // Calculate the number of "../" needed
     const upCount = fromParts.length - commonLength;
-
-    // Get the remaining path parts we need to append
     const remainingPath = toParts.slice(commonLength);
-
-    // Construct the relative path
     const relativeParts = [...Array(upCount).fill('..'), ...remainingPath];
 
-    // Handle empty result case
     return relativeParts.length === 0 ? '.' : relativeParts.join('/');
   },
 };

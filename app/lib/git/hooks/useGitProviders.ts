@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { lookupSavedPassword, saveGitAuth, ensureEncryption, removeGitAuth } from './useCredentials';
-import {
-  gitProviders,
-  type ProviderState,
-  type ProviderCredentials,
-  type GitHubUser,
-  type GitLabUser,
-} from '~/utils/gitProviders';
+import { lookupSavedPassword, saveGitAuth, ensureEncryption, removeGitAuth } from '~/lib/auth';
+import { gitProviders } from '~/lib/git';
+import type { ProviderState, ProviderCredentials, GitHubUser, GitLabUser, ProviderKey } from '~/lib/git';
 
 const initialCredentials: ProviderState = {
   github: { username: '', token: '', isConnected: false, isVerifying: false },
   gitlab: { username: '', token: '', isConnected: false, isVerifying: false },
 };
 
+const createGitHubHeaders = (token: string): HeadersInit => ({
+  Authorization: `Bearer ${token}`,
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+});
+
+const createGitLabHeaders = (token: string): HeadersInit => ({
+  'PRIVATE-TOKEN': token,
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+});
+
 export function useGitProviders() {
   const [credentials, setCredentials] = useState<ProviderState>(initialCredentials);
-  const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
+  const [expandedProviders, setExpandedProviders] = useState<Record<ProviderKey, boolean>>({
+    github: false,
+    gitlab: false,
+  });
 
   useEffect(() => {
     initializeEncryption();
@@ -38,7 +48,7 @@ export function useGitProviders() {
         setCredentials((prev) => ({
           ...prev,
           [key]: {
-            ...prev[key],
+            ...prev[key as ProviderKey],
             username: auth.username || '',
             token: auth.password || '',
             isConnected: true,
@@ -48,7 +58,7 @@ export function useGitProviders() {
     }
   };
 
-  const verifyCredentials = async (providerKey: string, username: string, token: string) => {
+  const verifyCredentials = async (providerKey: ProviderKey, username: string, token: string) => {
     const provider = gitProviders[providerKey];
     setCredentials((prev) => ({
       ...prev,
@@ -57,28 +67,11 @@ export function useGitProviders() {
 
     try {
       const apiUrl = providerKey === 'github' ? 'https://api.github.com/user' : 'https://gitlab.com/api/v4/user';
-
-      // Different authorization header format for GitHub and GitLab
-      let headers;
-
-      if (providerKey === 'github') {
-        headers = {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        };
-      } else {
-        headers = {
-          'PRIVATE-TOKEN': token,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        };
-      }
+      const headers = providerKey === 'github' ? createGitHubHeaders(token) : createGitLabHeaders(token);
 
       const response = await fetch(apiUrl, { headers });
       const data = await response.json();
 
-      // Verify the response data
       const isValid =
         response.ok &&
         ((providerKey === 'github' && (data as GitHubUser).login === username) ||
@@ -113,7 +106,7 @@ export function useGitProviders() {
     }
   };
 
-  const handleSaveConnection = async (providerKey: string) => {
+  const handleSaveConnection = async (providerKey: ProviderKey) => {
     const provider = gitProviders[providerKey];
     const { username, token } = credentials[providerKey];
 
@@ -131,7 +124,7 @@ export function useGitProviders() {
     }
   };
 
-  const handleDisconnect = async (providerKey: string) => {
+  const handleDisconnect = async (providerKey: ProviderKey) => {
     const provider = gitProviders[providerKey];
     await removeGitAuth(provider.url);
     setCredentials((prev) => ({
@@ -145,14 +138,14 @@ export function useGitProviders() {
     }));
   };
 
-  const updateProviderCredentials = (providerKey: string, updates: Partial<ProviderCredentials>) => {
+  const updateProviderCredentials = (providerKey: ProviderKey, updates: Partial<ProviderCredentials>) => {
     setCredentials((prev) => ({
       ...prev,
       [providerKey]: { ...prev[providerKey], ...updates },
     }));
   };
 
-  const toggleProvider = (provider: string) => {
+  const toggleProvider = (provider: ProviderKey) => {
     setExpandedProviders((prev) => ({
       ...prev,
       [provider]: !prev[provider],

@@ -1,6 +1,7 @@
 import React from 'react';
-import { ProviderCard } from './ProviderCard';
-import { useGitProviders } from '~/lib/hooks/useGitProviders';
+import { ProviderCard } from '~/lib/git/components/ProviderCard';
+import { useGitProviders } from '~/lib/git';
+import type { ProviderKey } from '~/lib/git';
 
 export default function ConnectionsTab() {
   const {
@@ -15,7 +16,7 @@ export default function ConnectionsTab() {
 
   return (
     <div className="space-y-4">
-      {Object.entries(providers).map(([key, provider]) => (
+      {(Object.entries(providers) as [ProviderKey, any][]).map(([key, provider]) => (
         <ProviderCard
           key={key}
           provider={provider}

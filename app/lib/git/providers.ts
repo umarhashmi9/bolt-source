@@ -1,28 +1,6 @@
-export interface GitProvider {
-  url: string;
-  title: string;
-  instructions: string;
-  tokenSetupSteps: string[];
-}
+import type { GitProvider, ProviderKey } from './types';
 
-export interface ProviderCredentials {
-  username: string;
-  token: string;
-  isConnected: boolean;
-  isVerifying: boolean;
-}
-
-export interface GitHubUser {
-  login: string;
-}
-
-export interface GitLabUser {
-  username: string;
-}
-
-export type ProviderState = Record<string, ProviderCredentials>;
-
-export const gitProviders: Record<string, GitProvider> = {
+export const gitProviders: Record<ProviderKey, GitProvider> = {
   github: {
     url: 'github.com',
     title: 'GitHub',

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { GitProvider, ProviderCredentials } from '~/utils/gitProviders';
+import type { GitProvider, ProviderCredentials } from '~/lib/git';
 
 interface ProviderCardProps {
   provider: GitProvider;

@@ -17,16 +17,11 @@ import { renderLogger } from '~/utils/logger';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
-import { ensureEncryption, lookupSavedPassword } from '~/lib/hooks/useCredentials';
+import { checkGitCredentials, handleGitPush } from '~/lib/git/operations';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
   isStreaming?: boolean;
-}
-
-interface GitCredentials {
-  github: boolean;
-  gitlab: boolean;
 }
 
 const viewTransition = { ease: cubicEasingFn };
@@ -63,7 +58,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   renderLogger.trace('Workbench');
 
   const [isSyncing, setIsSyncing] = useState(false);
-  const [hasCredentials, setHasCredentials] = useState<GitCredentials>({
+  const [hasCredentials, setHasCredentials] = useState<{ github: boolean; gitlab: boolean }>({
     github: false,
     gitlab: false,
   });
@@ -93,18 +88,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   }, [files]);
 
   useEffect(() => {
-    checkGitCredentials();
+    const initCredentials = async () => {
+      const credentials = await checkGitCredentials();
+      setHasCredentials(credentials);
+    };
+    initCredentials();
   }, []);
-
-  const checkGitCredentials = async () => {
-    const githubAuth = await lookupSavedPassword('github.com');
-    const gitlabAuth = await lookupSavedPassword('gitlab.com');
-
-    setHasCredentials({
-      github: !!(githubAuth?.username && githubAuth?.password),
-      gitlab: !!(gitlabAuth?.username && gitlabAuth?.password),
-    });
-  };
 
   const onEditorChange = useCallback<OnEditorChange>((update) => {
     workbenchStore.setCurrentDocumentContent(update.content);
@@ -142,38 +131,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
       setIsSyncing(false);
     }
   }, []);
-
-  const handleGitPush = async (provider: 'github' | 'gitlab') => {
-    const repoName = prompt(
-      `Please enter a name for your new ${provider === 'github' ? 'GitHub' : 'GitLab'} repository:`,
-      'bolt-generated-project',
-    );
-
-    // TODO store and load repoName from downloaded project
-    if (!repoName) {
-      toast.error('Repository name is required');
-      return;
-    }
-
-    if (!(await ensureEncryption())) {
-      toast.error('Failed to initialize secure storage');
-      return;
-    }
-
-    const auth = await lookupSavedPassword(`${provider}.com`);
-
-    if (auth?.username && auth?.password) {
-      if (provider === 'github') {
-        workbenchStore.pushToGitHub(repoName, auth.username, auth.password);
-      } else {
-        workbenchStore.pushToGitLab(repoName, auth.username, auth.password);
-      }
-    } else {
-      toast.info(
-        `Please set up your ${provider === 'github' ? 'GitHub' : 'GitLab'} credentials in the Connections tab`,
-      );
-    }
-  };
 
   return (
     chatStarted && (
@@ -224,13 +181,19 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       Toggle Terminal
                     </PanelHeaderButton>
                     {hasCredentials.github && (
-                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => handleGitPush('github')}>
+                      <PanelHeaderButton
+                        className="mr-1 text-sm"
+                        onClick={() => handleGitPush('github', workbenchStore.pushToGitHub)}
+                      >
                         <div className="i-ph:github-logo" />
                         Push to GitHub
                       </PanelHeaderButton>
                     )}
                     {hasCredentials.gitlab && (
-                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => handleGitPush('gitlab')}>
+                      <PanelHeaderButton
+                        className="mr-1 text-sm"
+                        onClick={() => handleGitPush('gitlab', workbenchStore.pushToGitLab)}
+                      >
                         <div className="i-ph:gitlab-logo" />
                         Push to GitLab
                       </PanelHeaderButton>
@@ -278,6 +241,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     )
   );
 });
+
 interface ViewProps extends HTMLMotionProps<'div'> {
   children: JSX.Element;
 }
