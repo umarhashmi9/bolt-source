@@ -132,6 +132,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
+  const getWorkbenchFiles = useCallback((provider: "github" | "gitlab") => {
+    const docs = workbenchStore.files.get();
+    handleGitPush(provider, docs)
+  }, []);
+
   return (
     chatStarted && (
       <motion.div
@@ -181,19 +186,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       Toggle Terminal
                     </PanelHeaderButton>
                     {hasCredentials.github && (
-                      <PanelHeaderButton
-                        className="mr-1 text-sm"
-                        onClick={() => handleGitPush('github', workbenchStore.pushToGitHub)}
-                      >
+                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => getWorkbenchFiles('github')}>
                         <div className="i-ph:github-logo" />
                         Push to GitHub
                       </PanelHeaderButton>
                     )}
                     {hasCredentials.gitlab && (
-                      <PanelHeaderButton
-                        className="mr-1 text-sm"
-                        onClick={() => handleGitPush('gitlab', workbenchStore.pushToGitLab)}
-                      >
+                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => getWorkbenchFiles('gitlab')}>
                         <div className="i-ph:gitlab-logo" />
                         Push to GitLab
                       </PanelHeaderButton>

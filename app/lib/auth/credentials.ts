@@ -1,8 +1,8 @@
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
 import { logStore } from '~/lib/stores/logs';
-import type { GitAuth } from './types';
 import { encrypt, decrypt, isEncryptionInitialized, initializeMasterKey } from './encryption';
+import type { GitAuth } from 'isomorphic-git';
 
 const getDomain = (url: string): string => {
   const withoutProtocol = url.replace(/^https?:\/\//, '');
