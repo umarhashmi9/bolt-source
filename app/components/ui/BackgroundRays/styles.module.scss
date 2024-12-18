@@ -5,9 +5,10 @@
   --ray-color-accent: color-mix(in srgb, var(--accent-color), transparent 30%);
 
   // Theme-specific gradients
-  --ray-gradient-primary: radial-gradient(var(--ray-color-primary) 0%, transparent 70%);
-  --ray-gradient-secondary: radial-gradient(var(--ray-color-secondary) 0%, transparent 70%);
-  --ray-gradient-accent: radial-gradient(var(--ray-color-accent) 0%, transparent 70%);
+  --ray-gradient-primary: radial-gradient(#83ebf7 0%, transparent 50%);
+  --ray-gradient-secondary: radial-gradient(#59abc8 0%, transparent 50%);
+  --ray-gradient-accent: radial-gradient(#516ff7 0%, transparent 80%);
+
 
   position: fixed;
   inset: 0;
