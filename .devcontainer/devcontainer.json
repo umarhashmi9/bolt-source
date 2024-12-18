@@ -1,0 +1,8 @@
+{
+  "name": "bolt.diy",
+  "image": "mcr.microsoft.com/devcontainers/universal:focal",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/zsh"
+  },
+  "postCreateCommand": "pip install cowsay && cowsay -c ghostbusters -t 'This Development Container Kicks Ass!'"
+}
