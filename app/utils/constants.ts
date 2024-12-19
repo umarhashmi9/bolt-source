@@ -323,6 +323,7 @@ let MODEL_LIST = llmManager.getModelList();
  *  },
  *];
  */
+
 const providerBaseUrlEnvKeys: Record<string, { baseUrlKey?: string; apiTokenKey?: string }> = {};
 PROVIDER_LIST.forEach((provider) => {
   providerBaseUrlEnvKeys[provider.name] = {
