@@ -61,14 +61,12 @@ const pushToGitHub = async (repoName: string, username: string, token: string, f
       repo = resp.data;
     } catch (error: any) {
       if (error.status === 404) {
-        // Project doesn't exist, ask for confirmation
         const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);
 
         if (!shouldCreate) {
           throw new Error('Repository creation cancelled');
         }
 
-        // Create new repository after confirmation
         const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
           name: repoName,
           private: false,
@@ -173,45 +171,37 @@ const pushToGitLab = async (repoName: string, username: string, token: string, f
       timeout: 10000,
     });
 
+    let project: { id: any; default_branch: any; web_url: any };
+
     gitlab.interceptors.response.use(
       (response) => response,
-      (error) => {
+      async (error) => {
         if (error.response?.status === 401) {
           throw new Error('Authentication failed');
-        }
+        } else if (error.response?.status === 404) {
+          const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);
 
-        throw new Error(error.response?.data?.message || error.message);
+          if (!shouldCreate) {
+            throw new Error('Repository creation cancelled');
+          }
+
+          const { data } = await gitlab.post('/projects', {
+            name: repoName,
+            visibility: 'public',
+            initialize_with_readme: true,
+          });
+          project = data;
+        } else {
+          throw new Error(error.response?.data?.message || error.message);
+        }
       },
     );
 
-    let project;
-
     try {
-      const { data } = await gitlab.get(`/projects/${encodeURIComponent(`${username}/${repoName}`)}`);
+      const { data } = await gitlab.get(`/projects/${username}/${repoName}`);
       project = data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
-        // Project doesn't exist, ask for confirmation
-        const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);
+    } catch (error: any) {}
 
-        if (!shouldCreate) {
-          throw new Error('Repository creation cancelled');
-        }
-
-        // Create new project after confirmation
-        const { data } = await gitlab.post('/projects', {
-          name: repoName,
-          visibility: 'public',
-          initialize_with_readme: true,
-        });
-        project = data;
-      } else {
-        // Re-throw other errors
-        throw error;
-      }
-    }
-
-    // Get all files
     if (!files || Object.keys(files).length === 0) {
       throw new Error('No files found to push');
     }
