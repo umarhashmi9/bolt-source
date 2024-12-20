@@ -112,6 +112,7 @@ export const ChatImpl = memo(
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
+    // const updateStoredMessages
     const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
       api: '/api/chat',
       body: {
@@ -136,6 +137,10 @@ export const ChatImpl = memo(
         }
 
         logger.debug('Finished streaming');
+
+        if ([...messages, message].length > initialMessages.length) {
+          storeMessageHistory([...messages, message]).catch((error) => toast.error(error.message));
+        }
       },
       initialMessages,
       initialInput: Cookies.get(PROMPT_COOKIE_KEY) || '',
@@ -170,10 +175,6 @@ export const ChatImpl = memo(
 
     useEffect(() => {
       parseMessages(messages, isLoading);
-
-      if (messages.length > initialMessages.length) {
-        storeMessageHistory(messages).catch((error) => toast.error(error.message));
-      }
     }, [messages, isLoading, parseMessages]);
 
     const scrollTextArea = () => {
