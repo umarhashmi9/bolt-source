@@ -136,6 +136,12 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
   }, [pollForToken, onError]);
 
   useEffect(() => {
+    if (!children) {
+      handleStartAuth();
+    }
+  }, []);
+
+  useEffect(() => {
     return () => {
       setIsPolling(false);
       setIsLoading(false);
@@ -156,17 +162,17 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center gap-4 p-4 bg-white rounded-lg">
+      <div className="flex flex-col items-center gap-4 p-4">
         <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin" />
-        <p className="text-gray-500">Initializing GitHub authentication...</p>
+        <p className="text-bolt-elements-textSecondary">Initializing GitHub authentication...</p>
       </div>
     );
   }
 
   if (userCode && verificationUrl) {
     return (
-      <div className="flex flex-col items-center gap-4 p-4 bg-white rounded-lg">
-        <p className="text-gray-500">
+      <div className="flex flex-col items-center gap-4">
+        <p className="text-bolt-elements-textSecondary">
           Enter this code at{' '}
           <a
             href={verificationUrl}
@@ -178,7 +184,7 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
           </a>
         </p>
         <div className="flex items-center gap-2">
-          <code className="bg-gray-100 px-4 py-2 rounded-lg text-lg font-mono">{userCode}</code>
+          <code className="bg-bolt-elements-background-depth-1 px-4 py-2 rounded-lg text-lg font-mono text-bolt-elements-textPrimary">{userCode}</code>
           <button
             onClick={handleCopyCode}
             className="text-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"
@@ -187,12 +193,16 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
           </button>
         </div>
         {isPolling && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-bolt-elements-textSecondary">
             Waiting for authorization... You can close the GitHub window once authorized.
           </p>
         )}
       </div>
     );
+  }
+
+  if (!children) {
+    return null;
   }
 
   return React.cloneElement(children as React.ReactElement, {

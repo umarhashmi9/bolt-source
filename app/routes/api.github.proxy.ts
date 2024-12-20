@@ -12,13 +12,23 @@ interface GitHubResponse extends GitHubErrorResponse {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const targetEndpoint = url.searchParams.get('endpoint');
-  const clientId = url.searchParams.get('client_id');
+  const token = request.headers.get('Authorization');
 
-  if (!targetEndpoint || !clientId) {
+  if (!targetEndpoint) {
     return new Response('Missing required parameters', { status: 400 });
   }
 
-  const githubUrl = `https://github.com${targetEndpoint}`;
+  // Determine if this is a GitHub API request or OAuth request
+  const isApiRequest = targetEndpoint.startsWith('/user') || targetEndpoint.startsWith('/repos');
+  const baseUrl = isApiRequest ? 'https://api.github.com' : 'https://github.com';
+
+  // For API requests, we need the token but not client_id
+  // For OAuth requests, we need client_id
+  if (isApiRequest && !token) {
+    return new Response('Missing Authorization header', { status: 401 });
+  }
+
+  const githubUrl = `${baseUrl}${targetEndpoint}`;
   const params = new URLSearchParams();
 
   // Forward all query parameters to GitHub
@@ -29,11 +39,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   try {
-    const response = await fetch(`${githubUrl}?${params}`, {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = token;
+    }
+
+    const response = await fetch(`${githubUrl}${params.toString() ? `?${params}` : ''}`, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
+      headers,
     });
 
     const data = (await response.json()) as GitHubResponse;
@@ -66,37 +82,48 @@ export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
   const targetEndpoint = url.searchParams.get('endpoint');
   const clientId = url.searchParams.get('client_id');
-  const deviceCode = url.searchParams.get('device_code');
-  const grantType = url.searchParams.get('grant_type');
-  const scope = url.searchParams.get('scope');
+  const token = request.headers.get('Authorization');
 
-  if (!targetEndpoint || !clientId) {
+  if (!targetEndpoint) {
     return new Response('Missing required parameters', { status: 400 });
   }
 
-  const githubUrl = `https://github.com${targetEndpoint}`;
-  const body: Record<string, string> = { client_id: clientId };
+  // Determine if this is a GitHub API request or OAuth request
+  const isApiRequest = targetEndpoint.startsWith('/user') || targetEndpoint.startsWith('/repos');
+  const baseUrl = isApiRequest ? 'https://api.github.com' : 'https://github.com';
 
-  if (deviceCode) {
-    body.device_code = deviceCode;
+  // For API requests, we need the token but not client_id
+  // For OAuth requests, we need client_id
+  if (isApiRequest && !token) {
+    return new Response('Missing Authorization header', { status: 401 });
+  }
+  if (!isApiRequest && !clientId) {
+    return new Response('Missing client_id', { status: 400 });
   }
 
-  if (grantType) {
-    body.grant_type = grantType;
-  }
+  const githubUrl = `${baseUrl}${targetEndpoint}`;
+  const params = new URLSearchParams();
 
-  if (scope) {
-    body.scope = scope;
-  }
+  // Forward all query parameters to GitHub
+  url.searchParams.forEach((value, key) => {
+    if (key !== 'endpoint') {
+      params.append(key, value);
+    }
+  });
 
   try {
-    const response = await fetch(githubUrl, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = token;
+    }
+
+    const response = await fetch(`${githubUrl}${params.toString() ? `?${params}` : ''}`, {
+      method: request.method,
+      headers,
+      body: request.method !== 'GET' ? await request.text() : undefined,
     });
 
     const data = (await response.json()) as GitHubResponse;
