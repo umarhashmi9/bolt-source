@@ -97,6 +97,7 @@ Let's get you up and running with the stable version of Bolt.DIY!
 
 
 
+
 ## Prerequisites
 
 Before you begin, you'll need to install two important pieces of software:
@@ -203,8 +204,6 @@ For providers that support custom base URLs (such as Ollama or LM Studio), follo
 - LM Studio
 - OpenAILike
 
-
-
 ## Setup Using Git (For Developers only)
 
 This method is recommended for developers who want to:
@@ -233,7 +232,6 @@ This method is recommended for developers who want to:
    ```bash
    git checkout main
    ```
-
 4. **Install Dependencies**:
    ```bash
    pnpm install
