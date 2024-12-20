@@ -28,7 +28,7 @@ export interface OllamaApiResponse {
 
 export const DEFAULT_NUM_CTX = process?.env?.DEFAULT_NUM_CTX ? parseInt(process.env.DEFAULT_NUM_CTX, 10) : 32768;
 
-export class OllamaProvider extends BaseProvider {
+export default class OllamaProvider extends BaseProvider {
   name = 'Ollama';
   getApiKeyLink = 'https://ollama.com/download';
   labelForGetApiKey = 'Download Ollama';
@@ -60,7 +60,8 @@ export class OllamaProvider extends BaseProvider {
 
       const response = await fetch(`${baseUrl}/api/tags`);
       const data = (await response.json()) as OllamaApiResponse;
-      console.log({ ollamamodels: data.models });
+
+      // console.log({ ollamamodels: data.models });
 
       return data.models.map((model: OllamaModel) => ({
         name: model.name,

@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export class GroqProvider extends BaseProvider {
+export default class GroqProvider extends BaseProvider {
   name = 'Groq';
   getApiKeyLink = 'https://console.groq.com/keys';
 

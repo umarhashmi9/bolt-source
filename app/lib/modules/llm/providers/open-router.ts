@@ -18,7 +18,7 @@ interface OpenRouterModelsResponse {
   data: OpenRouterModel[];
 }
 
-export class OpenRouterProvider extends BaseProvider {
+export default class OpenRouterProvider extends BaseProvider {
   name = 'OpenRouter';
   getApiKeyLink = 'https://openrouter.ai/settings/keys';
 

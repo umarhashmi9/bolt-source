@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createMistral } from '@ai-sdk/mistral';
 
-export class MistralProvider extends BaseProvider {
+export default class MistralProvider extends BaseProvider {
   name = 'Mistral';
   getApiKeyLink = 'https://console.mistral.ai/api-keys/';
 

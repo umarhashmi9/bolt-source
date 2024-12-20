@@ -3,7 +3,7 @@ import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 
-export class OpenAILikeProvider extends BaseProvider {
+export default class OpenAILikeProvider extends BaseProvider {
   name = 'OpenAILike';
   getApiKeyLink = undefined;
 

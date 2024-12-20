@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export class PerplexityProvider extends BaseProvider {
+export default class PerplexityProvider extends BaseProvider {
   name = 'Perplexity';
   getApiKeyLink = 'https://www.perplexity.ai/settings/api';
 

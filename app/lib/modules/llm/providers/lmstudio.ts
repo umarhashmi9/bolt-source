@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModelV1 } from 'ai';
 
-export class LMStudioProvider extends BaseProvider {
+export default class LMStudioProvider extends BaseProvider {
   name = 'LMStudio';
   getApiKeyLink = 'https://lmstudio.ai/';
   labelForGetApiKey = 'Get LMStudio';

@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
-export class GoogleProvider extends BaseProvider {
+export default class GoogleProvider extends BaseProvider {
   name = 'Google';
   getApiKeyLink = 'https://aistudio.google.com/app/apikey';
 

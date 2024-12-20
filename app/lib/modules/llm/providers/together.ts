@@ -3,7 +3,7 @@ import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 
-export class TogetherProvider extends BaseProvider {
+export default class TogetherProvider extends BaseProvider {
   name = 'Together';
   getApiKeyLink = 'https://api.together.xyz/settings/api-keys';
 
@@ -52,7 +52,7 @@ export class TogetherProvider extends BaseProvider {
         return [];
       }
 
-      console.log({ baseUrl, apiKey });
+      // console.log({ baseUrl, apiKey });
 
       const response = await fetch(`${baseUrl}/models`, {
         headers: {

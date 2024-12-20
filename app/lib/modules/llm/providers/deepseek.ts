@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export class DeepseekProvider extends BaseProvider {
+export default class DeepseekProvider extends BaseProvider {
   name = 'Deepseek';
   getApiKeyLink = 'https://platform.deepseek.com/apiKeys';
 

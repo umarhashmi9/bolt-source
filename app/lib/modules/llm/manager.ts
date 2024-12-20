@@ -1,6 +1,7 @@
 import type { IProviderSetting } from '~/types/model';
 import { BaseProvider } from './base-provider';
 import type { ModelInfo, ProviderInfo } from './types';
+import * as providers from './registry';
 
 export class LLMManager {
   private static _instance: LLMManager;
@@ -26,27 +27,20 @@ export class LLMManager {
 
   private async _registerProvidersFromDirectory() {
     try {
-      // Dynamically import all files from the providers directory
-      const providerModules = import.meta.glob('./providers/*.ts', { eager: true });
+      /*
+       * Dynamically import all files from the providers directory
+       * const providerModules = import.meta.glob('./providers/*.ts', { eager: true });
+       */
 
-      for (const [path, module] of Object.entries(providerModules)) {
-        // Skip base-provider.ts and index.ts
-        if (path.includes('base-provider') || path.includes('index')) {
-          continue;
-        }
+      // Look for exported classes that extend BaseProvider
+      for (const exportedItem of Object.values(providers)) {
+        if (typeof exportedItem === 'function' && exportedItem.prototype instanceof BaseProvider) {
+          const provider = new exportedItem();
 
-        const exportedItems = module as Record<string, any>;
-
-        // Look for exported classes that extend BaseProvider
-        for (const exportedItem of Object.values(exportedItems)) {
-          if (typeof exportedItem === 'function' && exportedItem.prototype instanceof BaseProvider) {
-            const provider = new exportedItem();
-
-            try {
-              this.registerProvider(provider);
-            } catch (error: any) {
-              console.log('Failed To Register Provider: ', provider.name, 'Path:', path, 'error:', error.message);
-            }
+          try {
+            this.registerProvider(provider);
+          } catch (error: any) {
+            console.log('Failed To Register Provider: ', provider.name, 'error:', error.message);
           }
         }
       }
@@ -92,11 +86,19 @@ export class LLMManager {
           (provider): provider is BaseProvider & Required<Pick<ProviderInfo, 'getDynamicModels'>> =>
             !!provider.getDynamicModels,
         )
-        .map((provider) => provider.getDynamicModels(apiKeys, providerSettings?.[provider.name], serverEnv)),
+        .map((provider) =>
+          provider.getDynamicModels(apiKeys, providerSettings?.[provider.name], serverEnv).catch((err) => {
+            console.error(`Error getting dynamic models ${provider.name} :`, err);
+            return [];
+          }),
+        ),
     );
 
     // Combine static and dynamic models
-    const modelList = [...dynamicModels.flat(), ...Array.from(this._providers.values()).flatMap((p) => p.staticModels)];
+    const modelList = [
+      ...dynamicModels.flat(),
+      ...Array.from(this._providers.values()).flatMap((p) => p.staticModels || []),
+    ];
     this._modelList = modelList;
 
     return modelList;

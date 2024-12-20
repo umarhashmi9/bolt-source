@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createCohere } from '@ai-sdk/cohere';
 
-export class CohereProvider extends BaseProvider {
+export default class CohereProvider extends BaseProvider {
   name = 'Cohere';
   getApiKeyLink = 'https://dashboard.cohere.com/api-keys';
 

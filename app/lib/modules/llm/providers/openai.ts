@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export class OpenAIProvider extends BaseProvider {
+export default class OpenAIProvider extends BaseProvider {
   name = 'OpenAI';
   getApiKeyLink = 'https://platform.openai.com/api-keys';
 

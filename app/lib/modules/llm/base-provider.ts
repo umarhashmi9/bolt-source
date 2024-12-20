@@ -29,8 +29,11 @@ export abstract class BaseProvider implements ProviderInfo {
     }
 
     const baseUrlKey = this.config.baseUrlKey || defaultBaseUrlKey;
-    const baseUrl =
-      settingsBaseUrl || serverEnv?.[baseUrlKey] || process?.env?.[baseUrlKey] || manager.env?.[baseUrlKey];
+    let baseUrl = settingsBaseUrl || serverEnv?.[baseUrlKey] || process?.env?.[baseUrlKey] || manager.env?.[baseUrlKey];
+
+    if (baseUrl && baseUrl.endsWith('/')) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
 
     const apiTokenKey = this.config.apiTokenKey || defaultApiTokenKey;
     const apiKey =

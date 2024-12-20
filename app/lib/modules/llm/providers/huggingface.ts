@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export class HuggingFaceProvider extends BaseProvider {
+export default class HuggingFaceProvider extends BaseProvider {
   name = 'HuggingFace';
   getApiKeyLink = 'https://huggingface.co/settings/tokens';
 
