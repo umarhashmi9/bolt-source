@@ -5,6 +5,7 @@ import { useSettings } from '~/lib/hooks/useSettings';
 interface GitHubAuthProps {
   onAuthComplete?: (token: string) => void;
   onError?: (error: Error) => void;
+  onAuthStart?: () => void;
   children?: React.ReactNode;
 }
 
@@ -25,7 +26,7 @@ interface AccessTokenResponse extends GitHubErrorResponse {
   access_token?: string;
 }
 
-export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProps) {
+export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: GitHubAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [userCode, setUserCode] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
@@ -210,6 +211,11 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
   return React.cloneElement(children as React.ReactElement, {
     onClick: (e: React.MouseEvent) => {
       e.preventDefault();
+
+      if (onAuthStart) {
+        onAuthStart();
+      }
+
       handleStartAuth();
       (children as React.ReactElement).props.onClick?.(e);
     },
