@@ -91,39 +91,42 @@ export function GitHubAuthModal({
 
   return (
     <DialogRoot open={isOpen}>
-      <Dialog onClose={onClose} className="w-full max-w-md p-6 bg-[#0F0F0F] rounded-xl p-6 flex flex-col items-center gap-4 border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3)]">
-          <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
-            {isAuthenticated ? 'Push GitHub Repository' : 'GitHub Authentication'}
-          </h3>
-          {!isAuthenticated ? (
-            <>
-              <p className="text-sm text-bolt-elements-textSecondary mb-6">
-                Authenticate with GitHub to push your project
-              </p>
-              {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-              <GitHubAuth onAuthComplete={handleAuthComplete} onError={handleError} />
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-bolt-elements-textSecondary mb-6">Enter a name for your GitHub repository</p>
-              {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-              <div className="flex flex-col gap-4">
-                <input
-                  type="text"
-                  value={repoName}
-                  onChange={(e) => setRepoName(e.target.value)}
-                  placeholder="Repository name"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-700 bg-[#1A1A1A] text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-gray-600 focus:border-transparent"
-                />
-                <button
-                  onClick={handleCreateRepo}
-                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0F0F0F]"
-                >
-                  Create Repository
-                </button>
-              </div>
-            </>
-          )}
+      <Dialog
+        onClose={onClose}
+        className="w-full max-w-md p-6 bg-[#0F0F0F] rounded-xl p-6 flex flex-col items-center gap-4 border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3)]"
+      >
+        <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
+          {isAuthenticated ? 'Push GitHub Repository' : 'GitHub Authentication'}
+        </h3>
+        {!isAuthenticated ? (
+          <>
+            <p className="text-sm text-bolt-elements-textSecondary mb-6">
+              Authenticate with GitHub to push your project
+            </p>
+            {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+            <GitHubAuth onAuthComplete={handleAuthComplete} onError={handleError} />
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-bolt-elements-textSecondary mb-6">Enter a name for your GitHub repository</p>
+            {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+            <div className="flex flex-col gap-4">
+              <input
+                type="text"
+                value={repoName}
+                onChange={(e) => setRepoName(e.target.value)}
+                placeholder="Repository name"
+                className="w-full px-4 py-2 rounded-lg border border-gray-700 bg-[#1A1A1A] text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-gray-600 focus:border-transparent"
+              />
+              <button
+                onClick={handleCreateRepo}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0F0F0F]"
+              >
+                Create Repository
+              </button>
+            </div>
+          </>
+        )}
       </Dialog>
     </DialogRoot>
   );
