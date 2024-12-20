@@ -181,10 +181,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             // Get the GitHub user info directly to validate token
                             await getGitHubUser(existingToken);
                           }
+
                           // Show auth modal in both cases - it will handle the flow
                           setIsAuthModalOpen(true);
                         } catch (error) {
                           console.error('Failed to use existing GitHub token:', error);
+
                           // If token is invalid, remove it
                           localStorage.removeItem('github_token');
                           setIsAuthModalOpen(true);
@@ -236,7 +238,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={(token: string) => {
+          onAuthComplete={() => {
             // Token is already stored in localStorage by GitHubAuth component
             setIsAuthModalOpen(false);
           }}

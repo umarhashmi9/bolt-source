@@ -35,7 +35,9 @@ export function GitHubAuthModal({ isOpen, onClose, onAuthComplete }: GitHubAuthM
       return;
     }
 
-    if (!user || !token) return;
+    if (!user || !token) {
+      return;
+    }
 
     workbenchStore.pushToGitHub(repoName, user.login, token);
     onAuthComplete?.(token);
@@ -64,7 +66,9 @@ export function GitHubAuthModal({ isOpen, onClose, onAuthComplete }: GitHubAuthM
           <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">GitHub Authentication</h3>
           {!isAuthenticated ? (
             <>
-              <p className="text-sm text-bolt-elements-textSecondary mb-6">Authenticate with GitHub to push your project</p>
+              <p className="text-sm text-bolt-elements-textSecondary mb-6">
+                Authenticate with GitHub to push your project
+              </p>
               {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
               <GitHubAuth onAuthComplete={handleAuthComplete} onError={handleError} />
             </>
