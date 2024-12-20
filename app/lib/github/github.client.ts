@@ -6,7 +6,16 @@ export interface GitHubUser {
   email?: string;
 }
 
-interface GitHubRepo {
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  clone_url: string;
+  html_url: string;
+}
+
+interface GitHubRepoCreate {
   name: string;
   owner: {
     login: string;
@@ -41,9 +50,26 @@ export async function getGitHubUser(token: string): Promise<GitHubUser> {
   return githubRequest<GitHubUser>('/user', token);
 }
 
-export async function createRepository(token: string, name: string, description?: string): Promise<GitHubRepo> {
+export async function getUserRepos(token: string): Promise<GitHubRepo[]> {
+  const response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = new Error('Failed to fetch user repositories') as any;
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+export async function createRepository(token: string, name: string, description?: string): Promise<GitHubRepoCreate> {
   // First create the repository without auto_init
-  const repo = await githubRequest<GitHubRepo>('/user/repos', token, 'POST', {
+  const repo = await githubRequest<GitHubRepoCreate>('/user/repos', token, 'POST', {
     name,
     description: description || 'Created with Bolt',
     private: false,
