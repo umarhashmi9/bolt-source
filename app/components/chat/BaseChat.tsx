@@ -210,6 +210,25 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     const handleSendMessage = (event: React.UIEvent, messageInput?: string) => {
       if (sendMessage) {
+        // Check if provider exists and is not experimental
+        if (provider) {
+          const isExperimental = ['Ollama', 'LMStudio', 'OpenAILike'].includes(provider.name);
+          
+          if (isExperimental) {
+            // For experimental providers, check if base URL is set
+            if (!provider.settings?.baseUrl) {
+              toast.error(`Please set a base URL for ${provider.name} in the model settings`);
+              return;
+            }
+          } else {
+            // For non-experimental providers, check if API key is set
+            if (!apiKeys[provider.name]) {
+              toast.error(`Please set an API key for ${provider.name} in the model settings`);
+              return;
+            }
+          }
+        }
+
         sendMessage(event, messageInput);
 
         if (recognition) {
