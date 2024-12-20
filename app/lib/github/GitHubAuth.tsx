@@ -184,7 +184,9 @@ export function GitHubAuth({ onAuthComplete, onError, children }: GitHubAuthProp
           </a>
         </p>
         <div className="flex items-center gap-2">
-          <code className="bg-bolt-elements-background-depth-1 px-4 py-2 rounded-lg text-lg font-mono text-bolt-elements-textPrimary">{userCode}</code>
+          <code className="bg-bolt-elements-background-depth-1 px-4 py-2 rounded-lg text-lg font-mono text-bolt-elements-textPrimary">
+            {userCode}
+          </code>
           <button
             onClick={handleCopyCode}
             className="text-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"

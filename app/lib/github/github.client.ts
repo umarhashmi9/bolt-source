@@ -6,7 +6,14 @@ export interface GitHubUser {
   email?: string;
 }
 
-async function githubRequest(endpoint: string, token: string, method = 'GET', body?: any) {
+interface GitHubRepo {
+  name: string;
+  owner: {
+    login: string;
+  };
+}
+
+async function githubRequest<T>(endpoint: string, token: string, method = 'GET', body?: any): Promise<T> {
   const url = new URL('/api/github/proxy', window.location.origin);
   url.searchParams.set('endpoint', endpoint);
 
@@ -31,12 +38,12 @@ async function githubRequest(endpoint: string, token: string, method = 'GET', bo
 }
 
 export async function getGitHubUser(token: string): Promise<GitHubUser> {
-  return githubRequest('/user', token);
+  return githubRequest<GitHubUser>('/user', token);
 }
 
-export async function createRepository(token: string, name: string, description?: string) {
+export async function createRepository(token: string, name: string, description?: string): Promise<GitHubRepo> {
   // First create the repository without auto_init
-  const repo = await githubRequest('/user/repos', token, 'POST', {
+  const repo = await githubRequest<GitHubRepo>('/user/repos', token, 'POST', {
     name,
     description: description || 'Created with Bolt',
     private: false,
@@ -45,7 +52,7 @@ export async function createRepository(token: string, name: string, description?
 
   // Create README.md with proper content
   const readmeContent = `# ${name}\n\nThis project was created using bolt.diy, the official open source version of Bolt.new (previously known as oTToDev and bolt.new ANY LLM).`;
-  
+
   // Encode content in base64
   const content = Buffer.from(readmeContent).toString('base64');
 
@@ -56,7 +63,7 @@ export async function createRepository(token: string, name: string, description?
   });
 
   // Wait a bit for GitHub to process
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   return repo;
 }

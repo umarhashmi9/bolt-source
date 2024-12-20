@@ -22,8 +22,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const isApiRequest = targetEndpoint.startsWith('/user') || targetEndpoint.startsWith('/repos');
   const baseUrl = isApiRequest ? 'https://api.github.com' : 'https://github.com';
 
-  // For API requests, we need the token but not client_id
-  // For OAuth requests, we need client_id
+  /*
+   * For API requests, we need the token but not client_id
+   * For OAuth requests, we need client_id
+   */
   if (isApiRequest && !token) {
     return new Response('Missing Authorization header', { status: 401 });
   }
@@ -92,11 +94,14 @@ export async function action({ request }: ActionFunctionArgs) {
   const isApiRequest = targetEndpoint.startsWith('/user') || targetEndpoint.startsWith('/repos');
   const baseUrl = isApiRequest ? 'https://api.github.com' : 'https://github.com';
 
-  // For API requests, we need the token but not client_id
-  // For OAuth requests, we need client_id
+  /*
+   * For API requests, we need the token but not client_id
+   * For OAuth requests, we need client_id
+   */
   if (isApiRequest && !token) {
     return new Response('Missing Authorization header', { status: 401 });
   }
+
   if (!isApiRequest && !clientId) {
     return new Response('Missing client_id', { status: 400 });
   }

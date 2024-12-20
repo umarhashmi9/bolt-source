@@ -7,34 +7,36 @@ import { workbenchStore } from '~/lib/stores/workbench';
 interface GitHubAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAuthComplete?: (token: string) => void;
 }
 
-export function GitHubAuthModal({ isOpen, onClose }: GitHubAuthModalProps) {
+export function GitHubAuthModal({ isOpen, onClose, onAuthComplete }: GitHubAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
 
-  const handleAuthComplete = useCallback(async (token: string) => {
-    try {
-      // Get the GitHub user info
-      const user = await getGitHubUser(token);
+  const handleAuthComplete = useCallback(
+    async (token: string) => {
+      try {
+        // Get the GitHub user info
+        const user = await getGitHubUser(token);
 
-      // Prompt for repository name
-      const repoName = prompt(
-        'Enter a name for your GitHub repository:',
-        'bolt-generated-project',
-      );
+        // Prompt for repository name
+        const repoName = prompt('Enter a name for your GitHub repository:', 'bolt-generated-project');
 
-      if (!repoName) {
-        alert('Repository name is required. Push to GitHub cancelled.');
-        return;
+        if (!repoName) {
+          alert('Repository name is required. Push to GitHub cancelled.');
+          return;
+        }
+
+        workbenchStore.pushToGitHub(repoName, user.login, token);
+        onAuthComplete?.(token);
+        onClose();
+      } catch (error) {
+        console.error('Failed to get GitHub user:', error);
+        setError('Failed to get GitHub user info. Please try again.');
       }
-
-      workbenchStore.pushToGitHub(repoName, user.login, token);
-      onClose();
-    } catch (error) {
-      console.error('Failed to get GitHub user:', error);
-      setError('Failed to get GitHub user info. Please try again.');
-    }
-  }, [onClose]);
+    },
+    [onClose, onAuthComplete],
+  );
 
   const handleError = useCallback((error: Error) => {
     setError(error.message);
@@ -51,19 +53,10 @@ export function GitHubAuthModal({ isOpen, onClose }: GitHubAuthModalProps) {
     <DialogRoot open={isOpen}>
       <Dialog onClose={onClose}>
         <div className="w-full max-w-md p-6">
-          <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
-            GitHub Authentication
-          </h3>
-          <p className="text-sm text-bolt-elements-textSecondary mb-6">
-            Authenticate with GitHub to push your project
-          </p>
-          {error && (
-            <div className="text-red-500 text-sm mb-4">{error}</div>
-          )}
-          <GitHubAuth
-            onAuthComplete={handleAuthComplete}
-            onError={handleError}
-          />
+          <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">GitHub Authentication</h3>
+          <p className="text-sm text-bolt-elements-textSecondary mb-6">Authenticate with GitHub to push your project</p>
+          {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
+          <GitHubAuth onAuthComplete={handleAuthComplete} onError={handleError} />
         </div>
       </Dialog>
     </DialogRoot>

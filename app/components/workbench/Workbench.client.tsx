@@ -17,7 +17,6 @@ import { renderLogger } from '~/utils/logger';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
-import Cookies from 'js-cookie';
 import { GitHubAuthModal } from '~/components/github/GitHubAuthModal';
 import { getGitHubUser } from '~/lib/github/github.client';
 
@@ -61,7 +60,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [repoName, setRepoName] = useState('');
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -178,11 +176,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                         try {
                           // Check for existing GitHub token
                           const existingToken = localStorage.getItem('github_token');
-                          
+
                           if (existingToken) {
                             // Get the GitHub user info directly
                             const user = await getGitHubUser(existingToken);
-                            
+
                             // Prompt for repository name
                             const repoName = prompt(
                               'Enter a name for your GitHub repository:',
@@ -201,6 +199,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                           }
                         } catch (error) {
                           console.error('Failed to use existing GitHub token:', error);
+
                           // If token is invalid, show the auth modal
                           localStorage.removeItem('github_token');
                           setIsAuthModalOpen(true);
@@ -252,13 +251,10 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={async (token) => {
+          onAuthComplete={async (token: string) => {
             try {
               const user = await getGitHubUser(token);
-              const repoName = prompt(
-                'Please enter a name for your new GitHub repository:',
-                'bolt-generated-project',
-              );
+              const repoName = prompt('Please enter a name for your new GitHub repository:', 'bolt-generated-project');
 
               if (!repoName) {
                 alert('Repository name is required. Push to GitHub cancelled.');
