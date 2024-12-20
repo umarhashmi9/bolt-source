@@ -12,7 +12,13 @@ interface GitHubAuthModalProps {
   initialToken?: string | null;
 }
 
-export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, onPushComplete, initialToken }: GitHubAuthModalProps) {
+export function GitHubAuthModal({
+  isOpen,
+  onClose,
+  onAuthComplete,
+  onPushComplete,
+  initialToken,
+}: GitHubAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [repoName, setRepoName] = useState('bolt-generated-project');

@@ -19,7 +19,6 @@ import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { GitHubAuthModal } from '~/components/github/GitHubAuthModal';
 import { getGitHubUser } from '~/lib/github/github.client';
-import { LoadingDots } from '~/components/ui/LoadingDots';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -240,12 +239,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={async (token: string) => {
+          onAuthComplete={async () => {
             setIsAuthModalOpen(false);
             setIsPushingToGitHub(true);
           }}
           onPushComplete={(success: boolean, repoUrl?: string) => {
             setIsPushingToGitHub(false);
+
             if (success) {
               toast.success(
                 <div className="flex flex-col gap-1">
@@ -261,7 +261,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     </a>
                   )}
                 </div>,
-                { autoClose: 5000 }
+                { autoClose: 5000 },
               );
             } else {
               toast.error('Failed to push to GitHub. Please try again.');
