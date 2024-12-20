@@ -273,8 +273,8 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         {/* Loading Overlay */}
         {isPushingToGitHub && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-bolt-elements-background-depth-1 rounded-lg p-6 flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-t-purple-500 border-purple-200 rounded-full animate-spin" />
+            <div className="bg-[#0F0F0F] rounded-xl p-6 flex flex-col items-center gap-4 border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3)]">
+              <div className="w-12 h-12 border-4 border-t-purple-500 border-purple-200/20 rounded-full animate-spin" />
               <p className="text-bolt-elements-textPrimary">Pushing your project to GitHub...</p>
             </div>
           </div>

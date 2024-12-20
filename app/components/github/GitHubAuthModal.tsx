@@ -91,10 +91,10 @@ export function GitHubAuthModal({
 
   return (
     <DialogRoot open={isOpen}>
-      <Dialog onClose={onClose}>
-        <div className="w-full max-w-md p-6">
+      <Dialog onClose={onClose} className="!bg-transparent !shadow-none">
+        <div className="w-full max-w-md p-6 bg-[#0F0F0F] rounded-xl border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3),_0_0_30px_-4px_rgba(124,58,237,0.2)]">
           <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
-            {isAuthenticated ? 'Create GitHub Repository' : 'GitHub Authentication'}
+            {isAuthenticated ? 'Push GitHub Repository' : 'GitHub Authentication'}
           </h3>
           {!isAuthenticated ? (
             <>
@@ -114,11 +114,11 @@ export function GitHubAuthModal({
                   value={repoName}
                   onChange={(e) => setRepoName(e.target.value)}
                   placeholder="Repository name"
-                  className="w-full px-4 py-2 rounded-lg border border-bolt-elements-border bg-bolt-elements-background-depth-1 text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-700 bg-[#1A1A1A] text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-gray-600 focus:border-transparent"
                 />
                 <button
                   onClick={handleCreateRepo}
-                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0F0F0F]"
                 >
                   Create Repository
                 </button>
