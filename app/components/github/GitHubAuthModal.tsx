@@ -8,10 +8,11 @@ interface GitHubAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthComplete?: (token: string) => void;
+  onPushComplete?: (success: boolean, repoUrl?: string) => void;
   initialToken?: string | null;
 }
 
-export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, initialToken }: GitHubAuthModalProps) {
+export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, onPushComplete, initialToken }: GitHubAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [repoName, setRepoName] = useState('bolt-generated-project');
@@ -46,7 +47,7 @@ export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, initialToken 
     }
   }, []);
 
-  const handleCreateRepo = useCallback(() => {
+  const handleCreateRepo = useCallback(async () => {
     if (!repoName.trim()) {
       setError('Repository name is required');
       return;
@@ -56,10 +57,16 @@ export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, initialToken 
       return;
     }
 
-    workbenchStore.pushToGitHub(repoName, user.login, token);
     onAuthComplete?.(token);
-    onClose();
-  }, [repoName, user, token, onAuthComplete, onClose]);
+
+    try {
+      const result = await workbenchStore.pushToGitHub(repoName, user.login, token);
+      onPushComplete?.(true, result.html_url);
+    } catch (error) {
+      console.error('Failed to push to GitHub:', error);
+      onPushComplete?.(false);
+    }
+  }, [repoName, user, token, onAuthComplete, onPushComplete]);
 
   const handleError = useCallback((error: Error) => {
     setError(error.message);

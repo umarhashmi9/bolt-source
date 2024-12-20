@@ -19,6 +19,7 @@ import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { GitHubAuthModal } from '~/components/github/GitHubAuthModal';
 import { getGitHubUser } from '~/lib/github/github.client';
+import { LoadingDots } from '~/components/ui/LoadingDots';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -60,6 +61,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPushingToGitHub, setIsPushingToGitHub] = useState(false);
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -238,12 +240,45 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={() => {
-            // Token is already stored in localStorage by GitHubAuth component
+          onAuthComplete={async (token: string) => {
             setIsAuthModalOpen(false);
+            setIsPushingToGitHub(true);
+          }}
+          onPushComplete={(success: boolean, repoUrl?: string) => {
+            setIsPushingToGitHub(false);
+            if (success) {
+              toast.success(
+                <div className="flex flex-col gap-1">
+                  <span>Successfully pushed to GitHub!</span>
+                  {repoUrl && (
+                    <a
+                      href={repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-500 hover:text-blue-600"
+                    >
+                      View Repository →
+                    </a>
+                  )}
+                </div>,
+                { autoClose: 5000 }
+              );
+            } else {
+              toast.error('Failed to push to GitHub. Please try again.');
+            }
           }}
           initialToken={localStorage.getItem('github_token')}
         />
+
+        {/* Loading Overlay */}
+        {isPushingToGitHub && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-bolt-elements-background-depth-1 rounded-lg p-6 flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-t-purple-500 border-purple-200 rounded-full animate-spin" />
+              <p className="text-bolt-elements-textPrimary">Pushing your project to GitHub...</p>
+            </div>
+          </div>
+        )}
       </motion.div>
     )
   );

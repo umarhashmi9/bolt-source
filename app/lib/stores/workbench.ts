@@ -510,10 +510,10 @@ export class WorkbenchStore {
         sha: newCommit.sha,
       });
 
-      alert(`Repository created and code pushed: ${repo.html_url}`);
+      return repo; // Return the repo object instead of showing an alert
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
-      throw error; // Rethrow the error for further handling
+      throw error;
     }
   }
 }
