@@ -20,6 +20,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
 
   const loadUserRepos = useCallback(async () => {
     const token = localStorage.getItem('github_token');
+
     if (!token) {
       setIsAuthenticated(false);
       return;
@@ -27,17 +28,22 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
 
     try {
       setIsLoading(true);
+
       const user = await getGitHubUser(token);
       setUsername(user.login);
+
       const repos = await getUserRepos(token);
-      setUserRepos(repos.map(repo => ({
-        name: repo.full_name,
-        url: repo.clone_url
-      })));
+      setUserRepos(
+        repos.map((repo) => ({
+          name: repo.full_name,
+          url: repo.clone_url,
+        })),
+      );
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Error loading repos:', error);
       toast.error('Failed to load repositories');
+
       if (error instanceof Error && 'status' in error && (error.status === 401 || error.status === 403)) {
         localStorage.removeItem('github_token');
         setIsAuthenticated(false);
@@ -53,19 +59,22 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
     }
   }, [open, loadUserRepos]);
 
-  const handleAuthComplete = useCallback(async (token: string) => {
-    try {
-      const user = await getGitHubUser(token);
-      setUsername(user.login);
-      setIsAuthenticated(true);
-      loadUserRepos();
-    } catch (error) {
-      console.error('Auth error:', error);
-      toast.error('Authentication failed');
-      localStorage.removeItem('github_token');
-      setIsAuthenticated(false);
-    }
-  }, [loadUserRepos]);
+  const handleAuthComplete = useCallback(
+    async (token: string) => {
+      try {
+        const user = await getGitHubUser(token);
+        setUsername(user.login);
+        setIsAuthenticated(true);
+        loadUserRepos();
+      } catch (error) {
+        console.error('Auth error:', error);
+        toast.error('Authentication failed');
+        localStorage.removeItem('github_token');
+        setIsAuthenticated(false);
+      }
+    },
+    [loadUserRepos],
+  );
 
   const handleClone = useCallback(async () => {
     try {
@@ -74,6 +83,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
       } else if (publicUrl) {
         await onClone(publicUrl);
       }
+
       onClose();
     } catch (error) {
       console.error('Clone error:', error);
@@ -101,6 +111,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
                 value={publicUrl}
                 onChange={(e) => {
                   setPublicUrl(e.target.value);
+
                   if (e.target.value && selectedRepo) {
                     setSelectedRepo('');
                   }
@@ -119,20 +130,23 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
                 value={selectedRepo}
                 onChange={(e) => {
                   setSelectedRepo(e.target.value);
+
                   if (e.target.value) {
                     setPublicUrl('');
                   }
                 }}
                 className="w-full px-2 h-9 rounded bg-[#2D2D2D] border border-[#383838] text-white focus:outline-none focus:border-[#525252] text-ellipsis appearance-none"
-                style={{ 
-                  textOverflow: 'ellipsis', 
+                style={{
+                  textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   lineHeight: '2rem',
                   paddingTop: '0',
-                  paddingBottom: '0'
+                  paddingBottom: '0',
                 }}
               >
-                <option value="" className="py-1">Select a repository</option>
+                <option value="" className="py-1">
+                  Select a repository
+                </option>
                 {userRepos.map((repo) => (
                   <option key={repo.url} value={repo.url} className="py-1">
                     {repo.name}

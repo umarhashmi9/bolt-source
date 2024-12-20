@@ -33,7 +33,7 @@ const IGNORE_PATTERNS = [
 const ig = ignore().add(IGNORE_PATTERNS);
 
 interface GitCloneButtonProps {
-  importChat: (description: string, messages: Message[]) => Promise<void>;
+  importChat?: (description: string, messages: Message[]) => Promise<void>;
 }
 
 export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
@@ -105,11 +105,7 @@ ${file.content}
         Clone a Git Repo
       </button>
 
-      <GitCloneModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onClone={handleClone}
-      />
+      <GitCloneModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onClone={handleClone} />
     </>
   );
 }
