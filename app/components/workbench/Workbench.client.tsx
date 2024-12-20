@@ -178,29 +178,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                           const existingToken = localStorage.getItem('github_token');
 
                           if (existingToken) {
-                            // Get the GitHub user info directly
-                            const user = await getGitHubUser(existingToken);
-
-                            // Prompt for repository name
-                            const repoName = prompt(
-                              'Enter a name for your GitHub repository:',
-                              'bolt-generated-project',
-                            );
-
-                            if (!repoName) {
-                              alert('Repository name is required. Push to GitHub cancelled.');
-                              return;
-                            }
-
-                            workbenchStore.pushToGitHub(repoName, user.login, existingToken);
-                          } else {
-                            // No token, show the auth modal
-                            setIsAuthModalOpen(true);
+                            // Get the GitHub user info directly to validate token
+                            await getGitHubUser(existingToken);
                           }
+                          // Show auth modal in both cases - it will handle the flow
+                          setIsAuthModalOpen(true);
                         } catch (error) {
                           console.error('Failed to use existing GitHub token:', error);
-
-                          // If token is invalid, show the auth modal
+                          // If token is invalid, remove it
                           localStorage.removeItem('github_token');
                           setIsAuthModalOpen(true);
                         }
@@ -251,22 +236,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={async (token: string) => {
-            try {
-              const user = await getGitHubUser(token);
-              const repoName = prompt('Please enter a name for your new GitHub repository:', 'bolt-generated-project');
-
-              if (!repoName) {
-                alert('Repository name is required. Push to GitHub cancelled.');
-                return;
-              }
-
-              workbenchStore.pushToGitHub(repoName, user.login, token);
-              setIsAuthModalOpen(false);
-            } catch (error) {
-              console.error('Failed to get GitHub user:', error);
-              alert('Failed to get GitHub user info. Please try again.');
-            }
+          onAuthComplete={(token: string) => {
+            // Token is already stored in localStorage by GitHubAuth component
+            setIsAuthModalOpen(false);
           }}
         />
       </motion.div>
