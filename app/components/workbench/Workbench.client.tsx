@@ -182,7 +182,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             await getGitHubUser(existingToken);
                           }
 
-                          // Show auth modal in both cases - it will handle the flow
+                          // Show auth modal, passing the existing token if we have one
                           setIsAuthModalOpen(true);
                         } catch (error) {
                           console.error('Failed to use existing GitHub token:', error);
@@ -242,6 +242,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             // Token is already stored in localStorage by GitHubAuth component
             setIsAuthModalOpen(false);
           }}
+          initialToken={localStorage.getItem('github_token')}
         />
       </motion.div>
     )

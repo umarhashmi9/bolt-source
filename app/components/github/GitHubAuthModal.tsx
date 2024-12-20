@@ -8,14 +8,31 @@ interface GitHubAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAuthComplete?: (token: string) => void;
+  initialToken?: string | null;
 }
 
-export function GitHubAuthModal({ isOpen, onClose, onAuthComplete }: GitHubAuthModalProps) {
+export function GitHubAuthModal({ isOpen, onClose, onAuthComplete, initialToken }: GitHubAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [repoName, setRepoName] = useState('bolt-generated-project');
   const [user, setUser] = useState<{ login: string } | null>(null);
   const [token, setToken] = useState<string | null>(null);
+
+  // If we have an initial token, validate and use it
+  useEffect(() => {
+    if (initialToken && !isAuthenticated) {
+      getGitHubUser(initialToken)
+        .then((githubUser) => {
+          setUser(githubUser);
+          setToken(initialToken);
+          setIsAuthenticated(true);
+        })
+        .catch((error) => {
+          console.error('Failed to validate token:', error);
+          setError('Failed to validate GitHub token. Please authenticate again.');
+        });
+    }
+  }, [initialToken, isAuthenticated]);
 
   const handleAuthComplete = useCallback(async (authToken: string) => {
     try {
@@ -63,7 +80,9 @@ export function GitHubAuthModal({ isOpen, onClose, onAuthComplete }: GitHubAuthM
     <DialogRoot open={isOpen}>
       <Dialog onClose={onClose}>
         <div className="w-full max-w-md p-6">
-          <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">GitHub Authentication</h3>
+          <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
+            {isAuthenticated ? 'Create GitHub Repository' : 'GitHub Authentication'}
+          </h3>
           {!isAuthenticated ? (
             <>
               <p className="text-sm text-bolt-elements-textSecondary mb-6">
