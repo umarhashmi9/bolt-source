@@ -3,7 +3,6 @@ import {
   isDebugMode,
   isEventLogsEnabled,
   isLocalModelsEnabled,
-  isGitHubAuthEnabled,
   LOCAL_PROVIDERS,
   promptStore,
   providersStore,
@@ -12,7 +11,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
-import { logStore } from '~/lib/stores/logs'; // assuming logStore is imported from this location
+import { logStore } from '~/lib/stores/logs';
 import commit from '~/commit.json';
 
 interface CommitData {
@@ -29,7 +28,6 @@ export function useSettings() {
   const promptId = useStore(promptStore);
   const isLocalModel: boolean = useStore(isLocalModelsEnabled);
   const isLatestBranch: boolean = useStore(latestBranchStore);
-  const isGitHubAuth: boolean = useStore(isGitHubAuthEnabled);
   const [activeProviders, setActiveProviders] = useState<ProviderInfo[]>([]);
 
   // Function to check if we're on stable version
@@ -121,13 +119,6 @@ export function useSettings() {
     } else {
       latestBranchStore.set(savedLatestBranch === 'true');
     }
-
-    // load GitHub authentication from cookies
-    const savedGitHubAuth = Cookies.get('isGitHubAuthEnabled');
-
-    if (savedGitHubAuth) {
-      isGitHubAuthEnabled.set(savedGitHubAuth === 'true');
-    }
   }, []);
 
   // writing values to cookies on change
@@ -190,20 +181,6 @@ export function useSettings() {
     Cookies.set('isLatestBranch', String(enabled));
   }, []);
 
-  const enableGitHubAuth = useCallback((enabled: boolean) => {
-    isGitHubAuthEnabled.set(enabled);
-    logStore.logSystem(`GitHub authentication ${enabled ? 'enabled' : 'disabled'}`);
-    Cookies.set('isGitHubAuthEnabled', String(enabled));
-
-    // Clean up GitHub data when feature is disabled
-    if (!enabled) {
-      localStorage.removeItem('github_token');
-      Cookies.remove('githubUsername');
-      Cookies.remove('githubToken');
-      Cookies.remove('git:github.com');
-    }
-  }, []);
-
   return {
     providers,
     activeProviders,
@@ -218,7 +195,5 @@ export function useSettings() {
     setPromptId,
     isLatestBranch,
     enableLatestBranch,
-    isGitHubAuth,
-    enableGitHubAuth,
   };
 }

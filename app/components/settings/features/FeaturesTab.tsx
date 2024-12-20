@@ -14,8 +14,6 @@ export default function FeaturesTab() {
     enableLatestBranch,
     promptId,
     setPromptId,
-    isGitHubAuth,
-    enableGitHubAuth,
   } = useSettings();
 
   const handleToggle = (enabled: boolean) => {
@@ -41,17 +39,6 @@ export default function FeaturesTab() {
             </div>
             <Switch className="ml-auto" checked={isLatestBranch} onCheckedChange={enableLatestBranch} />
           </div>
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-bolt-elements-textPrimary">GitHub Auth</span>
-            <Switch className="ml-auto" checked={isGitHubAuth} onCheckedChange={enableGitHubAuth} />
-          </div>
-          <p className="text-sm text-bolt-elements-textSecondary">
-            A utility feature that Provides GitHub authentication. If your feature needs GitHub authentication you can
-            use this. The useGitHubAuth() hook provides authentication state including login status, loading state, and
-            user information. Once authenticated, you can access the GitHub token from localStorage.
-          </p>
         </div>
       </div>
 

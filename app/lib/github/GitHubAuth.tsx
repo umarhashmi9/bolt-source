@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GITHUB_CONFIG } from './config';
-import { useSettings } from '~/lib/hooks/useSettings';
 
 interface GitHubAuthProps {
   onAuthComplete?: (token: string) => void;
@@ -32,7 +31,6 @@ export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: G
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
-  const { isGitHubAuth } = useSettings();
 
   // Reset states when auth completes
   const handleAuthSuccess = useCallback(
@@ -156,10 +154,6 @@ export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: G
       setTimeout(() => setShowCopied(false), 2000);
     }
   }, [userCode]);
-
-  if (!isGitHubAuth) {
-    return null;
-  }
 
   if (isLoading) {
     return (
