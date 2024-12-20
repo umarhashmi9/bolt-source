@@ -91,8 +91,7 @@ export function GitHubAuthModal({
 
   return (
     <DialogRoot open={isOpen}>
-      <Dialog onClose={onClose} className="!bg-transparent !shadow-none">
-        <div className="w-full max-w-md p-6 bg-[#0F0F0F] rounded-xl border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3),_0_0_30px_-4px_rgba(124,58,237,0.2)]">
+      <Dialog onClose={onClose} className="w-full max-w-md p-6 bg-[#0F0F0F] rounded-xl p-6 flex flex-col items-center gap-4 border border-purple-500/30 shadow-[0_4px_20px_-4px_rgba(124,58,237,0.3)]">
           <h3 className="text-lg font-medium leading-6 text-bolt-elements-textPrimary mb-4">
             {isAuthenticated ? 'Push GitHub Repository' : 'GitHub Authentication'}
           </h3>
@@ -125,7 +124,6 @@ export function GitHubAuthModal({
               </div>
             </>
           )}
-        </div>
       </Dialog>
     </DialogRoot>
   );
