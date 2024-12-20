@@ -24,12 +24,12 @@ const commitJson: CommitData = commit;
 
 export function useSettings() {
   const providers = useStore(providersStore);
-  const debug = useStore(isDebugMode);
-  const eventLogs = useStore(isEventLogsEnabled);
+  const debug: boolean = useStore(isDebugMode);
+  const eventLogs: boolean = useStore(isEventLogsEnabled);
   const promptId = useStore(promptStore);
-  const isLocalModel = useStore(isLocalModelsEnabled);
-  const isLatestBranch = useStore(latestBranchStore);
-  const isGitHubAuth = useStore(isGitHubAuthEnabled);
+  const isLocalModel: boolean = useStore(isLocalModelsEnabled);
+  const isLatestBranch: boolean = useStore(latestBranchStore);
+  const isGitHubAuth: boolean = useStore(isGitHubAuthEnabled);
   const [activeProviders, setActiveProviders] = useState<ProviderInfo[]>([]);
 
   // Function to check if we're on stable version
@@ -183,6 +183,7 @@ export function useSettings() {
     promptStore.set(promptId);
     Cookies.set('promptId', promptId);
   }, []);
+
   const enableLatestBranch = useCallback((enabled: boolean) => {
     latestBranchStore.set(enabled);
     logStore.logSystem(`Main branch updates ${enabled ? 'enabled' : 'disabled'}`);
