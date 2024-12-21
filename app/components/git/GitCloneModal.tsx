@@ -128,7 +128,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
 
             <div>
               <div className="text-[13px] font-medium text-[#8B8B8B] mb-2">
-                {isAuthenticated ? `${username}'s GitHub Repositories` : 'Private Repository'}
+                {isAuthenticated ? `${username}'s GitHub Repositories` : 'Your GitHub Repositories'}
               </div>
               {isAuthenticated ? (
                 <select

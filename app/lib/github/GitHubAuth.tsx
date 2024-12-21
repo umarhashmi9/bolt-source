@@ -166,8 +166,8 @@ export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: G
 
   if (userCode && verificationUrl) {
     return (
-      <div className="flex flex-col items-center gap-4">
-        <p className="text-bolt-elements-textSecondary">
+      <div className="flex flex-col items-center gap-4 bg-white rounded-lg p-4">
+        <p className="text-black">
           Enter this code at{' '}
           <a
             href={verificationUrl}
@@ -179,9 +179,7 @@ export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: G
           </a>
         </p>
         <div className="flex items-center gap-2">
-          <code className="bg-bolt-elements-background-depth-1 px-4 py-2 rounded-lg text-lg font-mono text-bolt-elements-textPrimary">
-            {userCode}
-          </code>
+          <code className="bg-white px-4 py-2 rounded-lg text-lg font-mono text-black">{userCode}</code>
           <button
             onClick={handleCopyCode}
             className="text-blue-500 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2"
@@ -190,7 +188,7 @@ export function GitHubAuth({ onAuthComplete, onError, onAuthStart, children }: G
           </button>
         </div>
         {isPolling && (
-          <p className="text-sm text-bolt-elements-textSecondary">
+          <p className="text-sm text-black">
             Waiting for authorization... You can close the GitHub window once authorized.
           </p>
         )}
