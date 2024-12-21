@@ -109,7 +109,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
           <div className="p-4 space-y-4">
             {(!selectedRepo || !isAuthenticated) && (
               <div>
-                <div className="text-[13px] font-medium text-[#8B8B8B] mb-2">Public Repository</div>
+                <div className="text-[13px] font-medium text-[#8B8B8B] mb-2">Public Repository URL</div>
                 <input
                   type="text"
                   placeholder="Enter Git URL"
@@ -128,7 +128,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
 
             <div>
               <div className="text-[13px] font-medium text-[#8B8B8B] mb-2">
-                {isAuthenticated ? `${username}'s Repositories` : 'Private Repository'}
+                {isAuthenticated ? `${username}'s GitHub Repositories` : 'Private Repository'}
               </div>
               {isAuthenticated ? (
                 <select
