@@ -67,12 +67,13 @@ export function useGit() {
           if (isGithubUrl && githubToken) {
             return {
               username: githubToken,
-              password: 'x-oauth-basic'
+              password: 'x-oauth-basic',
             };
           }
 
           // For non-GitHub repos, use saved credentials
           let auth = lookupSavedPassword(url);
+
           if (auth) {
             return auth;
           }

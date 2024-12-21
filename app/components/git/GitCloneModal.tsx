@@ -81,7 +81,7 @@ export function GitCloneModal({ open, onClose, onClone }: GitCloneModalProps) {
   const handleClone = useCallback(async () => {
     try {
       const cloneUrl = selectedRepo || publicUrl;
-      
+
       if (cloneUrl) {
         setIsCloning(true);
         onClose(); // Close the modal immediately when starting clone
