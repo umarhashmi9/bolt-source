@@ -408,7 +408,7 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
+  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string, isPrivate: boolean = false) {
     try {
       // Use cookies if username and token are not provided
       const githubToken = ghToken || Cookies.get('githubToken');
@@ -427,12 +427,22 @@ export class WorkbenchStore {
       try {
         const resp = await octokit.repos.get({ owner, repo: repoName });
         repo = resp.data;
+
+        // Update repository visibility if it has changed
+        if (repo.private !== isPrivate) {
+          const { data: updatedRepo } = await octokit.repos.update({
+            owner,
+            repo: repoName,
+            private: isPrivate,
+          });
+          repo = updatedRepo;
+        }
       } catch (error) {
         if (error instanceof Error && 'status' in error && error.status === 404) {
           // Repository doesn't exist, so create a new one
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
-            private: false,
+            private: isPrivate,
             auto_init: true,
           });
           repo = newRepo;
@@ -461,24 +471,31 @@ export class WorkbenchStore {
             });
             return { path: extractRelativePath(filePath), sha: blob.sha };
           }
-
           return null;
         }),
       );
 
-      const validBlobs = blobs.filter(Boolean); // Filter out any undefined blobs
+      const validBlobs = blobs.filter(Boolean);
 
       if (validBlobs.length === 0) {
         throw new Error('No valid files to push');
       }
 
-      // Get the latest commit SHA (assuming main branch, update dynamically if needed)
+      // Get the latest commit SHA
       const { data: ref } = await octokit.git.getRef({
         owner: repo.owner.login,
         repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
+        ref: `heads/${repo.default_branch || 'main'}`,
       });
+
       const latestCommitSha = ref.object.sha;
+
+      // Get the commit that the ref points to
+      const { data: latestCommit } = await octokit.git.getCommit({
+        owner: repo.owner.login,
+        repo: repo.name,
+        commit_sha: latestCommitSha,
+      });
 
       // Create a new tree
       const { data: newTree } = await octokit.git.createTree({
@@ -497,20 +514,26 @@ export class WorkbenchStore {
       const { data: newCommit } = await octokit.git.createCommit({
         owner: repo.owner.login,
         repo: repo.name,
-        message: 'Initial commit from your app',
+        message: 'Update from your app',
         tree: newTree.sha,
         parents: [latestCommitSha],
       });
 
-      // Update the reference
-      await octokit.git.updateRef({
-        owner: repo.owner.login,
-        repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
-        sha: newCommit.sha,
-      });
+      try {
+        // Try to update the reference
+        await octokit.git.updateRef({
+          owner: repo.owner.login,
+          repo: repo.name,
+          ref: `heads/${repo.default_branch || 'main'}`,
+          sha: newCommit.sha,
+          force: true // Force push to handle non-fast-forward updates
+        });
+      } catch (error) {
+        console.error('Failed to update reference:', error);
+        throw error;
+      }
 
-      return repo; // Return the repo object instead of showing an alert
+      return repo;
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
       throw error;

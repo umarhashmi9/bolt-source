@@ -1,28 +1,31 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
 import { Dialog, DialogRoot } from '~/components/ui/Dialog';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { workbenchStore } from '~/lib/stores/workbench';
+import { Octokit } from '@octokit/rest';
+import { toast } from 'react-toastify';
+import Cookies from 'js-cookie';
 import { GitHubAuth } from '~/lib/github/GitHubAuth';
 import { getGitHubUser } from '~/lib/github/github.client';
-import { workbenchStore } from '~/lib/stores/workbench';
-import { toast } from 'react-toastify';
 
 interface GitHubAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthComplete?: (token: string) => void;
   onPushComplete?: (success: boolean, repoUrl?: string) => void;
+  onAuthComplete?: (token: string) => void;
   initialToken?: string | null;
 }
 
 export function GitHubAuthModal({
   isOpen,
   onClose,
-  onAuthComplete,
   onPushComplete,
+  onAuthComplete,
   initialToken,
 }: GitHubAuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [repoName, setRepoName] = useState('bolt-generated-project');
+  const [repoVisibility, setRepoVisibility] = useState(false);
   const [user, setUser] = useState<{ login: string } | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -43,6 +46,43 @@ export function GitHubAuthModal({
         });
     }
   }, [initialToken, isAuthenticated]);
+
+  const checkRepoVisibility = useCallback(async (name: string) => {
+    if (!isAuthenticated || !user || !token) return;
+
+    try {
+      const octokit = new Octokit({ auth: token });
+      try {
+        const { data: repo } = await octokit.repos.get({
+          owner: user.login,
+          repo: name,
+        });
+        setRepoVisibility(repo.private);
+      } catch (error) {
+        if (error instanceof Error && 'status' in error && error.status === 404) {
+          // Repository doesn't exist yet, set to public
+          setRepoVisibility(false);
+        } else {
+          console.error('Error checking repo visibility:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing Octokit:', error);
+    }
+  }, [isAuthenticated, user, token]);
+
+  // Check repository visibility when the modal opens or repo name changes
+  useEffect(() => {
+    if (isOpen && repoName) {
+      checkRepoVisibility(repoName);
+    }
+  }, [isOpen, repoName, checkRepoVisibility]);
+
+  const handleRepoNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setRepoName(newName);
+    checkRepoVisibility(newName);
+  }, [checkRepoVisibility]);
 
   const handleAuthComplete = useCallback(async (authToken: string) => {
     setIsAuthenticating(true);
@@ -77,20 +117,22 @@ export function GitHubAuthModal({
       return;
     }
 
-    if (!user || !token) {
+    if (!token || !user) {
+      setError('Not authenticated with GitHub');
       return;
     }
 
     onAuthComplete?.(token);
 
     try {
-      const result = await workbenchStore.pushToGitHub(repoName, user.login, token);
+      const result = await workbenchStore.pushToGitHub(repoName, user.login, token, repoVisibility);
       onPushComplete?.(true, result.html_url);
     } catch (error) {
       console.error('Failed to push to GitHub:', error);
+      setError(error instanceof Error ? error.message : 'Failed to push to GitHub');
       onPushComplete?.(false);
     }
-  }, [repoName, user, token, onAuthComplete, onPushComplete]);
+  }, [repoName, user, token, repoVisibility, onAuthComplete, onPushComplete]);
 
   // Monitor localStorage for GitHub token
   useEffect(() => {
@@ -128,6 +170,7 @@ export function GitHubAuthModal({
       setError(null);
       setIsAuthenticated(false);
       setRepoName('bolt-generated-project');
+      setRepoVisibility(false);
       setUser(null);
       setToken(null);
       hasShownToast.current = false;
@@ -156,8 +199,14 @@ export function GitHubAuthModal({
               <p className="text-sm text-bolt-elements-textSecondary mb-6">
                 Authenticate with GitHub to push your project
               </p>
-              {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-              <GitHubAuth onAuthStart={startAuth} onAuthComplete={handleAuthComplete} onError={handleError} />
+              <GitHubAuth onAuthComplete={handleAuthComplete} onError={(error) => setError(error.message)}>
+                <button className="w-full h-[32px] flex gap-2 items-center justify-center bg-[#2D2D2D] text-white hover:bg-[#383838] rounded border border-[#383838] transition-colors">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                  </svg>
+                  <span>Connect GitHub</span>
+                </button>
+              </GitHubAuth>
             </>
           ) : (
             <>
@@ -167,15 +216,37 @@ export function GitHubAuthModal({
                 <input
                   type="text"
                   value={repoName}
-                  onChange={(e) => setRepoName(e.target.value)}
-                  placeholder="Repository name"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-700 bg-[#1A1A1A] text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-gray-600 focus:border-transparent"
+                  onChange={handleRepoNameChange}
+                  placeholder="Enter repository name"
+                  className="w-full px-2 h-[32px] rounded bg-[#2D2D2D] border border-[#383838] text-white placeholder-[#8B8B8B] focus:outline-none focus:border-[#525252]"
                 />
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-medium text-[#8B8B8B]">Make Private</span>
+                  <button
+                    onClick={() => setRepoVisibility(!repoVisibility)}
+                    className={`h-[32px] w-[32px] flex items-center justify-center transition-colors bg-transparent ${
+                      repoVisibility
+                        ? 'text-[#6F3FB6] hover:text-[#8B4FE3]'
+                        : 'text-[#8B8B8B] hover:text-[#A3A3A3]'
+                    }`}
+                    title={repoVisibility ? 'Private Repository' : 'Public Repository'}
+                  >
+                    {repoVisibility ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z"/>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1C8.676 1 6 3.676 6 7v2h2V7c0-2.276 1.724-4 4-4s4 1.724 4 4v2h2V7c0-3.324-2.676-6-6-6zM4 9v14h16V9H4zm14 12H6V11h12v10z"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 <button
                   onClick={handleCreateRepo}
-                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0F0F0F]"
+                  className="w-full h-[32px] rounded bg-[#6F3FB6]/80 text-white hover:bg-[#8B4FE3]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Repository
+                  Push Repository
                 </button>
               </div>
             </>
