@@ -89,14 +89,11 @@ export default class OllamaProvider extends BaseProvider {
       defaultApiTokenKey: '',
     });
 
-    // Check if we're not in the browser
-    if (typeof window === 'undefined') {
-      // Backend: Check if we're running in Docker
-      const isDocker = process.env.RUNNING_IN_DOCKER === 'true';
+    // Backend: Check if we're running in Docker
+    const isDocker = process.env.RUNNING_IN_DOCKER === 'true';
 
-      baseUrl = isDocker ? baseUrl.replace('localhost', 'host.docker.internal') : baseUrl;
-      baseUrl = isDocker ? baseUrl.replace('127.0.0.1', 'host.docker.internal') : baseUrl;
-    }
+    baseUrl = isDocker ? baseUrl.replace('localhost', 'host.docker.internal') : baseUrl;
+    baseUrl = isDocker ? baseUrl.replace('127.0.0.1', 'host.docker.internal') : baseUrl;
 
     const ollamaInstance = ollama(model, {
       numCtx: DEFAULT_NUM_CTX,
