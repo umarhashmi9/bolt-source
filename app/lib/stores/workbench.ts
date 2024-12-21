@@ -471,6 +471,7 @@ export class WorkbenchStore {
             });
             return { path: extractRelativePath(filePath), sha: blob.sha };
           }
+
           return null;
         }),
       );
@@ -489,13 +490,6 @@ export class WorkbenchStore {
       });
 
       const latestCommitSha = ref.object.sha;
-
-      // Get the commit that the ref points to
-      const { data: latestCommit } = await octokit.git.getCommit({
-        owner: repo.owner.login,
-        repo: repo.name,
-        commit_sha: latestCommitSha,
-      });
 
       // Create a new tree
       const { data: newTree } = await octokit.git.createTree({
@@ -526,7 +520,7 @@ export class WorkbenchStore {
           repo: repo.name,
           ref: `heads/${repo.default_branch || 'main'}`,
           sha: newCommit.sha,
-          force: true // Force push to handle non-fast-forward updates
+          force: true, // Force push to handle non-fast-forward updates
         });
       } catch (error) {
         console.error('Failed to update reference:', error);

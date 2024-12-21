@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { Octokit } from '@octokit/rest';
 import { toast } from 'react-toastify';
-import Cookies from 'js-cookie';
 import { GitHubAuth } from '~/lib/github/GitHubAuth';
 import { getGitHubUser } from '~/lib/github/github.client';
 
@@ -47,29 +46,35 @@ export function GitHubAuthModal({
     }
   }, [initialToken, isAuthenticated]);
 
-  const checkRepoVisibility = useCallback(async (name: string) => {
-    if (!isAuthenticated || !user || !token) return;
-
-    try {
-      const octokit = new Octokit({ auth: token });
-      try {
-        const { data: repo } = await octokit.repos.get({
-          owner: user.login,
-          repo: name,
-        });
-        setRepoVisibility(repo.private);
-      } catch (error) {
-        if (error instanceof Error && 'status' in error && error.status === 404) {
-          // Repository doesn't exist yet, set to public
-          setRepoVisibility(false);
-        } else {
-          console.error('Error checking repo visibility:', error);
-        }
+  const checkRepoVisibility = useCallback(
+    async (name: string) => {
+      if (!isAuthenticated || !user || !token) {
+        return;
       }
-    } catch (error) {
-      console.error('Error initializing Octokit:', error);
-    }
-  }, [isAuthenticated, user, token]);
+
+      try {
+        const octokit = new Octokit({ auth: token });
+
+        try {
+          const { data: repo } = await octokit.repos.get({
+            owner: user.login,
+            repo: name,
+          });
+          setRepoVisibility(repo.private);
+        } catch (error) {
+          if (error instanceof Error && 'status' in error && error.status === 404) {
+            // Repository doesn't exist yet, set to public
+            setRepoVisibility(false);
+          } else {
+            console.error('Error checking repo visibility:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing Octokit:', error);
+      }
+    },
+    [isAuthenticated, user, token],
+  );
 
   // Check repository visibility when the modal opens or repo name changes
   useEffect(() => {
@@ -78,11 +83,14 @@ export function GitHubAuthModal({
     }
   }, [isOpen, repoName, checkRepoVisibility]);
 
-  const handleRepoNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value;
-    setRepoName(newName);
-    checkRepoVisibility(newName);
-  }, [checkRepoVisibility]);
+  const handleRepoNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newName = e.target.value;
+      setRepoName(newName);
+      checkRepoVisibility(newName);
+    },
+    [checkRepoVisibility],
+  );
 
   const handleAuthComplete = useCallback(async (authToken: string) => {
     setIsAuthenticating(true);
@@ -104,11 +112,6 @@ export function GitHubAuthModal({
     } finally {
       setIsAuthenticating(false);
     }
-  }, []);
-
-  const handleError = useCallback((error: Error) => {
-    setError(error.message);
-    toast.error('Failed to authenticate with GitHub: ' + error.message);
   }, []);
 
   const handleCreateRepo = useCallback(async () => {
@@ -159,10 +162,6 @@ export function GitHubAuthModal({
 
     return undefined;
   }, [isAuthenticating, handleAuthComplete]);
-
-  const startAuth = useCallback(() => {
-    setIsAuthenticating(true);
-  }, []);
 
   // Clear state when modal closes
   useEffect(() => {
@@ -225,19 +224,17 @@ export function GitHubAuthModal({
                   <button
                     onClick={() => setRepoVisibility(!repoVisibility)}
                     className={`h-[32px] w-[32px] flex items-center justify-center transition-colors bg-transparent ${
-                      repoVisibility
-                        ? 'text-[#6F3FB6] hover:text-[#8B4FE3]'
-                        : 'text-[#8B8B8B] hover:text-[#A3A3A3]'
+                      repoVisibility ? 'text-[#6F3FB6] hover:text-[#8B4FE3]' : 'text-[#8B8B8B] hover:text-[#A3A3A3]'
                     }`}
                     title={repoVisibility ? 'Private Repository' : 'Public Repository'}
                   >
                     {repoVisibility ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z"/>
+                        <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z" />
                       </svg>
                     ) : (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1C8.676 1 6 3.676 6 7v2h2V7c0-2.276 1.724-4 4-4s4 1.724 4 4v2h2V7c0-3.324-2.676-6-6-6zM4 9v14h16V9H4zm14 12H6V11h12v10z"/>
+                        <path d="M12 1C8.676 1 6 3.676 6 7v2h2V7c0-2.276 1.724-4 4-4s4 1.724 4 4v2h2V7c0-3.324-2.676-6-6-6zM4 9v14h16V9H4zm14 12H6V11h12v10z" />
                       </svg>
                     )}
                   </button>
