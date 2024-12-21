@@ -119,6 +119,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     useEffect(() => {
       // Load API keys from cookies on component mount
+
+      let parsedApiKeys: Record<string, string> | undefined = {};
+
       try {
         const storedApiKeys = Cookies.get('apiKeys');
 
@@ -127,6 +130,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
           if (typeof parsedKeys === 'object' && parsedKeys !== null) {
             setApiKeys(parsedKeys);
+            parsedApiKeys = parsedKeys;
           }
         }
       } catch (error) {
@@ -155,7 +159,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         Cookies.remove('providers');
       }
 
-      initializeModelList(providerSettings).then((modelList) => {
+      initializeModelList({ apiKeys: parsedApiKeys, providerSettings }).then((modelList) => {
+        console.log('Model List: ', modelList);
         setModelList(modelList);
       });
 
@@ -348,16 +353,16 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 </svg>
                 <div>
                   <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
-                  <ModelSelector
-                    key={provider?.name + ':' + modelList.length}
-                    model={model}
-                    setModel={setModel}
-                    modelList={modelList}
-                    provider={provider}
-                    setProvider={setProvider}
-                    providerList={providerList || PROVIDER_LIST}
-                    apiKeys={apiKeys}
-                  />
+                    <ModelSelector
+                      key={provider?.name + ':' + modelList.length}
+                      model={model}
+                      setModel={setModel}
+                      modelList={modelList}
+                      provider={provider}
+                      setProvider={setProvider}
+                      providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
+                      apiKeys={apiKeys}
+                    />
                     {(providerList || []).length > 0 && provider && (
                       <APIKeyManager
                         provider={provider}
