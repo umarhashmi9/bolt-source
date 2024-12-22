@@ -14,10 +14,14 @@ import { saveAs } from 'file-saver';
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import * as nodePath from 'node:path';
 import { extractRelativePath } from '~/utils/diff';
+import { description } from '~/lib/persistence';
+import Cookies from 'js-cookie';
+import { createSampler } from '~/utils/sampler';
 
 export interface ArtifactState {
   id: string;
   title: string;
+  type?: string;
   closed: boolean;
   runner: ActionRunner;
 }
@@ -229,7 +233,7 @@ export class WorkbenchStore {
     // TODO: what do we wanna do and how do we wanna recover from this?
   }
 
-  addArtifact({ messageId, title, id }: ArtifactCallbackData) {
+  addArtifact({ messageId, title, id, type }: ArtifactCallbackData) {
     const artifact = this.#getArtifact(messageId);
 
     if (artifact) {
@@ -244,6 +248,7 @@ export class WorkbenchStore {
       id,
       title,
       closed: false,
+      type,
       runner: new ActionRunner(webcontainer, () => this.boltTerminal),
     });
   }
@@ -258,9 +263,9 @@ export class WorkbenchStore {
     this.artifacts.setKey(messageId, { ...artifact, ...state });
   }
   addAction(data: ActionCallbackData) {
-    this._addAction(data);
+    // this._addAction(data);
 
-    // this.addToExecutionQueue(()=>this._addAction(data))
+    this.addToExecutionQueue(() => this._addAction(data));
   }
   async _addAction(data: ActionCallbackData) {
     const { messageId } = data;
@@ -276,7 +281,7 @@ export class WorkbenchStore {
 
   runAction(data: ActionCallbackData, isStreaming: boolean = false) {
     if (isStreaming) {
-      this._runAction(data, isStreaming);
+      this.actionStreamSampler(data, isStreaming);
     } else {
       this.addToExecutionQueue(() => this._runAction(data, isStreaming));
     }
@@ -288,6 +293,12 @@ export class WorkbenchStore {
 
     if (!artifact) {
       unreachable('Artifact not found');
+    }
+
+    const action = artifact.runner.actions.get()[data.actionId];
+
+    if (!action || action.executed) {
+      return;
     }
 
     if (data.action.type === 'file') {
@@ -319,6 +330,10 @@ export class WorkbenchStore {
     }
   }
 
+  actionStreamSampler = createSampler(async (data: ActionCallbackData, isStreaming: boolean = false) => {
+    return await this._runAction(data, isStreaming);
+  }, 100); // TODO: remove this magic number to have it configurable
+
   #getArtifact(id: string) {
     const artifacts = this.artifacts.get();
     return artifacts[id];
@@ -327,6 +342,13 @@ export class WorkbenchStore {
   async downloadZip() {
     const zip = new JSZip();
     const files = this.files.get();
+
+    // Get the project name from the description input, or use a default name
+    const projectName = (description.value ?? 'project').toLocaleLowerCase().split(' ').join('_');
+
+    // Generate a simple 6-character hash based on the current timestamp
+    const timestampHash = Date.now().toString(36).slice(-6);
+    const uniqueProjectName = `${projectName}_${timestampHash}`;
 
     for (const [filePath, dirent] of Object.entries(files)) {
       if (dirent?.type === 'file' && !dirent.isBinary) {
@@ -350,8 +372,9 @@ export class WorkbenchStore {
       }
     }
 
+    // Generate the zip file and save it
     const content = await zip.generateAsync({ type: 'blob' });
-    saveAs(content, 'project.zip');
+    saveAs(content, `${uniqueProjectName}.zip`);
   }
 
   async syncFiles(targetHandle: FileSystemDirectoryHandle) {
@@ -369,7 +392,9 @@ export class WorkbenchStore {
         }
 
         // create or get the file
-        const fileHandle = await currentHandle.getFileHandle(pathSegments[pathSegments.length - 1], { create: true });
+        const fileHandle = await currentHandle.getFileHandle(pathSegments[pathSegments.length - 1], {
+          create: true,
+        });
 
         // write the file content
         const writable = await fileHandle.createWritable();
@@ -383,15 +408,14 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername: string, ghToken: string) {
+  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
     try {
-      // Get the GitHub auth token from environment variables
-      const githubToken = ghToken;
+      // Use cookies if username and token are not provided
+      const githubToken = ghToken || Cookies.get('githubToken');
+      const owner = githubUsername || Cookies.get('githubUsername');
 
-      const owner = githubUsername;
-
-      if (!githubToken) {
-        throw new Error('GitHub token is not set in environment variables');
+      if (!githubToken || !owner) {
+        throw new Error('GitHub token or username is not set in cookies or provided.');
       }
 
       // Initialize Octokit with the auth token
@@ -488,7 +512,8 @@ export class WorkbenchStore {
 
       alert(`Repository created and code pushed: ${repo.html_url}`);
     } catch (error) {
-      console.error('Error pushing to GitHub:', error instanceof Error ? error.message : String(error));
+      console.error('Error pushing to GitHub:', error);
+      throw error; // Rethrow the error for further handling
     }
   }
 }

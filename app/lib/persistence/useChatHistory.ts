@@ -4,6 +4,7 @@ import { atom } from 'nanostores';
 import type { Message } from 'ai';
 import { toast } from 'react-toastify';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { logStore } from '~/lib/stores/logs'; // Import logStore
 import {
   getMessages,
   getNextId,
@@ -47,7 +48,9 @@ export function useChatHistory() {
       setReady(true);
 
       if (persistenceEnabled) {
-        toast.error(`Chat persistence is unavailable`);
+        const error = new Error('Chat persistence is unavailable');
+        logStore.logError('Chat persistence initialization failed', error);
+        toast.error('Chat persistence is unavailable');
       }
 
       return;
@@ -111,12 +114,13 @@ export function useChatHistory() {
             description.set(storedMessages.description);
             chatId.set(storedMessages.id);
           } else {
-            navigate(`/`, { replace: true });
+            navigate('/', { replace: true });
           }
 
           setReady(true);
         })
         .catch((error) => {
+          logStore.logError('Failed to load chat messages', error);
           toast.error(error.message);
         });
     }
