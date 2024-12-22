@@ -16,9 +16,9 @@ export default function ConnectionsTab() {
   return (
     <div className="space-y-4">
       <div className="i-ph:github-logo-duotone hidden" />
-      // Preloading icons otherwise they will not be displayed. Need fixing.
+      {/* Preloading icons otherwise they will not be displayed. Need fixing. */}
       <div className="i-ph:gitlab-logo-duotone hidden" />
-      // Preloading icons otherwise they will not be displayed. Need fixing.
+      {/* Preloading icons otherwise they will not be displayed. Need fixing. */}
       {Object.entries(providers).map(([key, plugin]) => (
         <ProviderCard
           key={key}
