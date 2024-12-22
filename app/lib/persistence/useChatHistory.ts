@@ -80,12 +80,13 @@ export function useChatHistory() {
             }
 
             let filteredMessages = storedMessages.messages.slice(startingIdx + 1, endingIdx);
+            let archivedMessages: Message[] = [];
 
             if (startingIdx > 0) {
-              setArchivedMessages(storedMessages.messages.slice(0, startingIdx + 1));
-            } else {
-              setArchivedMessages([]);
+              archivedMessages = storedMessages.messages.slice(0, startingIdx + 1);
             }
+
+            setArchivedMessages(archivedMessages);
 
             if (startingIdx > 0) {
               const files = Object.entries(snapshot?.files || {})
@@ -104,6 +105,25 @@ export function useChatHistory() {
               const commands = createCommandsMessage(projectCommands);
 
               filteredMessages = [
+                {
+                  id: `${Date.now()}`,
+                  role: 'user',
+                  content: `
+                  here is the conversation till now, i have removed all the artifacts and the files and only kept the chats
+                  ${archivedMessages
+                    .map((message) => {
+                      return `
+                    ${message.role}: ${`${message.content || ''}`.replace(
+                      /<boltArtifact[^>]*>[\s\S]*?<\/boltArtifact>/g,
+                      '{{artifact removed}}',
+                    )}
+                    `;
+                    })
+                    .join('\n')}
+                  `,
+
+                  annotations: ['no-store', 'hidden'],
+                },
                 {
                   id: storedMessages.messages[snapshotIndex].id,
                   role: 'assistant',
