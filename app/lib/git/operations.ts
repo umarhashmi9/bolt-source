@@ -45,8 +45,6 @@ export const createGitPushHandler = (getFiles: () => Record<string, string>) => 
     }
 
     const files = getFiles();
-    console.log('pushing files:', repoName, auth.username, auth.password, files);
-
     const result = await plugin.api.pushWithRepoHandling(repoName, auth.username, files, auth.password);
 
     if (result.success) {

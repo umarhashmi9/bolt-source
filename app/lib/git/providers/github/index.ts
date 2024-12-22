@@ -13,7 +13,7 @@ export const githubProvider: GitProvider = {
     '2. Generate a new token with "repo" scope',
     '3. Copy the token',
   ],
-  icon: 'i-mdi:github-icon',
+  icon: 'i-ph:github-logo-duotone',
 };
 
 let project: Endpoints['GET /repos/{owner}/{repo}']['response']['data'] | any = null;

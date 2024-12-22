@@ -30,25 +30,3 @@ export interface GitProviderPlugin {
   provider: GitProvider;
   api: GitProviderAPI;
 }
-
-// checken if this types are still needed
-export interface ProviderCredentials {
-  username: string;
-  token: string;
-  isConnected: boolean;
-  isVerifying: boolean;
-}
-
-export type ProviderKey = 'github' | 'gitlab';
-
-export type ProviderState = {
-  [K in ProviderKey]: ProviderCredentials;
-};
-
-export interface GitHubUser {
-  login: string;
-}
-
-export interface GitLabUser {
-  username: string;
-}

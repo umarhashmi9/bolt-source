@@ -12,7 +12,7 @@ export const gitlabProvider: GitProvider = {
     '2. Create a new token with "api" and "write_repository" scopes',
     '3. Generate and copy the token',
   ],
-  icon: 'i-ph:gitlab-logo',
+  icon: 'i-ph:gitlab-logo-duotone',
 };
 
 let project: { id?: any; default_branch?: any; branch?: string; web_url?: any };
@@ -31,7 +31,6 @@ export const gitlabAPI: GitProviderAPI = {
   },
   async checkFileExistence(branchName: string, filePath: string): Promise<boolean> {
     try {
-      console.log('checkFileExistence:', project.id, branchName, filePath);
       await gitlab.get(`/projects/${project.id}/repository/files/${encodeURIComponent(filePath)}`, {
         params: {
           ref: branchName,
@@ -41,7 +40,6 @@ export const gitlabAPI: GitProviderAPI = {
       return true;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response && error.response.status === 404) {
-        console.log('File does not exist:', filePath);
         return false;
       } else {
         console.error('Error checking file existence:', error);
@@ -71,9 +69,7 @@ export const gitlabAPI: GitProviderAPI = {
   async getRepo(repoName: string, username: string): Promise<any> {
     try {
       const { data } = await gitlab.get(`/projects/${encodeURIComponent(`${username}/${repoName}`)}`);
-      console.log('get', data);
       project = data;
-      console.log('getRepo project:', project);
     } catch (error: any) {
       if (error.response && error.response.status === 404) {
         return null;
@@ -89,7 +85,6 @@ export const gitlabAPI: GitProviderAPI = {
     try {
       const actions: { action: string; file_path: string; content: string }[] = [];
       const branchToUse = project.branch || project.default_branch || 'main';
-      console.log('branchToUse:', branchToUse);
 
       if (!branchToUse) {
         throw new Error('No branch specified and no default branch found for project.');
@@ -155,7 +150,6 @@ export const gitlabAPI: GitProviderAPI = {
         name: repoName,
         initialize_with_readme: true,
       });
-      console.log('createRepo:', data);
       project = data;
     } catch (error) {
       console.error('Error creating repo:', error);
@@ -171,9 +165,7 @@ export const gitlabAPI: GitProviderAPI = {
     try {
       this.setToken(token);
       project = { id: undefined, default_branch: undefined, web_url: undefined };
-      console.log('pushWithRepoHandling input:', repoName, username, token);
       await this.getRepo(repoName, username);
-      console.log('repo:', project);
 
       if (!project.id) {
         const shouldCreate = confirm(`Repository "${repoName}" doesn't exist. Would you like to create it?`);

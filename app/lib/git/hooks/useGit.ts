@@ -163,7 +163,7 @@ const getFs = (
           gid: 1000,
         };
       } catch (error: any) {
-        console.log(error?.message);
+        console.error(error?.message);
 
         const err = new Error(`ENOENT: no such file or directory, stat '${path}'`) as NodeJS.ErrnoException;
         err.code = 'ENOENT';
