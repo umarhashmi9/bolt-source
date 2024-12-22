@@ -57,6 +57,16 @@ export function ProviderCard({
                 <li key={index}>{step}</li>
               ))}
             </ul>
+            <p>
+              <a
+                href={provider.tokenSetupSetupUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-blue-500 hover:underline"
+              >
+                {provider.tokenSetupSetupUrl}
+              </a>
+            </p>
           </div>
 
           <div className="flex mb-4">

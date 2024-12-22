@@ -16,7 +16,7 @@ export const githubProvider: GitProvider = {
   icon: 'i-mdi:github-icon',
 };
 
-let project: Endpoints['GET /repos/{owner}/{repo}']['response']['data'] | null = null;
+let project: Endpoints['GET /repos/{owner}/{repo}']['response']['data'] | any = null;
 let octokit: Octokit;
 
 export const githubAPI: GitProviderAPI = {
@@ -201,7 +201,7 @@ export const githubAPI: GitProviderAPI = {
 
         return {
           success: true,
-          message: `Repository created and code pushed: ${project?.html_url}`,
+          message: `Repository created and code pushed: ${project.html_url}`,
         };
       }
 
@@ -212,7 +212,7 @@ export const githubAPI: GitProviderAPI = {
           await this.createCommit(files, commitMsg);
           return {
             success: true,
-            message: `Successfully commit to: ${project?.html_url}`,
+            message: `Successfully commit to: ${project.html_url}`,
           };
         } catch (error: any) {
           if (error.message.includes('Update is not a fast-forward')) {
@@ -247,7 +247,7 @@ export const githubAPI: GitProviderAPI = {
 
       return {
         success: true,
-        message: `Successfully commit to: ${project?.html_url}`,
+        message: `Successfully commit to: ${project.html_url}`,
       };
     } catch (error: any) {
       console.error('Error pushing to GitHub:', error);
