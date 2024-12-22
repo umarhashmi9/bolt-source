@@ -30,6 +30,7 @@ export function GitHubAuthModal({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const hasShownToast = useRef(false);
+  const checkTimeoutRef = useRef<NodeJS.Timeout>();
 
   // If we have an initial token, validate and use it
   useEffect(() => {
@@ -77,21 +78,32 @@ export function GitHubAuthModal({
     [isAuthenticated, user, token],
   );
 
-  // Check repository visibility when the modal opens or repo name changes
-  useEffect(() => {
-    if (isOpen && repoName) {
-      checkRepoVisibility(repoName);
-    }
-  }, [isOpen, repoName, checkRepoVisibility]);
-
   const handleRepoNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newName = e.target.value;
       setRepoName(newName);
-      checkRepoVisibility(newName);
+
+      // Clear any existing timeout
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+
+      // Set new timeout to check repo after 1000ms of no typing
+      checkTimeoutRef.current = setTimeout(() => {
+        checkRepoVisibility(newName);
+      }, 1000);
     },
     [checkRepoVisibility],
   );
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleAuthComplete = useCallback(async (authToken: string) => {
     setIsAuthenticating(true);
