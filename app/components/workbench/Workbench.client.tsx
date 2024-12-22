@@ -18,7 +18,8 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { GitHubAuthModal } from '~/components/github/GitHubAuthModal';
-import { getGitHubUser } from '~/lib/github/github.client';
+import { GitHubPushOverlay } from '~/components/github/GitHubPushOverlay';
+import { useGitHubPush } from '~/components/github/useGitHubPush';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -59,8 +60,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   renderLogger.trace('Workbench');
 
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isPushingToGitHub, setIsPushingToGitHub] = useState(false);
+  const {
+    isAuthModalOpen,
+    isPushingToGitHub,
+    setIsAuthModalOpen,
+    handlePushToGitHub,
+    handleAuthComplete,
+    handlePushComplete,
+  } = useGitHubPush();
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -171,29 +178,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:terminal" />
                       Toggle Terminal
                     </PanelHeaderButton>
-                    <PanelHeaderButton
-                      className="mr-1 text-sm"
-                      onClick={async () => {
-                        try {
-                          // Check for existing GitHub token
-                          const existingToken = localStorage.getItem('github_token');
-
-                          if (existingToken) {
-                            // Get the GitHub user info directly to validate token
-                            await getGitHubUser(existingToken);
-                          }
-
-                          // Show auth modal, passing the existing token if we have one
-                          setIsAuthModalOpen(true);
-                        } catch (error) {
-                          console.error('Failed to use existing GitHub token:', error);
-
-                          // If token is invalid, remove it
-                          localStorage.removeItem('github_token');
-                          setIsAuthModalOpen(true);
-                        }
-                      }}
-                    >
+                    <PanelHeaderButton className="mr-1 text-sm" onClick={handlePushToGitHub}>
                       <div className="i-ph:github-logo" />
                       Push to GitHub
                     </PanelHeaderButton>
@@ -239,46 +224,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         <GitHubAuthModal
           isOpen={isAuthModalOpen}
           onClose={() => setIsAuthModalOpen(false)}
-          onAuthComplete={async () => {
-            setIsAuthModalOpen(false);
-            setIsPushingToGitHub(true);
-          }}
-          onPushComplete={(success: boolean, repoUrl?: string) => {
-            setIsPushingToGitHub(false);
-
-            if (success) {
-              toast.success(
-                <div className="flex flex-col gap-1">
-                  <span>Successfully pushed to GitHub!</span>
-                  {repoUrl && (
-                    <a
-                      href={repoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-500 hover:text-blue-600"
-                    >
-                      View Repository →
-                    </a>
-                  )}
-                </div>,
-                { autoClose: 5000 },
-              );
-            } else {
-              toast.error('Failed to push to GitHub. Please try again.');
-            }
-          }}
+          onAuthComplete={handleAuthComplete}
+          onPushComplete={handlePushComplete}
           initialToken={localStorage.getItem('github_token')}
         />
 
         {/* Loading Overlay */}
-        {isPushingToGitHub && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-[#0F0F0F] rounded-xl p-6 flex flex-col items-center gap-4 border border-purple-500/30">
-              <div className="w-12 h-12 border-4 border-t-purple-500 border-purple-200/20 rounded-full animate-spin" />
-              <p className="text-bolt-elements-textPrimary">Pushing your project to GitHub...</p>
-            </div>
-          </div>
-        )}
+        {isPushingToGitHub && <GitHubPushOverlay />}
       </motion.div>
     )
   );

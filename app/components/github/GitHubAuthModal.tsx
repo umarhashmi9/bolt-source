@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { Octokit } from '@octokit/rest';
 import { toast } from 'react-toastify';
-import { GitHubAuth } from '~/lib/github/GitHubAuth';
+import { GitHubAuth } from '~/components/github/GitHubAuth';
 import { getGitHubUser } from '~/lib/github/github.client';
 
 interface GitHubAuthModalProps {
@@ -142,14 +142,14 @@ export function GitHubAuthModal({
 
     try {
       // Always use force push
-      const result = await workbenchStore.pushToGitHub(repoName, user.login, token, true);
+      const result = await workbenchStore.pushToGitHub(repoName, user.login, token, true, repoVisibility);
       onPushComplete?.(true, result.html_url);
     } catch (error) {
       console.error('Failed to push to GitHub:', error);
       setError(error instanceof Error ? error.message : 'Failed to push to GitHub');
       onPushComplete?.(false);
     }
-  }, [repoName, user, token, onAuthComplete, onPushComplete]);
+  }, [repoName, user, token, onAuthComplete, onPushComplete, repoVisibility]);
 
   // Monitor localStorage for GitHub token
   useEffect(() => {

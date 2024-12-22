@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { GITHUB_CONFIG } from './config';
+import { GITHUB_CONFIG } from '~/lib/github/config';
 
 interface GitHubAuthProps {
   onAuthComplete?: (token: string) => void;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Dialog, DialogRoot } from '~/components/ui/Dialog';
-import { GitHubAuth } from '~/lib/github/GitHubAuth';
+import { GitHubAuth } from '~/components/github/GitHubAuth';
 import { getGitHubUser, getUserRepos } from '~/lib/github/github.client';
 import { toast } from 'react-toastify';
 import { GitCloneSpinner } from './GitCloneSpinner';
