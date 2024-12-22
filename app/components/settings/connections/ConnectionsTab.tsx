@@ -1,7 +1,6 @@
 import React from 'react';
 import { ProviderCard } from '~/lib/git/components/ProviderCard';
-import { useGitProviders } from '~/lib/git';
-import type { ProviderKey } from '~/lib/git';
+import { useGitProviders } from '~/lib/git/hooks/useGitProviders';
 
 export default function ConnectionsTab() {
   const {
@@ -16,10 +15,10 @@ export default function ConnectionsTab() {
 
   return (
     <div className="space-y-4">
-      {(Object.entries(providers) as [ProviderKey, any][]).map(([key, provider]) => (
+      {Object.entries(providers).map(([key, plugin]) => (
         <ProviderCard
           key={key}
-          provider={provider}
+          provider={plugin.provider}
           credentials={credentials[key]}
           isExpanded={expandedProviders[key]}
           onToggle={() => toggleProvider(key)}

@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
 import { computed } from 'nanostores';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   type OnChangeCallback as OnEditorChange,
@@ -17,7 +17,7 @@ import { renderLogger } from '~/utils/logger';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
-import { checkGitCredentials, handleGitPush } from '~/lib/git/operations';
+import { getGitCredentials, createGitPushHandler, gitProviders } from '~/lib/git';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -89,8 +89,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   useEffect(() => {
     const initCredentials = async () => {
-      const credentials = await checkGitCredentials();
-      setHasCredentials(credentials);
+      const credentials = await getGitCredentials();
+      setHasCredentials({
+        github: credentials.github || false,
+        gitlab: credentials.gitlab || false,
+      });
     };
     initCredentials();
   }, []);
@@ -132,10 +135,25 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
-  const getWorkbenchFiles = useCallback((provider: 'github' | 'gitlab') => {
+  const cleanPath = (path: string): string => {
+    return path.replace('/home/project/', '');
+  };
+
+  const getWorkbenchFiles = useCallback(() => {
     const docs = workbenchStore.files.get();
-    handleGitPush(provider, docs);
+    return Object.entries(docs).reduce(
+      (acc, [path, doc]) => {
+        if (doc && 'content' in doc) {
+          acc[cleanPath(path)] = (doc as { content: string }).content;
+        }
+
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
   }, []);
+
+  const pushFunctions = useMemo(() => createGitPushHandler(getWorkbenchFiles), [getWorkbenchFiles]);
 
   return (
     chatStarted && (
@@ -185,17 +203,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:terminal" />
                       Toggle Terminal
                     </PanelHeaderButton>
-                    {hasCredentials.github && (
-                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => getWorkbenchFiles('github')}>
-                        <div className="i-ph:github-logo" />
-                        Push to GitHub
-                      </PanelHeaderButton>
-                    )}
-                    {hasCredentials.gitlab && (
-                      <PanelHeaderButton className="mr-1 text-sm" onClick={() => getWorkbenchFiles('gitlab')}>
-                        <div className="i-ph:gitlab-logo" />
-                        Push to GitLab
-                      </PanelHeaderButton>
+                    {Object.entries(gitProviders).map(
+                      ([name, plugin]) =>
+                        hasCredentials[name as keyof typeof hasCredentials] && (
+                          <PanelHeaderButton key={name} className="mr-1 text-sm" onClick={pushFunctions[name]}>
+                            <div className={plugin.provider.icon} />
+                            Push to {plugin.provider.title}
+                          </PanelHeaderButton>
+                        ),
                     )}
                   </div>
                 )}

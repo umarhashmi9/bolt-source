@@ -1,6 +1,6 @@
 export * from './types';
-export * from './providers';
 export * from './operations';
-export * from './hooks/useGit';
-export * from './hooks/useGitProviders';
-export * from './components/ProviderCard';
+export { gitProviders, registerGitProvider } from './providers';
+export { useGit } from './hooks/useGit';
+export { useGitProviders } from './hooks/useGitProviders';
+export { ProviderCard } from './components/ProviderCard';

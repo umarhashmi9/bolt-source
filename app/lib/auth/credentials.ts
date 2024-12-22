@@ -151,10 +151,8 @@ const saveGitAuth = async (url: string, auth: GitAuth) => {
       username: auth.username,
       hasToken: !!auth.password,
     });
-    toast.success(`${domain} credentials verified and saved successfully!`);
   } catch (error) {
     logStore.logError('Failed to encrypt credentials:', error);
-    toast.error('Failed to save credentials securely');
   }
 };
 

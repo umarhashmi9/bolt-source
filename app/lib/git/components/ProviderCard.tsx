@@ -1,12 +1,17 @@
 import React from 'react';
-import type { GitProvider, ProviderCredentials } from '~/lib/git';
+import type { GitProvider } from '~/lib/git/types';
 
 interface ProviderCardProps {
   provider: GitProvider;
-  credentials: ProviderCredentials;
+  credentials: {
+    username: string;
+    token: string;
+    isConnected: boolean;
+    isVerifying: boolean;
+  };
   isExpanded: boolean;
   onToggle: () => void;
-  onUpdateCredentials: (updates: Partial<ProviderCredentials>) => void;
+  onUpdateCredentials: (updates: { username?: string; token?: string }) => void;
   onSave: () => void;
   onDisconnect: () => void;
 }
@@ -24,6 +29,7 @@ export function ProviderCard({
     <div className="p-4 border border-bolt-elements-borderColor rounded-lg bg-bolt-elements-background-depth-3">
       <div className="flex items-center justify-between cursor-pointer" onClick={onToggle}>
         <div className="flex items-center">
+          <div className={`${provider.icon} text-2xl mr-3 text-bolt-elements-textPrimary`} />
           <h3 className="text-lg font-medium text-bolt-elements-textPrimary">{provider.title} Connection</h3>
           {credentials.username && (
             <span className="ml-2 text-sm text-bolt-elements-textSecondary">({credentials.username})</span>

@@ -1,32 +1,31 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { lookupSavedPassword, saveGitAuth, ensureEncryption, removeGitAuth } from '~/lib/auth';
-import { gitProviders } from '~/lib/git';
-import type { ProviderState, ProviderCredentials, GitHubUser, GitLabUser, ProviderKey } from '~/lib/git';
+import { gitProviders } from '~/lib/git/providers';
 
-const initialCredentials: ProviderState = {
-  github: { username: '', token: '', isConnected: false, isVerifying: false },
-  gitlab: { username: '', token: '', isConnected: false, isVerifying: false },
-};
+interface ProviderCredentials {
+  username: string;
+  token: string;
+  isConnected: boolean;
+  isVerifying: boolean;
+}
 
-const createGitHubHeaders = (token: string): HeadersInit => ({
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
-});
-
-const createGitLabHeaders = (token: string): HeadersInit => ({
-  'PRIVATE-TOKEN': token,
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
-});
+interface ProviderState {
+  [key: string]: ProviderCredentials;
+}
 
 export function useGitProviders() {
-  const [credentials, setCredentials] = useState<ProviderState>(initialCredentials);
-  const [expandedProviders, setExpandedProviders] = useState<Record<ProviderKey, boolean>>({
-    github: false,
-    gitlab: false,
+  const [credentials, setCredentials] = useState<ProviderState>(() => {
+    return Object.keys(gitProviders).reduce(
+      (acc, key) => ({
+        ...acc,
+        [key]: { username: '', token: '', isConnected: false, isVerifying: false },
+      }),
+      {},
+    );
   });
+
+  const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     initializeEncryption();
@@ -41,14 +40,14 @@ export function useGitProviders() {
   };
 
   const loadSavedCredentials = async () => {
-    for (const [key, provider] of Object.entries(gitProviders)) {
-      const auth = await lookupSavedPassword(provider.url);
+    for (const [key, plugin] of Object.entries(gitProviders)) {
+      const auth = await lookupSavedPassword(plugin.provider.url);
 
       if (auth?.username && auth?.password) {
         setCredentials((prev) => ({
           ...prev,
           [key]: {
-            ...prev[key as ProviderKey],
+            ...prev[key],
             username: auth.username || '',
             token: auth.password || '',
             isConnected: true,
@@ -58,41 +57,51 @@ export function useGitProviders() {
     }
   };
 
-  const verifyCredentials = async (providerKey: ProviderKey, username: string, token: string) => {
-    const provider = gitProviders[providerKey];
+  const handleSaveConnection = async (providerKey: string) => {
+    const plugin = gitProviders[providerKey];
+
+    if (!plugin) {
+      return;
+    }
+
+    const { username, token } = credentials[providerKey];
+
+    if (!username || !token) {
+      toast.error(`Please provide both ${plugin.provider.title} username and token`);
+      return;
+    }
+
     setCredentials((prev) => ({
       ...prev,
       [providerKey]: { ...prev[providerKey], isVerifying: true },
     }));
 
     try {
-      const apiUrl = providerKey === 'github' ? 'https://api.github.com/user' : 'https://gitlab.com/api/v4/user';
-      const headers = providerKey === 'github' ? createGitHubHeaders(token) : createGitLabHeaders(token);
+      const isValid = await plugin.api.validateCredentials(username, token);
 
-      const response = await fetch(apiUrl, { headers });
-      const data = await response.json();
-
-      const isValid =
-        response.ok &&
-        ((providerKey === 'github' && (data as GitHubUser).login === username) ||
-          (providerKey === 'gitlab' && (data as GitLabUser).username === username));
-
-      setCredentials((prev) => ({
-        ...prev,
-        [providerKey]: {
-          ...prev[providerKey],
-          isConnected: !!isValid,
-          isVerifying: false,
-        },
-      }));
-
-      if (!isValid && response.ok) {
-        toast.error(`The ${provider.title} token is valid but belongs to a different user.`);
+      if (isValid) {
+        await saveGitAuth(plugin.provider.url, { username, password: token });
+        setCredentials((prev) => ({
+          ...prev,
+          [providerKey]: {
+            ...prev[providerKey],
+            isConnected: true,
+            isVerifying: false,
+          },
+        }));
+        toast.success(`${plugin.provider.title} credentials verified and saved successfully!`);
+      } else {
+        setCredentials((prev) => ({
+          ...prev,
+          [providerKey]: {
+            ...prev[providerKey],
+            isConnected: false,
+            isVerifying: false,
+          },
+        }));
+        toast.error(`Invalid ${plugin.provider.title} credentials. Please check your username and token.`);
       }
-
-      return isValid;
     } catch (error) {
-      console.error(`Error verifying ${provider.title} credentials:`, error);
       setCredentials((prev) => ({
         ...prev,
         [providerKey]: {
@@ -101,32 +110,19 @@ export function useGitProviders() {
           isVerifying: false,
         },
       }));
-
-      return false;
+      console.error(`Error validating ${plugin.provider.title} credentials:`, error);
+      toast.error(`Error validating ${plugin.provider.title} credentials`);
     }
   };
 
-  const handleSaveConnection = async (providerKey: ProviderKey) => {
-    const provider = gitProviders[providerKey];
-    const { username, token } = credentials[providerKey];
+  const handleDisconnect = async (providerKey: string) => {
+    const plugin = gitProviders[providerKey];
 
-    if (!username || !token) {
-      toast.error(`Please provide both ${provider.title} username and token`);
+    if (!plugin) {
       return;
     }
 
-    const isValid = await verifyCredentials(providerKey, username, token);
-
-    if (isValid) {
-      await saveGitAuth(provider.url, { username, password: token });
-    } else {
-      toast.error(`Invalid ${provider.title} credentials. Please check your username and token.`);
-    }
-  };
-
-  const handleDisconnect = async (providerKey: ProviderKey) => {
-    const provider = gitProviders[providerKey];
-    await removeGitAuth(provider.url);
+    await removeGitAuth(plugin.provider.url);
     setCredentials((prev) => ({
       ...prev,
       [providerKey]: {
@@ -138,17 +134,17 @@ export function useGitProviders() {
     }));
   };
 
-  const updateProviderCredentials = (providerKey: ProviderKey, updates: Partial<ProviderCredentials>) => {
+  const updateProviderCredentials = (providerKey: string, updates: { username?: string; token?: string }) => {
     setCredentials((prev) => ({
       ...prev,
       [providerKey]: { ...prev[providerKey], ...updates },
     }));
   };
 
-  const toggleProvider = (provider: ProviderKey) => {
+  const toggleProvider = (providerKey: string) => {
     setExpandedProviders((prev) => ({
       ...prev,
-      [provider]: !prev[provider],
+      [providerKey]: !prev[providerKey],
     }));
   };
 
