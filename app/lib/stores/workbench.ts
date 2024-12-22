@@ -46,6 +46,7 @@ export class WorkbenchStore {
   modifiedFiles = new Set<string>();
   artifactIdList: string[] = [];
   #globalExecutionQueue = Promise.resolve();
+
   constructor() {
     if (import.meta.hot) {
       import.meta.hot.data.artifacts = this.artifacts;
@@ -408,9 +409,33 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string, isPrivate: boolean = false) {
+  private async _waitForVisibilityChange(
+    octokit: Octokit,
+    owner: string,
+    repoName: string,
+    expectedPrivate: boolean,
+    maxAttempts = 10,
+  ): Promise<boolean> {
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const { data: repo } = await octokit.repos.get({
+          owner,
+          repo: repoName,
+        });
+
+        if (repo.private === expectedPrivate) {
+          return true;
+        }
+      } catch (error) {
+        console.error('Error checking repository visibility:', error);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
+  }
+
+  async updateRepoVisibility(repoName: string, isPrivate: boolean, githubUsername?: string, ghToken?: string) {
     try {
-      // Use cookies if username and token are not provided
       const githubToken = ghToken || Cookies.get('githubToken');
       const owner = githubUsername || Cookies.get('githubUsername');
 
@@ -418,48 +443,101 @@ export class WorkbenchStore {
         throw new Error('GitHub token or username is not set in cookies or provided.');
       }
 
-      // Initialize Octokit with the auth token
       const octokit = new Octokit({ auth: githubToken });
 
-      // Check if the repository already exists before creating it
-      let repo: RestEndpointMethodTypes['repos']['get']['response']['data'];
-
       try {
-        const resp = await octokit.repos.get({ owner, repo: repoName });
-        repo = resp.data;
+        // Check if repo exists
+        const { data: repo } = await octokit.repos.get({
+          owner,
+          repo: repoName,
+        });
 
-        // Update repository visibility if it has changed
-        if (repo.private !== isPrivate) {
-          const { data: updatedRepo } = await octokit.repos.update({
+        if (repo.private === isPrivate) {
+          return { ...repo, message: `Repository is already ${isPrivate ? 'private' : 'public'}` };
+        }
+
+        // Update visibility
+        console.log(`Updating repository visibility to ${isPrivate ? 'private' : 'public'}`);
+        await octokit.repos.update({
+          owner,
+          repo: repoName,
+          private: isPrivate,
+        });
+
+        // Wait for visibility change to be confirmed
+        const visibilityUpdated = await this._waitForVisibilityChange(octokit, owner, repoName, isPrivate);
+
+        if (visibilityUpdated) {
+          console.log('Repository visibility update confirmed');
+
+          const { data: updatedRepo } = await octokit.repos.get({
             owner,
             repo: repoName,
-            private: isPrivate,
           });
-          repo = updatedRepo;
+
+          return { ...updatedRepo, message: `Repository visibility updated to ${isPrivate ? 'private' : 'public'}` };
+        } else {
+          throw new Error('Repository visibility update could not be confirmed');
         }
       } catch (error) {
         if (error instanceof Error && 'status' in error && error.status === 404) {
-          // Repository doesn't exist, so create a new one
+          // Create new repository if it doesn't exist
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
             private: isPrivate,
             auto_init: true,
           });
-          repo = newRepo;
-        } else {
-          console.log('cannot create repo!');
-          throw error; // Some other error occurred
+
+          // Wait for repository to be accessible
+          const repoReady = await this._waitForVisibilityChange(octokit, owner, repoName, isPrivate);
+
+          if (!repoReady) {
+            throw new Error('Repository creation could not be confirmed');
+          }
+
+          return { ...newRepo, message: 'New repository created successfully' };
         }
+
+        throw error;
       }
+    } catch (error) {
+      console.error('Error updating repository visibility:', error);
+      throw error;
+    }
+  }
 
-      // Get all files
-      const files = this.files.get();
+  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string, force: boolean = true) {
+    const githubToken = ghToken || Cookies.get('githubToken');
+    const owner = githubUsername || Cookies.get('githubUsername');
 
-      if (!files || Object.keys(files).length === 0) {
-        throw new Error('No files found to push');
-      }
+    if (!githubToken || !owner) {
+      throw new Error('GitHub token or username is not set in cookies or provided.');
+    }
 
-      // Create blobs for each file
+    const octokit = new Octokit({ auth: githubToken });
+
+    // Get repository info
+    let repo: RestEndpointMethodTypes['repos']['get']['response']['data'];
+
+    try {
+      const { data: existingRepo } = await octokit.repos.get({
+        owner,
+        repo: repoName,
+      });
+      repo = existingRepo;
+    } catch {
+      throw new Error('Repository not found. Please create it first using the visibility lock.');
+    }
+
+    // Get files to push
+    const files = this.files.get();
+
+    if (!files || Object.keys(files).length === 0) {
+      return { ...repo, message: 'No files to push.' };
+    }
+
+    try {
+      // Create blobs for new files
       const blobs = await Promise.all(
         Object.entries(files).map(async ([filePath, dirent]) => {
           if (dirent?.type === 'file' && dirent.content) {
@@ -479,23 +557,22 @@ export class WorkbenchStore {
       const validBlobs = blobs.filter(Boolean);
 
       if (validBlobs.length === 0) {
-        throw new Error('No valid files to push');
+        return { ...repo, message: 'No valid files to push.' };
       }
 
-      // Get the latest commit SHA
+      // Get current commit and ensure we have the latest
+      const defaultBranch = repo.default_branch || 'main';
       const { data: ref } = await octokit.git.getRef({
         owner: repo.owner.login,
         repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`,
+        ref: `heads/${defaultBranch}`,
       });
 
-      const latestCommitSha = ref.object.sha;
-
-      // Create a new tree
+      // Create new tree
       const { data: newTree } = await octokit.git.createTree({
         owner: repo.owner.login,
         repo: repo.name,
-        base_tree: latestCommitSha,
+        base_tree: ref.object.sha,
         tree: validBlobs.map((blob) => ({
           path: blob!.path,
           mode: '100644',
@@ -504,33 +581,35 @@ export class WorkbenchStore {
         })),
       });
 
-      // Create a new commit
+      // Create new commit
       const { data: newCommit } = await octokit.git.createCommit({
         owner: repo.owner.login,
         repo: repo.name,
-        message: 'Update from your app',
+        message: 'Update from Bolt',
         tree: newTree.sha,
-        parents: [latestCommitSha],
+        parents: [ref.object.sha],
       });
 
+      // Update reference with force flag if specified
       try {
-        // Try to update the reference
         await octokit.git.updateRef({
           owner: repo.owner.login,
           repo: repo.name,
-          ref: `heads/${repo.default_branch || 'main'}`,
+          ref: `heads/${defaultBranch}`,
           sha: newCommit.sha,
-          force: true, // Force push to handle non-fast-forward updates
+          force,
         });
-      } catch (error) {
-        console.error('Failed to update reference:', error);
-        throw error;
+      } catch (error: any) {
+        throw new Error(`Failed to push to GitHub: ${error.message}`);
       }
 
-      return repo;
-    } catch (error) {
-      console.error('Error pushing to GitHub:', error);
-      throw error;
+      return {
+        ...repo,
+        message: 'Successfully pushed changes to GitHub',
+        commitSha: newCommit.sha,
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to push to GitHub: ${error.message}`);
     }
   }
 }

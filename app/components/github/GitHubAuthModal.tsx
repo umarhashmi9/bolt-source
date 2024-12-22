@@ -28,6 +28,7 @@ export function GitHubAuthModal({
   const [user, setUser] = useState<{ login: string } | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const hasShownToast = useRef(false);
 
   // If we have an initial token, validate and use it
@@ -128,14 +129,15 @@ export function GitHubAuthModal({
     onAuthComplete?.(token);
 
     try {
-      const result = await workbenchStore.pushToGitHub(repoName, user.login, token, repoVisibility);
+      // Always use force push
+      const result = await workbenchStore.pushToGitHub(repoName, user.login, token, true);
       onPushComplete?.(true, result.html_url);
     } catch (error) {
       console.error('Failed to push to GitHub:', error);
       setError(error instanceof Error ? error.message : 'Failed to push to GitHub');
       onPushComplete?.(false);
     }
-  }, [repoName, user, token, repoVisibility, onAuthComplete, onPushComplete]);
+  }, [repoName, user, token, onAuthComplete, onPushComplete]);
 
   // Monitor localStorage for GitHub token
   useEffect(() => {
@@ -222,28 +224,84 @@ export function GitHubAuthModal({
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-medium text-[#8B8B8B]">Make Private</span>
                   <button
-                    onClick={() => setRepoVisibility(!repoVisibility)}
+                    onClick={async () => {
+                      if (isUpdatingVisibility) {
+                        return;
+                      }
+
+                      const newVisibility = !repoVisibility;
+                      setRepoVisibility(newVisibility);
+                      setIsUpdatingVisibility(true);
+
+                      if (token && user) {
+                        try {
+                          await workbenchStore.updateRepoVisibility(repoName, newVisibility, user.login, token);
+                          toast.success(`Repository visibility set to ${newVisibility ? 'private' : 'public'}`);
+                          await new Promise((resolve) => setTimeout(resolve, 2000));
+                        } catch (error) {
+                          console.error('Error updating visibility:', error);
+                          setRepoVisibility(!newVisibility); // Revert on failure
+                          toast.error('Failed to update repository visibility');
+                        } finally {
+                          setIsUpdatingVisibility(false);
+                        }
+                      }
+                    }}
+                    disabled={isUpdatingVisibility}
                     className={`h-[32px] w-[32px] flex items-center justify-center transition-colors bg-transparent ${
-                      repoVisibility ? 'text-[#6F3FB6] hover:text-[#8B4FE3]' : 'text-[#8B8B8B] hover:text-[#A3A3A3]'
+                      isUpdatingVisibility
+                        ? 'opacity-50 cursor-not-allowed'
+                        : repoVisibility
+                          ? 'text-[#6F3FB6] hover:text-[#8B4FE3]'
+                          : 'text-[#8B8B8B] hover:text-[#A3A3A3]'
                     }`}
                     title={repoVisibility ? 'Private Repository' : 'Public Repository'}
                   >
-                    {repoVisibility ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1C8.676 1 6 3.676 6 7v2H4v14h16V9h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v2H8V7c0-2.276 1.724-4 4-4z" />
+                    {isUpdatingVisibility ? (
+                      <svg
+                        className="w-4 h-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
                       </svg>
                     ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 1C8.676 1 6 3.676 6 7v2h2V7c0-2.276 1.724-4 4-4s4 1.724 4 4v2h2V7c0-3.324-2.676-6-6-6zM4 9v14h16V9H4zm14 12H6V11h12v10z" />
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        {repoVisibility ? (
+                          <>
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </>
+                        ) : (
+                          <>
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                          </>
+                        )}
                       </svg>
                     )}
                   </button>
                 </div>
                 <button
                   onClick={handleCreateRepo}
-                  className="w-full h-[32px] rounded bg-[#6F3FB6]/80 text-white hover:bg-[#8B4FE3]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isUpdatingVisibility}
+                  className={`w-full h-[32px] flex gap-2 items-center justify-center rounded ${
+                    isUpdatingVisibility
+                      ? 'bg-[#2D2D2D] text-[#8B8B8B] cursor-not-allowed'
+                      : 'bg-[#6F3FB6] text-white hover:bg-[#8B4FE3]'
+                  } transition-colors`}
                 >
-                  Push Repository
+                  <span>Push Repository</span>
                 </button>
               </div>
             </>
