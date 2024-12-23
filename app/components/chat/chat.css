@@ -1,0 +1,41 @@
+.message-image {
+  max-height: 512px;
+  object-fit: contain;
+}
+
+.icon-large {
+  font-size: 2rem;
+}
+
+.fade-and-move-in {
+  animation: .25s ease-out 0s 1 _fade-and-move-in_g2ptj_1 forwards;
+}
+
+.chat-textarea {
+  min-height: var(--textarea-min-height);
+  max-height: var(--textarea-max-height);
+}
+
+@keyframes _fade-and-move-in_g2ptj_1 {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Border styles for interactive elements */
+.chat-interactive-element {
+  border: 1px solid var(--bolt-elements-borderColor);
+  transition: border-color 0.2s ease;
+}
+
+.chat-interactive-element:focus,
+.chat-interactive-element:active {
+  border: 2px solid #1488fc;
+}
+
+/* Add any other styles from inline style attributes here */
