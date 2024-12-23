@@ -365,14 +365,6 @@ export { initializeModelList, providerBaseUrlEnvKeys, MODEL_LIST };
 
 export const STARTER_TEMPLATES: Template[] = [
   {
-    name: 'bolt-angular',
-    label: 'Angular Starter',
-    description: 'A modern Angular starter template with TypeScript support and best practices configuration',
-    githubRepo: 'thecodacus/bolt-angular-template',
-    tags: ['angular', 'typescript', 'frontend', 'spa'],
-    icon: 'i-bolt:angular',
-  },
-  {
     name: 'bolt-astro-basic',
     label: 'Astro Basic',
     description: 'Lightweight Astro starter template for building fast static websites',
@@ -386,7 +378,7 @@ export const STARTER_TEMPLATES: Template[] = [
     description: 'Next.js starter fullstack template integrated with shadcn/ui components and styling system',
     githubRepo: 'thecodacus/bolt-nextjs-shadcn-template',
     tags: ['nextjs', 'react', 'typescript', 'shadcn', 'tailwind'],
-    icon: 'i-bolt:next',
+    icon: 'i-bolt:nextjs',
   },
   {
     name: 'bolt-qwik-ts',
@@ -451,5 +443,13 @@ export const STARTER_TEMPLATES: Template[] = [
     githubRepo: 'thecodacus/bolt-vue-template',
     tags: ['vue', 'typescript', 'frontend'],
     icon: 'i-bolt:vue',
+  },
+  {
+    name: 'bolt-angular',
+    label: 'Angular Starter',
+    description: 'A modern Angular starter template with TypeScript support and best practices configuration',
+    githubRepo: 'thecodacus/bolt-angular-template',
+    tags: ['angular', 'typescript', 'frontend', 'spa'],
+    icon: 'i-bolt:angular',
   },
 ];

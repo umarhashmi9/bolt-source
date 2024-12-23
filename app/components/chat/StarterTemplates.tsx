@@ -8,24 +8,27 @@ interface FrameworkLinkProps {
 
 const FrameworkLink: React.FC<FrameworkLinkProps> = ({ template }) => (
   <a
-    href={`/git?https://github.com/${template.githubRepo}.git`}
+    href={`/git?url=https://github.com/${template.githubRepo}.git`}
     data-state="closed"
     data-discover="true"
-    className="block"
+    className="items-center justify-center "
   >
-    <div className={`inline-block ${template.icon} w-8 h-8 text-4xl transition-theme transition-all`} />
+    <div
+      className={`inline-block ${template.icon} w-8 h-8 text-4xl transition-theme opacity-25 hover:opacity-75 transition-all`}
+    />
   </a>
 );
 
 const StarterTemplates: React.FC = () => {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center gap-4">
       <span className="text-sm text-gray-500">or start a blank app with your favorite stack</span>
-
-      <div className="grid grid-cols-7 mx-auto mt-5 gap-4 justify-items-center">
-        {STARTER_TEMPLATES.map((template) => (
-          <FrameworkLink key={template.name} template={template} />
-        ))}
+      <div className="flex justify-center">
+        <div className="flex w-70 flex-wrap items-center justify-center gap-4">
+          {STARTER_TEMPLATES.map((template) => (
+            <FrameworkLink key={template.name} template={template} />
+          ))}
+        </div>
       </div>
     </div>
   );
