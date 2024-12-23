@@ -15,12 +15,23 @@ import ElectronStore from "electron-store";
 import mime from "mime";
 import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "url";
-import { createServer } from "vite";
+import { fileURLToPath, pathToFileURL } from "url";
 import type { ViteDevServer } from "vite";
 import * as pkg from "../../package.json";
 import { setupAutoUpdater } from "./auto-update";
-// log.initialize(); // inject a built-in preload script. https://github.com/megahertz/electron-log/blob/master/docs/initialize.md
+
+// Conditionally import Vite only in development
+let viteServer: ViteDevServer | undefined;
+const initViteServer = async () => {
+  if (!(global.process.env.NODE_ENV === "production" || app.isPackaged)) {
+    const vite = await import('vite');
+    viteServer = await vite.createServer({
+      root: ".",
+      envDir: path.join(__dirname, "../.."), // load .env files from the root directory.
+    });
+  }
+};
+
 Object.assign(console, log.functions);
 
 console.debug("main: import.meta.env:", import.meta.env);
@@ -121,7 +132,7 @@ const createWindow = async (rendererURL: string) => {
     appLogger('Failed to load URL:', err);
   });
 
-  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  win.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
     appLogger('Failed to load:', errorCode, errorDescription);
   });
 
@@ -148,7 +159,6 @@ appLogger("start whenReady");
 const rendererClientPath = isDev 
   ? path.join(__dirname, "../../client")
   : path.join(app.getAppPath(), "build/client");
-let viteServer: ViteDevServer;
 
 declare global {
   var __electron__: typeof electron;
@@ -158,26 +168,11 @@ declare global {
   await app.whenReady();
   appLogger('App is ready');
   
-  let serverBuild: any = null;
-  try {
-    serverBuild = isDev
-      ? null // serverBuild is not used in dev.
-      : await import(path.join(app.getAppPath(), "build/server/index.js"));
-    appLogger('Server build loaded successfully');
-  } catch (err) {
-    appLogger('Failed to load server build:', err);
-  }
-
-  appLogger('Setting up protocol handler...');
   protocol.handle("http", async (req) => {
-    const url = new URL(req.url);
     appLogger('Handling request for:', req.url);
-    
-    if (
-      !["localhost", "127.0.0.1"].includes(url.hostname) ||
-      (url.port && url.port !== "8080")
-    ) {
-      appLogger('Forwarding external request to fetch:', req.url);
+
+    if (isDev) {
+      appLogger('Dev mode: forwarding to vite server');
       return await fetch(req);
     }
 
@@ -189,17 +184,26 @@ declare global {
         return res;
       }
 
-      if (!serverBuild) {
-        appLogger('No server build available, returning 404');
-        return new Response('Not Found', { status: 404 });
+      // Load the server build
+      const serverBuildPath = path.join(app.getAppPath(), "build/server/index.js");
+      appLogger(`Loading server build... path is ${serverBuildPath}`);
+      
+      try {
+        const fileUrl = pathToFileURL(serverBuildPath).href;
+        const serverBuild = await import(fileUrl);
+        appLogger('Server build loaded successfully');
+        
+        // Create request handler with the server build
+        const handler = createRequestHandler(serverBuild, "production");
+        return await handler(req);
+      } catch (buildError) {
+        appLogger('Failed to load server build:', {
+          message: (buildError as Error)?.message,
+          stack: (buildError as Error)?.stack,
+          error: JSON.stringify(buildError, Object.getOwnPropertyNames(buildError as object))
+        });
+        return new Response('Server build not available', { status: 500 });
       }
-
-      appLogger('Creating request handler for:', req.url);
-      const handler = createRequestHandler(serverBuild, "production");
-      // @ts-ignore -- Electron environment doesn't need full context
-      return await handler(req, {
-        /* context */
-      });
     } catch (err) {
       appLogger('Error handling request:', err);
       const { stack, message } = toError(err);
@@ -212,10 +216,10 @@ declare global {
 
   const rendererURL = await (isDev
     ? (async () => {
-        viteServer = await createServer({
-          root: ".",
-          envDir: path.join(__dirname, "../.."), // load .env files from the root directory.
-        });
+        await initViteServer();
+        if (!viteServer) {
+          throw new Error('Vite server is not initialized');
+        }
         const listen = await viteServer.listen();
         global.__electron__ = electron;
         viteServer.printUrls();
