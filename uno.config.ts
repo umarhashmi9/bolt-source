@@ -10,7 +10,6 @@ const collectionName = 'bolt';
 const customIconCollection = iconPaths.reduce(
   (acc, iconPath) => {
     const [iconName] = basename(iconPath).split('.');
-    console.log("loading icon", iconName,iconPath);
 
     acc[collectionName] ??= {};
     acc[collectionName][iconName] = async () => fs.readFile(iconPath, 'utf8');
