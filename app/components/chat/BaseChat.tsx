@@ -28,6 +28,7 @@ import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
+import StarterTemplates from './StarterTemplates';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -557,6 +558,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                 handleSendMessage?.(event, messageInput);
               })}
+            {!chatStarted && <StarterTemplates />}
           </div>
           <ClientOnly>{() => <Workbench chatStarted={chatStarted} isStreaming={isStreaming} />}</ClientOnly>
         </div>
