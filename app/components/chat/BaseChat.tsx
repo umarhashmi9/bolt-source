@@ -27,6 +27,7 @@ import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
+import { toast } from 'react-toastify';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -76,7 +77,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       input = '',
       enhancingPrompt,
       handleInputChange,
-      promptEnhanced,
+
+      // promptEnhanced,
       enhancePrompt,
       sendMessage,
       handleStop,
@@ -117,6 +119,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     useEffect(() => {
       // Load API keys from cookies on component mount
+
+      let parsedApiKeys: Record<string, string> | undefined = {};
+
       try {
         const storedApiKeys = Cookies.get('apiKeys');
 
@@ -125,6 +130,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
           if (typeof parsedKeys === 'object' && parsedKeys !== null) {
             setApiKeys(parsedKeys);
+            parsedApiKeys = parsedKeys;
           }
         }
       } catch (error) {
@@ -153,7 +159,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         Cookies.remove('providers');
       }
 
-      initializeModelList(providerSettings).then((modelList) => {
+      initializeModelList({ apiKeys: parsedApiKeys, providerSettings }).then((modelList) => {
+        console.log('Model List: ', modelList);
         setModelList(modelList);
       });
 
@@ -353,7 +360,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       modelList={modelList}
                       provider={provider}
                       setProvider={setProvider}
-                      providerList={providerList || PROVIDER_LIST}
+                      providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
                       apiKeys={apiKeys}
                     />
                     {(providerList || []).length > 0 && provider && (
@@ -489,25 +496,16 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       <IconButton
                         title="Enhance prompt"
                         disabled={input.length === 0 || enhancingPrompt}
-                        className={classNames(
-                          'transition-all',
-                          enhancingPrompt ? 'opacity-100' : '',
-                          promptEnhanced ? 'text-bolt-elements-item-contentAccent' : '',
-                          promptEnhanced ? 'pr-1.5' : '',
-                          promptEnhanced ? 'enabled:hover:bg-bolt-elements-item-backgroundAccent' : '',
-                        )}
-                        onClick={() => enhancePrompt?.()}
+                        className={classNames('transition-all', enhancingPrompt ? 'opacity-100' : '')}
+                        onClick={() => {
+                          enhancePrompt?.();
+                          toast.success('Prompt enhanced!');
+                        }}
                       >
                         {enhancingPrompt ? (
-                          <>
-                            <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
-                            <div className="ml-1.5">Enhancing prompt...</div>
-                          </>
+                          <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
                         ) : (
-                          <>
-                            <div className="i-bolt:stars text-xl"></div>
-                            {promptEnhanced && <div className="ml-1.5">Prompt enhanced</div>}
-                          </>
+                          <div className="i-bolt:stars text-xl"></div>
                         )}
                       </IconButton>
 
