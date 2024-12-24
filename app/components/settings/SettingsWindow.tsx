@@ -59,7 +59,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                 usage={usage}
                 totalTokens={totalUsage.totalTokens}
                 showTitle={index === 0}
-                chatTitle={chatState.title || 'Untitled Chat'}
+                chatTitle={chatState.title || 'New Chat'}
               />
             ))}
           </div>
