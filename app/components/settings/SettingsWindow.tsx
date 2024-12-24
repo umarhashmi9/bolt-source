@@ -5,7 +5,6 @@ import { classNames } from '~/utils/classNames';
 import { DialogTitle, dialogVariants, dialogBackdropVariants } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
 import styles from './Settings.module.scss';
-import ChatHistoryTab from './chat-history/ChatHistoryTab';
 import ProvidersTab from './providers/ProvidersTab';
 import { useSettings } from '~/lib/hooks/useSettings';
 import FeaturesTab from './features/FeaturesTab';
@@ -16,13 +15,22 @@ import TokenUsageTab from './tokenusagestats/TokenUsageTab';
 import { useTokenUsage } from '~/lib/hooks/useTokenUsage';
 import { useStore } from '@nanostores/react';
 import { chatStore } from '~/lib/stores/chat';
+import DataTab from './data/DataTab';
 
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
 }
 
-type TabType = 'chat-history' | 'providers' | 'features' | 'debug' | 'event-logs' | 'connection' | 'advanced-usage';
+type TabType =
+  | 'chat-history'
+  | 'providers'
+  | 'features'
+  | 'debug'
+  | 'event-logs'
+  | 'connection'
+  | 'advanced-usage'
+  | 'data';
 
 export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   const { debug, eventLogs } = useSettings();
@@ -34,13 +42,13 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   const sortedUsages = Array.from(modelUsages.values()).sort((a, b) => b.totalTokens - a.totalTokens);
 
   const tabs: { id: TabType; label: string; icon: string; component?: ReactElement }[] = [
-    { id: 'chat-history', label: 'Chat History', icon: 'i-ph:book', component: <ChatHistoryTab /> },
+    { id: 'data', label: 'Data', icon: 'i-ph:database', component: <DataTab /> },
     { id: 'providers', label: 'Providers', icon: 'i-ph:key', component: <ProvidersTab /> },
     { id: 'connection', label: 'Connection', icon: 'i-ph:link', component: <ConnectionsTab /> },
     { id: 'features', label: 'Features', icon: 'i-ph:star', component: <FeaturesTab /> },
     {
       id: 'advanced-usage',
-      label: 'Advanced Usage Stats',
+      label: 'Advanced Usage ',
       icon: 'i-ph:chart-line',
       component:
         sortedUsages.length > 0 ? (
