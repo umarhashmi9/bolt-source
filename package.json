@@ -7,7 +7,7 @@
   "type": "module",
   "version": "0.0.3",
   "bin": {
-    "bolt": "bin/bolt.js"
+    "bolt.diy": "bin/bolt.js"
   },
   "files": [
     "bin/",

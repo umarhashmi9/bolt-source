@@ -112,7 +112,7 @@ async function displayBanner() {
   console.log('         ⚡️  Welcome  ⚡️');
   console.log('★═══════════════════════════════════════★');
   console.log(`📍 Current Version Tag: v${version}`);
-  console.log(`📍 Current Commit Version: "${commitHash}"`);
+  // console.log(`📍 Current Commit Version: "${commitHash}"`);
   console.log(`📍 Starting on port: ${options.port}`);
   console.log('  Please wait until the URL appears here');
   console.log('★═══════════════════════════════════════★');
