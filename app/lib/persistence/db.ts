@@ -1,6 +1,7 @@
 import type { Message } from 'ai';
 import { createScopedLogger } from '~/utils/logger';
 import type { ChatHistoryItem } from './useChatHistory';
+import type { Branch, Feature, Project } from '~/components/projects/types';
 
 const logger = createScopedLogger('ChatHistory');
 
@@ -12,7 +13,7 @@ export async function openDatabase(): Promise<IDBDatabase | undefined> {
   }
 
   return new Promise((resolve) => {
-    const request = indexedDB.open('boltHistory', 1);
+    const request = indexedDB.open('boltHistory', 2);
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
@@ -21,6 +22,12 @@ export async function openDatabase(): Promise<IDBDatabase | undefined> {
         const store = db.createObjectStore('chats', { keyPath: 'id' });
         store.createIndex('id', 'id', { unique: true });
         store.createIndex('urlId', 'urlId', { unique: true });
+      }
+
+      if (!db.objectStoreNames.contains('projects')) {
+        const store = db.createObjectStore('projects', { keyPath: 'id' });
+        store.createIndex('id', 'id', { unique: true });
+        store.createIndex('gitUrl', 'gitUrl', { unique: true });
       }
     };
 
@@ -44,6 +51,133 @@ export async function getAll(db: IDBDatabase): Promise<ChatHistoryItem[]> {
     request.onsuccess = () => resolve(request.result as ChatHistoryItem[]);
     request.onerror = () => reject(request.error);
   });
+}
+export async function setupProjectStore(db: IDBDatabase) {
+  if (!db.objectStoreNames.contains('projects')) {
+    const store = db.createObjectStore('projects', { keyPath: 'id' });
+    store.createIndex('id', 'id', { unique: true });
+    store.createIndex('gitUrl', 'gitUrl', { unique: true });
+  }
+}
+
+export async function addProject(db: IDBDatabase, project: Project) {
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+
+    const request = store.put({
+      ...project,
+      timestamp: new Date().toISOString(),
+    });
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function updateProject(db: IDBDatabase, project: Project, _id: string) {
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+
+    const request = store.put({
+      ...project,
+      timestamp: new Date().toISOString(),
+    });
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function addOrUpdateFeature(db: IDBDatabase, projectId: string, feature: Feature) {
+  const project = await getProjectById(db, projectId);
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+    const updatedProject: Project = {
+      ...project,
+      features: [...(project.features || []).filter((f) => f.id !== feature.id), feature],
+    };
+    const request = store.put(updatedProject);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function updateProjectBranches(db: IDBDatabase, projectId: string, branches: Branch[]) {
+  const project = await getProjectById(db, projectId);
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+
+    const request = store.put({
+      ...project,
+      branches,
+    });
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllProjects(db: IDBDatabase): Promise<Project[]> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readonly');
+    const store = transaction.objectStore('projects');
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result as Project[]);
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function getProjectById(db: IDBDatabase, id: string): Promise<Project> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readonly');
+    const store = transaction.objectStore('projects');
+    const request = store.get(id);
+
+    request.onsuccess = () => resolve(request.result as Project);
+    request.onerror = () => reject(request.error);
+  });
+}
+export async function getProjectChats(db: IDBDatabase, id: string): Promise<ChatHistoryItem[]> {
+  const projects = await getAllProjects(db);
+  const project = projects.find((p) => p.id == id);
+
+  if (!project) {
+    return [];
+  }
+
+  const features = project.features || [];
+  const chats = await Promise.all(
+    features.map((f) => {
+      return getMessagesById(db, f.id);
+    }),
+  );
+
+  return chats;
+}
+
+export async function getProjectChatById(
+  db: IDBDatabase,
+  projectId: string,
+  chatId: string,
+): Promise<ChatHistoryItem | null> {
+  const projects = await getAllProjects(db);
+  const project = projects.find((p) => p.id == projectId);
+
+  if (!project) {
+    return null;
+  }
+
+  const features = project.features || [];
+  const feature = features.find((f) => f.id == chatId);
+
+  if (!feature) {
+    return null;
+  }
+
+  return await getMessagesById(db, feature.id);
 }
 
 export async function setMessages(
@@ -113,7 +247,16 @@ export async function deleteById(db: IDBDatabase, id: string): Promise<void> {
     request.onerror = () => reject(request.error);
   });
 }
+export async function deleteProjectById(db: IDBDatabase, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('projects', 'readwrite');
+    const store = transaction.objectStore('projects');
+    const request = store.delete(id);
 
+    request.onsuccess = () => resolve(undefined);
+    request.onerror = () => reject(request.error);
+  });
+}
 export async function getNextId(db: IDBDatabase): Promise<string> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('chats', 'readonly');
@@ -204,6 +347,7 @@ export async function createChatFromMessages(
   db: IDBDatabase,
   description: string,
   messages: Message[],
+  projectId?: string,
 ): Promise<string> {
   const newId = await getNextId(db);
   const newUrlId = await getUrlId(db, newId); // Get a new urlId for the duplicated chat
@@ -214,6 +358,7 @@ export async function createChatFromMessages(
     messages,
     newUrlId, // Use the new urlId
     description,
+    projectId,
   );
 
   return newUrlId; // Return the urlId instead of id for navigation

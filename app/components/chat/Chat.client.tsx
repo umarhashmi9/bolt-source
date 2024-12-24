@@ -51,14 +51,14 @@ export function Chat() {
         />
       )}
       <ToastContainer
-        closeButton={({ closeToast }) => {
+        closeButton={({ closeToast }: any) => {
           return (
             <button className="Toastify__close-button" onClick={closeToast}>
               <div className="i-ph:x text-lg" />
             </button>
           );
         }}
-        icon={({ type }) => {
+        icon={({ type }: any) => {
           /**
            * @todo Handle more types if we need them. This may require extra color palettes.
            */

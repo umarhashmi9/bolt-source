@@ -11,6 +11,7 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useNavigate } from '@remix-run/react';
 
 const menuVariants = {
   closed: {
@@ -60,6 +61,7 @@ export const Menu = () => {
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+  const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
@@ -156,6 +158,18 @@ export const Menu = () => {
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
           </a>
+        </div>
+        <div className="p-4 select-none">
+          <button
+            onClick={() => navigate('/projects')}
+            className="flex w-full gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
+          >
+            <span className="inline-block i-ph:shapes-thin scale-110" />
+            Open Projects
+          </button>
+        </div>
+
+        <div className="pl-4 pr-4 my-2">
           <div className="relative w-full">
             <input
               className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
