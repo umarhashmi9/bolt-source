@@ -10,6 +10,7 @@ import { useSettings } from '~/lib/hooks/useSettings';
 import FeaturesTab from './features/FeaturesTab';
 import DebugTab from './debug/DebugTab';
 import EventLogsTab from './event-logs/EventLogsTab';
+import DataTab from './data/DataTab';
 import ConnectionsTab from './connections/ConnectionsTab';
 import TokenUsageTab from './tokenusagestats/TokenUsageTab';
 import { useTokenUsage } from '~/lib/hooks/useTokenUsage';
@@ -19,7 +20,22 @@ interface SettingsProps {
   onClose: () => void;
 }
 
-type TabType = 'chat-history' | 'providers' | 'features' | 'debug' | 'event-logs' | 'connection' | 'advanced-usage';
+type TabType =
+  | 'chat-history'
+  | 'providers'
+  | 'features'
+  | 'debug'
+  | 'event-logs'
+  | 'connection'
+  | 'advanced-usage'
+  | 'data';
+
+interface Tab {
+  id: TabType;
+  label: string;
+  icon: string;
+  component?: ReactElement;
+}
 
 export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   const { debug, eventLogs } = useSettings();
@@ -29,7 +45,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   // Get all model usages and sort them by total tokens
   const sortedUsages = Array.from(modelUsages.values()).sort((a, b) => b.totalTokens - a.totalTokens);
 
-  const tabs: { id: TabType; label: string; icon: string; component?: ReactElement }[] = [
+  const tabs: Tab[] = [
     { id: 'data', label: 'Data', icon: 'i-ph:database', component: <DataTab /> },
     { id: 'providers', label: 'Providers', icon: 'i-ph:key', component: <ProvidersTab /> },
     { id: 'connection', label: 'Connection', icon: 'i-ph:link', component: <ConnectionsTab /> },
@@ -77,9 +93,9 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   ];
 
   return (
-    <RadixDialog.Root open={open}>
+    <RadixDialog.Root open={open} onOpenChange={onClose}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay asChild onClick={onClose}>
+        <RadixDialog.Overlay asChild>
           <motion.div
             className="bg-black/50 fixed inset-0 z-max backdrop-blur-sm"
             initial="closed"
@@ -88,7 +104,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
             variants={dialogBackdropVariants}
           />
         </RadixDialog.Overlay>
-        <RadixDialog.Content aria-describedby={undefined} asChild>
+        <RadixDialog.Content aria-describedby="settings-description" aria-labelledby="settings-title" asChild>
           <motion.div
             className="fixed top-[50%] left-[50%] z-max h-[85vh] w-[90vw] max-w-[900px] translate-x-[-50%] translate-y-[-50%] border border-bolt-elements-borderColor rounded-lg shadow-lg focus:outline-none overflow-hidden"
             initial="closed"
@@ -103,27 +119,42 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                   styles['settings-tabs'],
                 )}
               >
-                <DialogTitle className="flex-shrink-0 text-lg font-semibold text-bolt-elements-textPrimary mb-2">
+                <DialogTitle
+                  id="settings-title"
+                  className="flex-shrink-0 text-lg font-semibold text-bolt-elements-textPrimary mb-2"
+                >
                   Settings
                 </DialogTitle>
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={classNames(activeTab === tab.id ? styles.active : '')}
-                  >
-                    <div className={tab.icon} />
-                    {tab.label}
-                  </button>
-                ))}
+                <div id="settings-description" className="sr-only">
+                  Configure application settings and view usage statistics
+                </div>
+                <nav role="navigation" aria-label="Settings navigation">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={classNames(
+                        activeTab === tab.id ? styles.active : '',
+                        tab.id === 'advanced-usage' ? 'justify-between' : '',
+                      )}
+                      aria-selected={activeTab === tab.id}
+                      role="tab"
+                      aria-controls={`${tab.id}-panel`}
+                    >
+                      <div className={tab.icon} />
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
                 <div className="mt-auto flex flex-col gap-2">
                   <a
                     href="https://github.com/stackblitz-labs/bolt.diy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className={classNames(styles['settings-button'], 'flex items-center gap-2')}
+                    aria-label="View project on GitHub"
                   >
-                    <div className="i-ph:github-logo" />
+                    <div className="i-ph:github-logo" aria-hidden="true" />
                     GitHub
                   </a>
                   <a
@@ -131,19 +162,27 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={classNames(styles['settings-button'], 'flex items-center gap-2')}
+                    aria-label="View documentation"
                   >
-                    <div className="i-ph:book" />
+                    <div className="i-ph:book" aria-hidden="true" />
                     Docs
                   </a>
                 </div>
               </div>
 
               <div className="flex-1 flex flex-col p-8 pt-10 bg-bolt-elements-background-depth-2">
-                <div className="flex-1 overflow-y-auto">{tabs.find((tab) => tab.id === activeTab)?.component}</div>
+                <div
+                  className="flex-1 overflow-y-auto"
+                  role="tabpanel"
+                  id={`${activeTab}-panel`}
+                  aria-labelledby={`${activeTab}-tab`}
+                >
+                  {tabs.find((tab) => tab.id === activeTab)?.component}
+                </div>
               </div>
             </div>
-            <RadixDialog.Close asChild onClick={onClose}>
-              <IconButton icon="i-ph:x" className="absolute top-[10px] right-[10px]" />
+            <RadixDialog.Close asChild>
+              <IconButton icon="i-ph:x" className="absolute top-[10px] right-[10px]" aria-label="Close settings" />
             </RadixDialog.Close>
           </motion.div>
         </RadixDialog.Content>
