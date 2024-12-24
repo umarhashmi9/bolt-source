@@ -5,7 +5,6 @@ import { toast } from 'react-toastify';
 import { db, deleteById, getAll } from '~/lib/persistence';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
-import styles from '~/components/settings/Settings.module.scss';
 
 // List of supported providers that can have API keys
 const API_KEY_PROVIDERS = [
@@ -24,8 +23,6 @@ const API_KEY_PROVIDERS = [
   'Cohere',
   'AzureOpenAI',
 ] as const;
-
-type Provider = (typeof API_KEY_PROVIDERS)[number];
 
 interface ApiKeys {
   [key: string]: string;
