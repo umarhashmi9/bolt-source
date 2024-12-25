@@ -236,6 +236,9 @@ importers:
       unist-util-visit:
         specifier: ^5.0.0
         version: 5.0.0
+      zod:
+        specifier: ^3.23.8
+        version: 3.23.8
     devDependencies:
       '@blitz/eslint-plugin':
         specifier: 0.1.0
@@ -336,9 +339,6 @@ importers:
       wrangler:
         specifier: ^3.91.0
         version: 3.91.0(@cloudflare/workers-types@4.20241127.0)
-      zod:
-        specifier: ^3.23.8
-        version: 3.23.8
 
 packages:
 

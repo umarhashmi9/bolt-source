@@ -9,6 +9,7 @@
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
     "build": "remix vite:build",
+    "build:electron": "remix vite:build --config vite-electron.config.js",
     "dev": "node pre-start.cjs  && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
@@ -32,7 +33,7 @@
     "electron:build:deps": "concurrently \"pnpm electron:build:main\" \"pnpm electron:build:preload\" --kill-others-on-fail",
     "electron:build:main": "vite build --config ./electron/main/vite.config.ts",
     "electron:build:preload": "vite build --config ./electron/preload/vite.config.ts",
-    "electron:build:unpack": "rm -rf dist && pnpm build && pnpm electron:build:deps && electron-builder --dir"
+    "electron:build:unpack": "rm -rf dist && pnpm build:electron && pnpm electron:build:deps && electron-builder --dir"
   },
   "engines": {
     "node": ">=18.18.0"
@@ -112,7 +113,8 @@
     "remix-island": "^0.2.0",
     "remix-utils": "^7.7.0",
     "shiki": "^1.24.0",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.0",
@@ -147,8 +149,7 @@
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.7",
     "wait-on": "^6.0.1",
-    "wrangler": "^3.91.0",
-    "zod": "^3.23.8"
+    "wrangler": "^3.91.0"    
   },
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
