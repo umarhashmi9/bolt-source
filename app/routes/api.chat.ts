@@ -80,7 +80,8 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             onError: (error: any) => `Custom error: ${error.message}`,
           }).pipeThrough(
             new TransformStream({
-              transform(chunk, controller) {
+              transform: (chunk, controller) => {
+                // Convert the string stream to a byte stream
                 const str = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
                 controller.enqueue(encoder.encode(str));
               },
