@@ -65,23 +65,32 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         }
 
         if (finishReason !== 'length') {
-          return stream
-            .switchSource(
-              createDataStream({
-                async execute(dataStream) {
-                  dataStream.writeMessageAnnotation({
-                    type: 'usage',
-                    value: {
-                      completionTokens: cumulativeUsage.completionTokens,
-                      promptTokens: cumulativeUsage.promptTokens,
-                      totalTokens: cumulativeUsage.totalTokens,
-                    },
-                  });
+          const encoder = new TextEncoder();
+          const usageStream = createDataStream({
+            async execute(dataStream) {
+              dataStream.writeMessageAnnotation({
+                type: 'usage',
+                value: {
+                  completionTokens: cumulativeUsage.completionTokens,
+                  promptTokens: cumulativeUsage.promptTokens,
+                  totalTokens: cumulativeUsage.totalTokens,
                 },
-                onError: (error: any) => `Custom error: ${error.message}`,
-              }),
-            )
-            .then(() => stream.close());
+              });
+            },
+            onError: (error: any) => `Custom error: ${error.message}`,
+          }).pipeThrough(
+            new TransformStream({
+              transform(chunk, controller) {
+                const str = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
+                controller.enqueue(encoder.encode(str));
+              },
+            }),
+          );
+          await stream.switchSource(usageStream);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          stream.close();
+
+          return;
         }
 
         if (stream.switches >= MAX_RESPONSE_SEGMENTS) {
@@ -105,7 +114,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           promptId,
         });
 
-        return stream.switchSource(result.toDataStream());
+        stream.switchSource(result.toDataStream());
+
+        return;
       },
     };
 
