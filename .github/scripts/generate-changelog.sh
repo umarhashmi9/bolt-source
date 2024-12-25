@@ -19,6 +19,23 @@ if [ -z "$GITHUB_ACTIONS" ]; then
     : "${GITHUB_REPOSITORY:=stackblitz-labs/bolt.diy}"
     : "${GITHUB_OUTPUT:=/tmp/github_output}"
     touch "$GITHUB_OUTPUT"
+
+    # Running locally
+    echo "Running locally - checking for upstream remote..."
+    MAIN_REMOTE="origin"
+    if git remote -v | grep -q "upstream"; then
+        MAIN_REMOTE="upstream"
+    fi
+    MAIN_BRANCH="main"  # or "master" depending on your repository
+    
+    # Ensure we have latest tags
+    git fetch ${MAIN_REMOTE} --tags
+    
+    # Use the remote reference for git log
+    GITLOG_REF="${MAIN_REMOTE}/${MAIN_BRANCH}"
+else
+    # Running in GitHub Actions
+    GITLOG_REF="HEAD"
 fi
 
 # Get the latest tag
@@ -72,12 +89,33 @@ done < <(git log "${COMPARE_BASE}" --pretty=format:"%ae" | sort -u)
 
 # Process all commits since last tag
 while IFS= read -r commit_line; do
+    if [[ ! $commit_line =~ ^[a-f0-9]+\| ]]; then
+        echo "WARNING: Skipping invalid commit line format: $commit_line" >&2
+        continue
+    fi
+    
     HASH=$(echo "$commit_line" | cut -d'|' -f1)
     COMMIT_MSG=$(echo "$commit_line" | cut -d'|' -f2)
     BODY=$(echo "$commit_line" | cut -d'|' -f3)
+    # Skip if hash doesn't match the expected format
+    if [[ ! $HASH =~ ^[a-f0-9]{40}$ ]]; then
+        continue
+    fi
+
+    HASH=$(echo "$commit_line" | cut -d'|' -f1)
+    COMMIT_MSG=$(echo "$commit_line" | cut -d'|' -f2)
+    BODY=$(echo "$commit_line" | cut -d'|' -f3)
+
+    
+    # Validate hash format
+    if [[ ! $HASH =~ ^[a-f0-9]{40}$ ]]; then
+        echo "WARNING: Invalid commit hash format: $HASH" >&2
+        continue
+    fi
     
     # Check if it's a merge commit
     if [[ $COMMIT_MSG =~ Merge\ pull\ request\ #([0-9]+) ]]; then
+        # echo "Processing as merge commit" >&2
         PR_NUM="${BASH_REMATCH[1]}"
         
         # Extract the PR title from the merge commit body
@@ -106,6 +144,7 @@ while IFS= read -r commit_line; do
         fi
     # Check if it's a squash merge by looking for (#NUMBER) pattern
     elif [[ $COMMIT_MSG =~ \(#([0-9]+)\) ]]; then
+        # echo "Processing as squash commit" >&2
         PR_NUM="${BASH_REMATCH[1]}"
         
         # Only process if it follows conventional commit format
@@ -133,9 +172,48 @@ while IFS= read -r commit_line; do
                 COMMITS_BY_CATEGORY["$CATEGORY"]+="* $COMMIT_TITLE ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
             fi
         fi
+    
+    else 
+        # echo "Processing as regular commit" >&2
+        # Process conventional commits without PR numbers
+        CATEGORY=$(get_commit_type "$COMMIT_MSG")
+        
+        if [ -n "$CATEGORY" ]; then  # Only process if it's a conventional commit
+            # Get commit author info
+            AUTHOR_EMAIL=$(git show -s --format='%ae' "$HASH")
+            
+            # Try to get GitHub username using gh api
+            if [ -n "$GITHUB_ACTIONS" ] || command -v gh >/dev/null 2>&1; then
+                GITHUB_USERNAME=$(gh api "/repos/${GITHUB_REPOSITORY}/commits/${HASH}" --jq '.author.login' 2>/dev/null)
+            fi
+            
+            if [ -n "$GITHUB_USERNAME" ]; then
+                # If we got GitHub username, use it
+                if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
+                    NEW_CONTRIBUTORS["$GITHUB_USERNAME"]=1
+                    ALL_AUTHORS["$AUTHOR_EMAIL"]=1
+                fi
+
+                CATEGORIES["$CATEGORY"]=1
+                COMMIT_TITLE=${COMMIT_MSG#*: }  # Remove the type prefix
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* $COMMIT_TITLE (${HASH:0:7}) by [@$GITHUB_USERNAME](https://github.com/$GITHUB_USERNAME)"$'\n'
+            else
+                # Fallback to git author name if no GitHub username found
+                AUTHOR_NAME=$(git show -s --format='%an' "$HASH")
+                
+                if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
+                    NEW_CONTRIBUTORS["$AUTHOR_NAME"]=1
+                    ALL_AUTHORS["$AUTHOR_EMAIL"]=1
+                fi
+
+                CATEGORIES["$CATEGORY"]=1
+                COMMIT_TITLE=${COMMIT_MSG#*: }  # Remove the type prefix
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* $COMMIT_TITLE (${HASH:0:7}) by $AUTHOR_NAME"$'\n'
+            fi
+        fi
     fi
     
-done < <(git log "${COMPARE_BASE}..HEAD" --pretty=format:"%H|%s|%b" --reverse)
+done < <(git log "${COMPARE_BASE}..${GITLOG_REF}" --pretty=format:"%H|%s|%b" --reverse --first-parent)
 
 # Write categorized commits to changelog with their emojis
 for category in "✨ Features" "🐛 Bug Fixes" "📚 Documentation" "💎 Styles" "♻️ Code Refactoring" "⚡ Performance Improvements" "🧪 Tests" "🛠️ Build System" "⚙️ CI" "🔍 Other Changes"; do
