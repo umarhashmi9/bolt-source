@@ -16,8 +16,7 @@ fi
 # Set default values for required environment variables if not in GitHub Actions
 if [ -z "$GITHUB_ACTIONS" ]; then
     : "${GITHUB_SERVER_URL:=https://github.com}"
-    # : "${GITHUB_REPOSITORY:=$(git remote get-url origin 2>/dev/null | sed 's/.*github.com[\/:]\(.*\)\.git/\1/')}"
-    # : "${NEW_VERSION:=0.0.2}"
+    : "${GITHUB_REPOSITORY:=stackblitz-labs/bolt.diy}"
     : "${GITHUB_OUTPUT:=/tmp/github_output}"
     touch "$GITHUB_OUTPUT"
 fi
@@ -26,11 +25,15 @@ fi
 LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
 # Start changelog file
-echo "# Release v${NEW_VERSION}" > changelog.md
+echo "# 🚀 Release v${NEW_VERSION}" > changelog.md
+echo "" >> changelog.md
+echo "## What's Changed 🌟" >> changelog.md
 echo "" >> changelog.md
 
 if [ -z "$LATEST_TAG" ]; then
     echo "### 🎉 First Release" >> changelog.md
+    echo "" >> changelog.md
+    echo "Exciting times! This marks our first release. Thanks to everyone who contributed! 🙌" >> changelog.md
     echo "" >> changelog.md
     COMPARE_BASE="$(git rev-list --max-parents=0 HEAD)"
 else
@@ -39,20 +42,20 @@ else
     COMPARE_BASE="$LATEST_TAG"
 fi
 
-# Function to extract conventional commit type
+# Function to extract conventional commit type and associated emoji
 get_commit_type() {
     local msg="$1"
-    if [[ $msg =~ ^feat:|^feature: ]]; then echo "Features"
-    elif [[ $msg =~ ^fix: ]]; then echo "Bug Fixes"
-    elif [[ $msg =~ ^docs: ]]; then echo "Documentation"
-    elif [[ $msg =~ ^style: ]]; then echo "Styles"
-    elif [[ $msg =~ ^refactor: ]]; then echo "Code Refactoring"
-    elif [[ $msg =~ ^perf: ]]; then echo "Performance Improvements"
-    elif [[ $msg =~ ^test: ]]; then echo "Tests"
-    elif [[ $msg =~ ^build: ]]; then echo "Build System"
-    elif [[ $msg =~ ^ci: ]]; then echo "CI"
-    elif [[ $msg =~ ^chore: ]]; then echo ""  # Skip chore commits
-    else echo "Other Changes"
+    if [[ $msg =~ ^feat(\(.+\))?:|^feature(\(.+\))?: ]]; then echo "✨ Features"
+    elif [[ $msg =~ ^fix(\(.+\))?: ]]; then echo "🐛 Bug Fixes"
+    elif [[ $msg =~ ^docs(\(.+\))?: ]]; then echo "📚 Documentation"
+    elif [[ $msg =~ ^style(\(.+\))?: ]]; then echo "💎 Styles"
+    elif [[ $msg =~ ^refactor(\(.+\))?: ]]; then echo "♻️ Code Refactoring"
+    elif [[ $msg =~ ^perf(\(.+\))?: ]]; then echo "⚡ Performance Improvements"
+    elif [[ $msg =~ ^test(\(.+\))?: ]]; then echo "🧪 Tests"
+    elif [[ $msg =~ ^build(\(.+\))?: ]]; then echo "🛠️ Build System"
+    elif [[ $msg =~ ^ci(\(.+\))?: ]]; then echo "⚙️ CI"
+    elif [[ $msg =~ ^chore(\(.+\))?: ]]; then echo ""  # Skip chore commits
+    else echo "🔍 Other Changes"  # Default category with emoji
     fi
 }
 
@@ -67,47 +70,77 @@ while IFS= read -r author; do
     ALL_AUTHORS["$author"]=1
 done < <(git log "${COMPARE_BASE}" --pretty=format:"%ae" | sort -u)
 
-# Get PR merge commits since last tag or all commits if no tag exists
+# Process all commits since last tag
 while IFS= read -r commit_line; do
     HASH=$(echo "$commit_line" | cut -d'|' -f1)
-    MERGE_MSG=$(echo "$commit_line" | cut -d'|' -f2)
-    AUTHOR=$(echo "$commit_line" | cut -d'|' -f3)
-    AUTHOR_EMAIL=$(echo "$commit_line" | cut -d'|' -f4)
-    BODY=$(echo "$commit_line" | cut -d'|' -f5)
+    COMMIT_MSG=$(echo "$commit_line" | cut -d'|' -f2)
+    BODY=$(echo "$commit_line" | cut -d'|' -f3)
     
-    # Extract PR number from merge commit message
-    if [[ $MERGE_MSG =~ Merge\ pull\ request\ #([0-9]+) ]]; then
+    # Check if it's a merge commit
+    if [[ $COMMIT_MSG =~ Merge\ pull\ request\ #([0-9]+) ]]; then
         PR_NUM="${BASH_REMATCH[1]}"
         
-        # Extract the original PR title from the merge commit body
+        # Extract the PR title from the merge commit body
         PR_TITLE=$(echo "$BODY" | grep -v "^Merge pull request" | head -n 1)
         
-        # Check if this is a first-time contributor
-        if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
-            NEW_CONTRIBUTORS["$AUTHOR"]=1
-            ALL_AUTHORS["$AUTHOR_EMAIL"]=1
-        fi
-
+        # Only process if it follows conventional commit format
         CATEGORY=$(get_commit_type "$PR_TITLE")
         
-        if [ -n "$CATEGORY" ]; then  # Only process if category is not empty
-            CATEGORIES["$CATEGORY"]=1
+        if [ -n "$CATEGORY" ]; then  # Only process if it's a conventional commit
+            # Get PR author's GitHub username
+            GITHUB_USERNAME=$(gh pr view "$PR_NUM" --json author --jq '.author.login')
             
-            GITHUB_USERNAME=$(gh pr view $PR_NUM --json author --jq .author.login)
-
             if [ -n "$GITHUB_USERNAME" ]; then
-                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) [@$GITHUB_USERNAME](https://github.com/$GITHUB_USERNAME)"$'\n'
+                # Check if this is a first-time contributor
+                AUTHOR_EMAIL=$(git show -s --format='%ae' "$HASH")
+                if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
+                    NEW_CONTRIBUTORS["$GITHUB_USERNAME"]=1
+                    ALL_AUTHORS["$AUTHOR_EMAIL"]=1
+                fi
+
+                CATEGORIES["$CATEGORY"]=1
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) by [@$GITHUB_USERNAME](https://github.com/$GITHUB_USERNAME)"$'\n'
             else
-                COMMITS_BY_CATEGORY["$CATEGORY"]+="- ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* ${PR_TITLE#*: } ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
+            fi
+        fi
+    # Check if it's a squash merge by looking for (#NUMBER) pattern
+    elif [[ $COMMIT_MSG =~ \(#([0-9]+)\) ]]; then
+        PR_NUM="${BASH_REMATCH[1]}"
+        
+        # Only process if it follows conventional commit format
+        CATEGORY=$(get_commit_type "$COMMIT_MSG")
+        
+        if [ -n "$CATEGORY" ]; then  # Only process if it's a conventional commit
+            # Get PR author's GitHub username
+            GITHUB_USERNAME=$(gh pr view "$PR_NUM" --json author --jq '.author.login')
+            
+            if [ -n "$GITHUB_USERNAME" ]; then
+                # Check if this is a first-time contributor
+                AUTHOR_EMAIL=$(git show -s --format='%ae' "$HASH")
+                if [ -z "${ALL_AUTHORS[$AUTHOR_EMAIL]}" ]; then
+                    NEW_CONTRIBUTORS["$GITHUB_USERNAME"]=1
+                    ALL_AUTHORS["$AUTHOR_EMAIL"]=1
+                fi
+
+                CATEGORIES["$CATEGORY"]=1
+                COMMIT_TITLE=${COMMIT_MSG%% (#*}  # Remove the PR number suffix
+                COMMIT_TITLE=${COMMIT_TITLE#*: }  # Remove the type prefix
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* $COMMIT_TITLE ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM)) by [@$GITHUB_USERNAME](https://github.com/$GITHUB_USERNAME)"$'\n'
+            else
+                COMMIT_TITLE=${COMMIT_MSG%% (#*}  # Remove the PR number suffix
+                COMMIT_TITLE=${COMMIT_TITLE#*: }  # Remove the type prefix
+                COMMITS_BY_CATEGORY["$CATEGORY"]+="* $COMMIT_TITLE ([#$PR_NUM](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/$PR_NUM))"$'\n'
             fi
         fi
     fi
-done < <(git log "${COMPARE_BASE}..HEAD" --merges --pretty=format:"%H|%s|%aE|%ae|%b" --reverse)
+    
+done < <(git log "${COMPARE_BASE}..HEAD" --pretty=format:"%H|%s|%b" --reverse)
 
-# Write categorized commits to changelog
-for category in "Features" "Bug Fixes" "Documentation" "Styles" "Code Refactoring" "Performance Improvements" "Tests" "Build System" "CI" "Other Changes"; do
+# Write categorized commits to changelog with their emojis
+for category in "✨ Features" "🐛 Bug Fixes" "📚 Documentation" "💎 Styles" "♻️ Code Refactoring" "⚡ Performance Improvements" "🧪 Tests" "🛠️ Build System" "⚙️ CI" "🔍 Other Changes"; do
     if [ -n "${COMMITS_BY_CATEGORY[$category]}" ]; then
-        echo "#### $category" >> changelog.md
+        echo "### $category" >> changelog.md
         echo "" >> changelog.md
         echo "${COMMITS_BY_CATEGORY[$category]}" >> changelog.md
         echo "" >> changelog.md
@@ -116,18 +149,22 @@ done
 
 # Add first-time contributors section if there are any
 if [ ${#NEW_CONTRIBUTORS[@]} -gt 0 ]; then
-    echo "### 🎉 First-time Contributors" >> changelog.md
+    echo "## ✨ First-time Contributors" >> changelog.md
     echo "" >> changelog.md
-    echo "We extend a warm welcome to our new contributors! Thank you for your first contribution:" >> changelog.md
+    echo "A huge thank you to our amazing new contributors! Your first contribution marks the start of an exciting journey! 🌟" >> changelog.md
     echo "" >> changelog.md
-    for contributor in "${!NEW_CONTRIBUTORS[@]}"; do
-        echo "* [@$contributor](https://github.com/$contributor)" >> changelog.md
+    # Use readarray to sort the keys
+    readarray -t sorted_contributors < <(printf '%s\n' "${!NEW_CONTRIBUTORS[@]}" | sort)
+    for github_username in "${sorted_contributors[@]}"; do
+        echo "* 🌟 [@$github_username](https://github.com/$github_username)" >> changelog.md
     done
     echo "" >> changelog.md
 fi
 
 # Add compare link if not first release
 if [ -n "$LATEST_TAG" ]; then
+    echo "## 📈 Stats" >> changelog.md
+    echo "" >> changelog.md
     echo "**Full Changelog**: [\`$LATEST_TAG..v${NEW_VERSION}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$LATEST_TAG...v${NEW_VERSION})" >> changelog.md
 fi
 
