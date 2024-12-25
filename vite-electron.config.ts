@@ -33,23 +33,18 @@ export default defineConfig((config) => {
         enforce: 'pre',
         transform(code, id) {
           if (id.endsWith('entry.server.tsx')) {
-            // Hack: fix the issue with react-dom/server not being found in electron
-            // Replace the import from 'react-dom/server' with 'react-dom/server.browser', only for electron build
-            return code.replace(
-              /from 'react-dom\/server';?/g,
-              "from 'react-dom/server.browser';"
-            );
+            /*
+             * Hack: fix the issue with react-dom/server not being found in electron
+             * Replace the import from 'react-dom/server' with 'react-dom/server.browser', only for electron build
+             */
+            return code.replace(/from 'react-dom\/server';?/g, "from 'react-dom/server.browser';");
           }
+
+          return undefined;
         },
       },
     ],
-    envPrefix: [
-      'VITE_',
-      'OPENAI_LIKE_API_',
-      'OLLAMA_API_BASE_URL',
-      'LMSTUDIO_API_BASE_URL',
-      'TOGETHER_API_BASE_URL',
-    ],
+    envPrefix: ['VITE_', 'OPENAI_LIKE_API_', 'OLLAMA_API_BASE_URL', 'LMSTUDIO_API_BASE_URL', 'TOGETHER_API_BASE_URL'],
     css: {
       preprocessorOptions: {
         scss: {
