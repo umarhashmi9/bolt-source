@@ -1,13 +1,7 @@
 import ignore from 'ignore';
 import type { ProviderInfo } from '~/types/model';
-
-interface Template {
-  name: string;
-  label: string;
-  description: string;
-  githubRepo: string;
-  tags?: string[];
-}
+import type { Template } from '~/types/template';
+import { STARTER_TEMPLATES } from './constants';
 
 const starterTemplateSelectionPrompt = (templates: Template[]) => `
 You are an experienced developer who helps people choose the best starter template for their projects.
@@ -66,17 +60,7 @@ Instructions:
 Important: Provide only the selection tags in your response, no additional text.
 `;
 
-// Example usage:
-const templates: Template[] = [
-  {
-    name: 'vite-react-tailwind-ts',
-    description:
-      'A modern React template built with Vite, TypeScript, and TailwindCSS. Features hot module replacement, optimized build setup, TypeScript for type safety, and TailwindCSS for utility-first styling. Includes ESLint and Prettier configurations for code quality, and Jest with React Testing Library for testing. Perfect for building scalable React applications with a focus on developer experience.',
-    label: 'Vite React TS',
-    githubRepo: 'thecodacus/vite-react-ts-template',
-    tags: ['react', 'vite', 'typescript', 'tailwindcss', 'testing', 'eslint'],
-  },
-];
+const templates: Template[] = STARTER_TEMPLATES.filter((t) => !t.name.includes('shadcn'));
 
 const parseSelectedTemplate = (llmOutput: string): string | null => {
   try {
@@ -198,7 +182,7 @@ const getGitHubRepoContent = async (
 };
 
 export async function getTemplates(templateName: string) {
-  const template = templates.find((t) => t.name == templateName);
+  const template = STARTER_TEMPLATES.find((t) => t.name == templateName);
 
   if (!template) {
     return null;

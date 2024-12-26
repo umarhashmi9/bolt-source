@@ -22,7 +22,7 @@ import { useSettings } from '~/lib/hooks/useSettings';
 import type { ProviderInfo } from '~/types/model';
 import { useSearchParams } from '@remix-run/react';
 import { createSampler } from '~/utils/sampler';
-import { getTemplates, selectStarterTemplate } from '~/utils/select-starter-template';
+import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTemplate';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
