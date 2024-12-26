@@ -36,6 +36,9 @@ export function Chat() {
 
   const { ready, initialMessages, storeMessageHistory, importChat, exportChat } = useChatHistory();
   const title = useStore(description);
+  useEffect(() => {
+    workbenchStore.setReloadedMessages(initialMessages.map((m) => m.id));
+  }, [initialMessages]);
 
   return (
     <>
@@ -116,6 +119,7 @@ export const ChatImpl = memo(
     const [searchParams, setSearchParams] = useSearchParams();
     const [fakeLoading, setFakeLoading] = useState(false);
     const files = useStore(workbenchStore.files);
+    const actionAlert = useStore(workbenchStore.alert);
     const { activeProviders, promptId } = useSettings();
 
     const [model, setModel] = useState(() => {
@@ -514,6 +518,8 @@ export const ChatImpl = memo(
         setUploadedFiles={setUploadedFiles}
         imageDataList={imageDataList}
         setImageDataList={setImageDataList}
+        actionAlert={actionAlert}
+        clearAlert={() => workbenchStore.clearAlert()}
       />
     );
   },
