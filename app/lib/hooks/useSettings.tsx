@@ -7,6 +7,7 @@ import {
   promptStore,
   providersStore,
   latestBranchStore,
+  autoSelectStarterTemplate,
 } from '~/lib/stores/settings';
 import { useCallback, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
@@ -30,6 +31,7 @@ export function useSettings() {
   const promptId = useStore(promptStore);
   const isLocalModel = useStore(isLocalModelsEnabled);
   const isLatestBranch = useStore(latestBranchStore);
+  const autoSelectTemplate = useStore(autoSelectStarterTemplate);
   const [activeProviders, setActiveProviders] = useState<ProviderInfo[]>([]);
 
   // Function to check if we're on stable version
@@ -118,6 +120,12 @@ export function useSettings() {
     } else {
       latestBranchStore.set(savedLatestBranch === 'true');
     }
+
+    const autoSelectTemplate = Cookies.get('autoSelectTemplate');
+
+    if (autoSelectTemplate) {
+      autoSelectStarterTemplate.set(autoSelectTemplate === 'true');
+    }
   }, []);
 
   // writing values to cookies on change
@@ -179,6 +187,12 @@ export function useSettings() {
     Cookies.set('isLatestBranch', String(enabled));
   }, []);
 
+  const setAutoSelectTemplate = useCallback((enabled: boolean) => {
+    autoSelectStarterTemplate.set(enabled);
+    logStore.logSystem(`Auto select template ${enabled ? 'enabled' : 'disabled'}`);
+    Cookies.set('autoSelectTemplate', String(enabled));
+  }, []);
+
   return {
     providers,
     activeProviders,
@@ -193,5 +207,7 @@ export function useSettings() {
     setPromptId,
     isLatestBranch,
     enableLatestBranch,
+    autoSelectTemplate,
+    setAutoSelectTemplate,
   };
 }
