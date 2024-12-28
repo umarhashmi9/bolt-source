@@ -50,6 +50,8 @@ appLogger('main: isDev:', isDev);
 appLogger('NODE_ENV:', global.process.env.NODE_ENV);
 appLogger('isPackaged:', app.isPackaged);
 
+const DEFAULT_PORT = 8080;
+
 // Log unhandled errors
 process.on('uncaughtException', async (error) => {
   await appLogger('Uncaught Exception:', error);
@@ -194,11 +196,22 @@ async function loadServerBuild(): Promise<any> {
     req.headers.append('Referer', req.referrer);
 
     try {
-      const res = await serveAsset(req, rendererClientPath);
+      const url = new URL(req.url);
 
-      if (res) {
-        appLogger('Served asset:', req.url);
-        return res;
+      // Forward requests to specific local server ports
+      if (url.port !== `${DEFAULT_PORT}`) {
+        appLogger('Forwarding request to local server:', req.url);
+        return await fetch(req);
+      }
+
+      // Skip asset serving for API routes
+      if (!url.pathname.startsWith('/api/')) {
+        const res = await serveAsset(req, rendererClientPath);
+
+        if (res) {
+          appLogger('Served asset:', req.url);
+          return res;
+        }
       }
 
       // Create request handler with the server build
@@ -206,13 +219,23 @@ async function loadServerBuild(): Promise<any> {
 
       return await handler(req);
     } catch (err) {
-      appLogger('Error handling request:', err);
+      appLogger('Error handling request:', {
+        url: req.url,
+        error:
+          err instanceof Error
+            ? {
+                message: err.message,
+                stack: err.stack,
+                cause: err.cause,
+              }
+            : err,
+      });
 
       const { stack, message } = toError(err);
 
-      return new Response(`${stack ?? message}`, {
+      return new Response(`Error handling request to ${req.url}: ${stack ?? message}`, {
         status: 500,
-        headers: { 'content-type': 'text/html' },
+        headers: { 'content-type': 'text/plain' },
       });
     }
   });
@@ -231,7 +254,7 @@ async function loadServerBuild(): Promise<any> {
 
         return `http://localhost:${listen.config.server.port}`;
       })()
-    : 'http://localhost:8080');
+    : `http://localhost:${DEFAULT_PORT}`);
 
   appLogger('Using renderer URL:', rendererURL);
 
