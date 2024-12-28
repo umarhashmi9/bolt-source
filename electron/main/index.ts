@@ -150,9 +150,38 @@ declare global {
   var __electron__: typeof electron;
 }
 
+async function loadServerBuild(): Promise<any> {
+  if (isDev) {
+    appLogger('Dev mode: server build not loaded');
+    return;
+  }
+
+  const serverBuildPath = path.join(app.getAppPath(), 'build/server/index.js');
+  appLogger(`Loading server build... path is ${serverBuildPath}`);
+
+  try {
+    const fileUrl = pathToFileURL(serverBuildPath).href;
+    const serverBuild = await import(fileUrl);
+    appLogger('Server build loaded successfully');
+
+    // eslint-disable-next-line consistent-return
+    return serverBuild;
+  } catch (buildError) {
+    appLogger('Failed to load server build:', {
+      message: (buildError as Error)?.message,
+      stack: (buildError as Error)?.stack,
+      error: JSON.stringify(buildError, Object.getOwnPropertyNames(buildError as object)),
+    });
+
+    return;
+  }
+}
+
 (async () => {
   await app.whenReady();
   appLogger('App is ready');
+
+  const serverBuild = await loadServerBuild();
 
   protocol.handle('http', async (req) => {
     appLogger('Handling request for:', req.url);
@@ -172,27 +201,10 @@ declare global {
         return res;
       }
 
-      // Load the server build
-      const serverBuildPath = path.join(app.getAppPath(), 'build/server/index.js');
-      appLogger(`Loading server build... path is ${serverBuildPath}`);
+      // Create request handler with the server build
+      const handler = createRequestHandler(serverBuild, 'production');
 
-      try {
-        const fileUrl = pathToFileURL(serverBuildPath).href;
-        const serverBuild = await import(fileUrl);
-        appLogger('Server build loaded successfully');
-
-        // Create request handler with the server build
-        const handler = createRequestHandler(serverBuild, 'production');
-
-        return await handler(req);
-      } catch (buildError) {
-        appLogger('Failed to load server build:', {
-          message: (buildError as Error)?.message,
-          stack: (buildError as Error)?.stack,
-          error: JSON.stringify(buildError, Object.getOwnPropertyNames(buildError as object)),
-        });
-        return new Response('Server build not available', { status: 500 });
-      }
+      return await handler(req);
     } catch (err) {
       appLogger('Error handling request:', err);
 
