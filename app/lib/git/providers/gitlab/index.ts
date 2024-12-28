@@ -50,7 +50,9 @@ export const gitlabAPI: GitProviderAPI = {
   async push(files: Record<string, string>): Promise<GitPushResult> {
     return await this.createCommit(files, 'feat: initial commit');
   },
-  async validateCredentials(username: string): Promise<boolean> {
+  async validateCredentials(username: string, token: string): Promise<boolean> {
+    this.setToken(token);
+
     try {
       const response = await gitlab.get('/user');
 
