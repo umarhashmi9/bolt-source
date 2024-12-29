@@ -16,6 +16,8 @@ export default function FeaturesTab() {
     setPromptId,
     autoSelectTemplate,
     setAutoSelectTemplate,
+    enableContextOptimization,
+    contextOptimizationEnabled,
   } = useSettings();
 
   const handleToggle = (enabled: boolean) => {
@@ -49,6 +51,19 @@ export default function FeaturesTab() {
               </p>
             </div>
             <Switch className="ml-auto" checked={autoSelectTemplate} onCheckedChange={setAutoSelectTemplate} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-bolt-elements-textPrimary">Use Context Optimization</span>
+              <p className="text-sm text-bolt-elements-textSecondary">
+                redact file contents form chat and puts the latest file contents on the system prompt
+              </p>
+            </div>
+            <Switch
+              className="ml-auto"
+              checked={contextOptimizationEnabled}
+              onCheckedChange={enableContextOptimization}
+            />
           </div>
         </div>
       </div>

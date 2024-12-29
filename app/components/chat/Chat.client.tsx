@@ -120,7 +120,7 @@ export const ChatImpl = memo(
     const [fakeLoading, setFakeLoading] = useState(false);
     const files = useStore(workbenchStore.files);
     const actionAlert = useStore(workbenchStore.alert);
-    const { activeProviders, promptId, autoSelectTemplate } = useSettings();
+    const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled } = useSettings();
 
     const [model, setModel] = useState(() => {
       const savedModel = Cookies.get('selectedModel');
@@ -143,6 +143,7 @@ export const ChatImpl = memo(
         apiKeys,
         files,
         promptId,
+        contextOptimization: contextOptimizationEnabled,
       },
       sendExtraMessageFields: true,
       onError: (error) => {
