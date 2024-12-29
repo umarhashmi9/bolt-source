@@ -1,7 +1,8 @@
-import { BaseProvider, getOpenAILikeModel } from '~/lib/modules/llm/base-provider';
+import { BaseProvider } from '~/lib/modules/llm/base-provider';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 export default class HyperbolicProvider extends BaseProvider {
   name = 'Hyperbolic';
@@ -9,7 +10,7 @@ export default class HyperbolicProvider extends BaseProvider {
 
   config = {
     apiTokenKey: 'HYPERBOLIC_API_KEY',
-    baseUrlKey: 'HYPERBOLIC_API_BASE_URL',
+    //baseUrlKey: 'HYPERBOLIC_API_BASE_URL',
   };
 
   staticModels: ModelInfo[] = [
@@ -41,18 +42,24 @@ export default class HyperbolicProvider extends BaseProvider {
   }): LanguageModelV1 {
     const { model, serverEnv, apiKeys, providerSettings } = options;
 
-    const { baseUrl, apiKey } = this.getProviderBaseUrlAndKey({
+    const { apiKey } = this.getProviderBaseUrlAndKey({
       apiKeys,
       providerSettings: providerSettings?.[this.name],
       serverEnv: serverEnv as any,
-      defaultBaseUrlKey: 'HYPERBOLIC_API_BASE_URL',
+      defaultBaseUrlKey: '',
       defaultApiTokenKey: 'HYPERBOLIC_API_KEY',
     });
 
-    if (!baseUrl || !apiKey) {
+    if (!apiKey) {
+      console.log(`Missing configuration for ${this.name} provider`);
       throw new Error(`Missing configuration for ${this.name} provider`);
     }
 
-    return getOpenAILikeModel(baseUrl, apiKey, model);
+    const openai = createOpenAI({
+      baseURL: 'https://api.hyperbolic.xyz/v1/',
+      apiKey,
+    });
+
+    return openai(model);
   }
 }
