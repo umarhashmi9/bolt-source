@@ -153,8 +153,9 @@ export async function streamText(props: {
   files?: FileMap;
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
+  contextOptimization?: boolean;
 }) {
-  const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId } = props;
+  const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId, contextOptimization } = props;
 
   // console.log({serverEnv});
 
@@ -168,9 +169,11 @@ export async function streamText(props: {
 
       return { ...message, content };
     } else if (message.role == 'assistant') {
-      const content = message.content;
+      let content = message.content;
 
-      // content = simplifyBoltActions(content);
+      if (contextOptimization) {
+        content = simplifyBoltActions(content);
+      }
 
       return { ...message, content };
     }
@@ -211,11 +214,9 @@ export async function streamText(props: {
       allowedHtmlElements: allowedHTMLElements,
       modificationTagName: MODIFICATIONS_TAG_NAME,
     }) ?? getSystemPrompt();
-  let codeContext = '';
 
-  if (files) {
-    codeContext = createFilesContext(files);
-    codeContext = '';
+  if (files && contextOptimization) {
+    const codeContext = createFilesContext(files);
     systemPrompt = `${systemPrompt}\n\n ${codeContext}`;
   }
 
