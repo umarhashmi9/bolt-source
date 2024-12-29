@@ -289,14 +289,14 @@ export const ChatImpl = memo(
 
         // reload();
 
-        const template = await selectStarterTemplate({
+        const { template, title } = await selectStarterTemplate({
           message: messageInput,
           model,
           provider,
         });
 
         if (template !== 'blank') {
-          const temResp = await getTemplates(template);
+          const temResp = await getTemplates(template, title);
 
           if (temResp) {
             const { assistantMessage, userMessage } = temResp;
