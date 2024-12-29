@@ -215,7 +215,7 @@ export async function getTemplates(templateName: string, title?: string) {
 
   const filesToImport = {
     files: filteredFiles,
-    ignoreFile: filteredFiles,
+    ignoreFile: [] as typeof filteredFiles,
   };
 
   if (templateIgnoreFile) {
@@ -282,10 +282,11 @@ Any attempt to modify these protected files will result in immediate termination
 If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
 ---
 `;
-    userMessage += `
+  }
+
+  userMessage += `
 Now that the Template is imported please continue with my original request
 `;
-  }
 
   return {
     assistantMessage,
