@@ -10,6 +10,7 @@ export default class HyperbolicProvider extends BaseProvider {
 
   config = {
     apiTokenKey: 'HYPERBOLIC_API_KEY',
+
     //baseUrlKey: 'HYPERBOLIC_API_BASE_URL',
   };
 
@@ -32,7 +33,76 @@ export default class HyperbolicProvider extends BaseProvider {
       provider: 'Hyperbolic',
       maxTokenAllowed: 8192,
     },
+    {
+      name: 'Qwen/QwQ-32B-Preview',
+      label: 'QwQ-32B-Preview',
+      provider: 'Hyperbolic',
+      maxTokenAllowed: 8192,
+    },
+    {
+      name: 'Qwen/Qwen2-VL-72B-Instruct',
+      label: 'Qwen2-VL-72B-Instruct',
+      provider: 'Hyperbolic',
+      maxTokenAllowed: 8192,
+    },
   ];
+
+  async getDynamicModels(
+    apiKeys?: Record<string, string>,
+    settings?: IProviderSetting,
+    serverEnv: Record<string, string> = {},
+  ): Promise<ModelInfo[]> {
+    try {
+      const { baseUrl: fetchBaseUrl, apiKey } = this.getProviderBaseUrlAndKey({
+        apiKeys,
+        providerSettings: settings,
+        serverEnv,
+        defaultBaseUrlKey: '',
+        defaultApiTokenKey: 'HYPERBOLIC_API_KEY',
+      });
+      const baseUrl = fetchBaseUrl || 'https://api.hyperbolic.xyz/v1';
+
+      if (!baseUrl || !apiKey) {
+        return [];
+      }
+
+      //console.log({ baseUrl, apiKey });
+
+      const response = await fetch(`${baseUrl}/models`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      const res = (await response.json()) as any;
+      //console.log('API response:', res);
+
+      // if (!res || !Array.isArray(res.data)) {
+      //   throw new Error('API response is not in the expected format');
+      // }
+
+      const data = res.data.filter((model: any) => model.object === 'model' && model.supports_chat);
+      //console.log('Filtered data:', data);
+      console.log(
+        data.map((m: any) => ({
+          name: m.id,
+          label: `${m.id} - context ${m.context_length ? Math.floor(m.context_length / 1000) + 'k' : 'N/A'}`,
+          provider: this.name,
+          maxTokenAllowed: m.context_length || 8000,
+        })),
+      );
+
+      return data.map((m: any) => ({
+        name: m.id,
+        label: `${m.id} - context ${m.context_length ? Math.floor(m.context_length / 1000) + 'k' : 'N/A'}`,
+        provider: this.name,
+        maxTokenAllowed: m.context_length || 8000,
+      }));
+    } catch (error: any) {
+      console.error('Error getting Hyperbolic models:', error.message);
+      return [];
+    }
+  }
 
   getModelInstance(options: {
     model: string;
