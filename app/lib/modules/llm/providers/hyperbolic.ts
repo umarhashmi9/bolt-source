@@ -10,8 +10,6 @@ export default class HyperbolicProvider extends BaseProvider {
 
   config = {
     apiTokenKey: 'HYPERBOLIC_API_KEY',
-
-    //baseUrlKey: 'HYPERBOLIC_API_BASE_URL',
   };
 
   staticModels: ModelInfo[] = [
@@ -66,8 +64,6 @@ export default class HyperbolicProvider extends BaseProvider {
         return [];
       }
 
-      //console.log({ baseUrl, apiKey });
-
       const response = await fetch(`${baseUrl}/models`, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -75,22 +71,8 @@ export default class HyperbolicProvider extends BaseProvider {
       });
 
       const res = (await response.json()) as any;
-      //console.log('API response:', res);
-
-      // if (!res || !Array.isArray(res.data)) {
-      //   throw new Error('API response is not in the expected format');
-      // }
 
       const data = res.data.filter((model: any) => model.object === 'model' && model.supports_chat);
-      //console.log('Filtered data:', data);
-      console.log(
-        data.map((m: any) => ({
-          name: m.id,
-          label: `${m.id} - context ${m.context_length ? Math.floor(m.context_length / 1000) + 'k' : 'N/A'}`,
-          provider: this.name,
-          maxTokenAllowed: m.context_length || 8000,
-        })),
-      );
 
       return data.map((m: any) => ({
         name: m.id,
