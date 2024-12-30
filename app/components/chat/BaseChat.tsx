@@ -167,7 +167,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
 
       initializeModelList({ apiKeys: parsedApiKeys, providerSettings }).then((modelList) => {
-        console.log('Model List: ', modelList);
+        // console.log('Model List: ', modelList);
         setModelList(modelList);
       });
 
@@ -379,29 +379,33 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                   </svg>
                   <div>
-                    <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
-                      <ModelSelector
-                        key={provider?.name + ':' + modelList.length}
-                        model={model}
-                        setModel={setModel}
-                        modelList={modelList}
-                        provider={provider}
-                        setProvider={setProvider}
-                        providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
-                        apiKeys={apiKeys}
-                      />
-                      {(providerList || []).length > 0 && provider && (
-                        <APIKeyManager
-                          provider={provider}
-                          apiKey={apiKeys[provider.name] || ''}
-                          setApiKey={(key) => {
-                            const newApiKeys = { ...apiKeys, [provider.name]: key };
-                            setApiKeys(newApiKeys);
-                            Cookies.set('apiKeys', JSON.stringify(newApiKeys));
-                          }}
-                        />
+                    <ClientOnly>
+                      {() => (
+                        <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
+                          <ModelSelector
+                            key={provider?.name + ':' + modelList.length}
+                            model={model}
+                            setModel={setModel}
+                            modelList={modelList}
+                            provider={provider}
+                            setProvider={setProvider}
+                            providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
+                            apiKeys={apiKeys}
+                          />
+                          {(providerList || []).length > 0 && provider && (
+                            <APIKeyManager
+                              provider={provider}
+                              apiKey={apiKeys[provider.name] || ''}
+                              setApiKey={(key) => {
+                                const newApiKeys = { ...apiKeys, [provider.name]: key };
+                                setApiKeys(newApiKeys);
+                                Cookies.set('apiKeys', JSON.stringify(newApiKeys));
+                              }}
+                            />
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </ClientOnly>
                   </div>
                   <FilePreview
                     files={uploadedFiles}
