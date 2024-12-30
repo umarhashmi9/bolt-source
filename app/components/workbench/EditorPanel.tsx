@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
   CodeMirrorEditor,
@@ -21,6 +21,9 @@ import { FileTree } from './FileTree';
 import { DEFAULT_TERMINAL_SIZE, TerminalTabs } from './terminal/TerminalTabs';
 import { workbenchStore } from '~/lib/stores/workbench';
 import WithTooltip from '~/components/ui/Tooltip';
+import { IconButton } from '~/components/ui/IconButton';
+import { classNames } from '~/utils/classNames';
+import GitPanel from './GitPanel';
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -38,6 +41,17 @@ interface EditorPanelProps {
 const DEFAULT_EDITOR_SIZE = 100 - DEFAULT_TERMINAL_SIZE;
 
 const editorSettings: EditorSettings = { tabSize: 2 };
+
+interface TabItem {
+  name: string;
+  label: string;
+  icon: string;
+}
+
+const tabs: TabItem[] = [
+  { name: 'files', label: 'Files', icon: 'i-ph:files-fill' },
+  { name: 'git', label: 'Git', icon: 'i-ph:git-branch-duotone' },
+];
 
 export const EditorPanel = memo(
   ({
@@ -58,6 +72,7 @@ export const EditorPanel = memo(
 
     const theme = useStore(themeStore);
     const showTerminal = useStore(workbenchStore.showTerminal);
+    const [activeTab, setActiveTab] = useState<TabItem>(tabs[0]);
 
     const activeFileSegments = useMemo(() => {
       if (!editorDocument) {
@@ -77,25 +92,43 @@ export const EditorPanel = memo(
           <PanelGroup direction="horizontal">
             <Panel defaultSize={25} minSize={15} collapsible>
               <div className="flex h-full">
-                <div className="flex flex-col w-8 min-w-8 border-r border-bolt-elements-borderColor h-full">
-                  <WithTooltip tooltip="Files">
-                    <div className="i-ph:files-fill mx-auto m-4 text-lg text-bolt-elements-textSecondary hover:text-bolt-elements-item-contentAccent" />
-                  </WithTooltip>
+                <div className="flex flex-col w-8 min-w-12 border-r border-bolt-elements-borderColor h-full">
+                  {tabs.map((tab) => (
+                    <WithTooltip tooltip={tab.label} key={tab.name} position="left">
+                      <IconButton
+                        icon={tab.icon}
+                        className={classNames('mx-auto m-3 text-lg', {
+                          'bg-bolt-elements-item-backgroundAccent': activeTab.name === tab.name,
+                        })}
+                        iconClassName={classNames({
+                          'text-bolt-elements-item-contentAccent': activeTab.name === tab.name,
+                        })}
+                        onClick={() => setActiveTab(tab)}
+                      ></IconButton>
+                    </WithTooltip>
+                  ))}
                 </div>
                 <div className="flex flex-col flex-1 border-r border-bolt-elements-borderColor h-full">
                   <PanelHeader>
-                    <div className="i-ph:tree-structure-duotone shrink-0" />
-                    Files
+                    <div className={classNames(' shrink-0', activeTab.icon)} />
+                    {activeTab.label}
                   </PanelHeader>
-                  <FileTree
-                    className="h-full"
-                    files={files}
-                    hideRoot
-                    unsavedFiles={unsavedFiles}
-                    rootFolder={WORK_DIR}
-                    selectedFile={selectedFile}
-                    onFileSelect={onFileSelect}
-                  />
+                  {activeTab.name === 'files' && (
+                    <FileTree
+                      className="h-full"
+                      files={files}
+                      hideRoot
+                      unsavedFiles={unsavedFiles}
+                      rootFolder={WORK_DIR}
+                      selectedFile={selectedFile}
+                      onFileSelect={onFileSelect}
+                    />
+                  )}
+                  {activeTab.name === 'git' && (
+                    <div className="h-full flex-1 overflow-hidden">
+                      <GitPanel files={files} />
+                    </div>
+                  )}
                 </div>
               </div>
             </Panel>
