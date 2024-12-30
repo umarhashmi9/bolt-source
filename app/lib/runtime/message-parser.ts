@@ -101,7 +101,28 @@ export class StreamingMessageParser {
           const currentAction = state.currentAction;
 
           if (closeIndex !== -1) {
-            currentAction.content += input.slice(i, closeIndex);
+            const contentWithIndentation = input.slice(i, closeIndex);
+
+            const cleanCodeContent = (content: string) => {
+              const lines = content.split('\n');
+
+              const minIndent = lines.reduce((min, line) => {
+                if (line.trim() === '') {
+                  return min;
+                }
+
+                const leadingSpaces = (line.match(/^\s*/) || [''])[0].length;
+
+                return Math.min(min, leadingSpaces);
+              }, Infinity);
+
+              return lines
+                .map((line) => line.slice(minIndent))
+                .join('\n')
+                .trim();
+            };
+
+            currentAction.content += cleanCodeContent(contentWithIndentation);
 
             let content = currentAction.content.trim();
 
