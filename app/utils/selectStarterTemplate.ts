@@ -285,6 +285,11 @@ If you need to make changes to functionality, create new files instead of modify
   }
 
   userMessage += `
+---
+template import is done, and you can now use the imported files,
+edit only the files that need to be changed, and you can create new files as needed.
+NO NOT EDIT/WRITE ANY FILES THAT ALREADY EXIST IN THE PROJECT AND DOES NOT NEED TO BE MODIFIED
+---
 Now that the Template is imported please continue with my original request
 `;
 
