@@ -322,11 +322,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[16vh] max-w-chat mx-auto text-center px-4 lg:px-0">
                 <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                  Where ideas begin
+                Mau Bikin Apa ?
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Bring ideas to life in seconds or get help on existing projects.
+                  Masukan prompt, jalankan, edit, dan deploy full-stack web apps
                 </p>
+                  <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
+                Made with ❤️ by <a href="https://www.tiktok.com/@premancode" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">@PremanCode</a>
+              </p>
               </div>
             )}
             <div
