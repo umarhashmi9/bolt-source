@@ -81,7 +81,11 @@ function log(level: DebugLevel, scope: string | undefined, messages: any[]) {
     labelText = `${labelText} ${formatText(` ${scope} `, '#FFFFFF', '77828D')}`;
   }
 
-  console.log(`${labelText}`, allMessages);
+  if (typeof window !== 'undefined') {
+    console.log(`%c${level.toUpperCase()}${scope ? `%c %c${scope}` : ''}`, ...styles, allMessages);
+  } else {
+    console.log(`${labelText}`, allMessages);
+  }
 }
 
 function formatText(text: string, color: string, bg: string) {

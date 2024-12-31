@@ -17,7 +17,7 @@ const llmManager = LLMManager.getInstance(import.meta.env);
 export const PROVIDER_LIST = llmManager.getAllProviders();
 export const DEFAULT_PROVIDER = llmManager.getDefaultProvider();
 
-let MODEL_LIST = llmManager.getStaticModelList();
+let MODEL_LIST = llmManager.getModelList();
 
 const providerBaseUrlEnvKeys: Record<string, { baseUrlKey?: string; apiTokenKey?: string }> = {};
 PROVIDER_LIST.forEach((provider) => {

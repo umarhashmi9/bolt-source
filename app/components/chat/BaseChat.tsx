@@ -168,30 +168,32 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     }, []);
 
     useEffect(() => {
-      const providerSettings = getProviderSettings();
-      let parsedApiKeys: Record<string, string> | undefined = {};
+      if (typeof window !== 'undefined') {
+        const providerSettings = getProviderSettings();
+        let parsedApiKeys: Record<string, string> | undefined = {};
 
-      try {
-        parsedApiKeys = getApiKeysFromCookies();
-        setApiKeys(parsedApiKeys);
-      } catch (error) {
-        console.error('Error loading API keys from cookies:', error);
+        try {
+          parsedApiKeys = getApiKeysFromCookies();
+          setApiKeys(parsedApiKeys);
+        } catch (error) {
+          console.error('Error loading API keys from cookies:', error);
 
-        // Clear invalid cookie data
-        Cookies.remove('apiKeys');
+          // Clear invalid cookie data
+          Cookies.remove('apiKeys');
+        }
+        setIsModelLoading('all');
+        initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
+          .then((modelList) => {
+            // console.log('Model List: ', modelList);
+            setModelList(modelList);
+          })
+          .catch((error) => {
+            console.error('Error initializing model list:', error);
+          })
+          .finally(() => {
+            setIsModelLoading(undefined);
+          });
       }
-      setIsModelLoading('all');
-      initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
-        .then((modelList) => {
-          console.log('Model List: ', modelList);
-          setModelList(modelList);
-        })
-        .catch((error) => {
-          console.error('Error initializing model list:', error);
-        })
-        .finally(() => {
-          setIsModelLoading(undefined);
-        });
     }, [providerList]);
 
     const onApiKeysChange = async (providerName: string, apiKey: string) => {
