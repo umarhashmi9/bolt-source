@@ -137,31 +137,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     useEffect(() => {
       if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-        const providerSettings = getProviderSettings();
-        let parsedApiKeys: Record<string, string> | undefined = {};
-
-        try {
-          parsedApiKeys = getApiKeysFromCookies();
-          setApiKeys(parsedApiKeys);
-        } catch (error) {
-          console.error('Error loading API keys from cookies:', error);
-
-          // Clear invalid cookie data
-          Cookies.remove('apiKeys');
-        }
-        setIsModelLoading('all');
-        initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
-          .then((modelList) => {
-            console.log('Model List: ', modelList);
-            setModelList(modelList);
-          })
-          .catch((error) => {
-            console.error('Error initializing model list:', error);
-          })
-          .finally(() => {
-            setIsModelLoading(undefined);
-          });
-
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -191,6 +166,33 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         setRecognition(recognition);
       }
     }, []);
+
+    useEffect(() => {
+      const providerSettings = getProviderSettings();
+      let parsedApiKeys: Record<string, string> | undefined = {};
+
+      try {
+        parsedApiKeys = getApiKeysFromCookies();
+        setApiKeys(parsedApiKeys);
+      } catch (error) {
+        console.error('Error loading API keys from cookies:', error);
+
+        // Clear invalid cookie data
+        Cookies.remove('apiKeys');
+      }
+      setIsModelLoading('all');
+      initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
+        .then((modelList) => {
+          console.log('Model List: ', modelList);
+          setModelList(modelList);
+        })
+        .catch((error) => {
+          console.error('Error initializing model list:', error);
+        })
+        .finally(() => {
+          setIsModelLoading(undefined);
+        });
+    }, [providerList]);
 
     const onApiKeysChange = async (providerName: string, apiKey: string) => {
       const newApiKeys = { ...apiKeys, [providerName]: apiKey };
