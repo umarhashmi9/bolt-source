@@ -163,10 +163,7 @@ const getGitHubRepoContent = async (
         } else if (item.type === 'file') {
           // Fetch file content
           const fileResponse = await fetch(item.url, {
-            headers: {
-              Accept: 'application/vnd.github.v3+json',
-              Authorization: 'token ' + import.meta.env.VITE_GITHUB_ACCESS_TOKEN,
-            },
+            headers,
           });
           const fileData: any = await fileResponse.json();
           const content = atob(fileData.content); // Decode base64 content
