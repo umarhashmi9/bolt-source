@@ -111,7 +111,7 @@ export class LLMManager {
               return models;
             })
             .catch((err) => {
-              console.error(`Error getting dynamic models ${provider.name} :`, err);
+              logger.error(`Error getting dynamic models ${provider.name} :`, err);
               return [];
             });
 
@@ -127,6 +127,9 @@ export class LLMManager {
     this._modelList = modelList;
 
     return modelList;
+  }
+  getStaticModelList() {
+    return [...this._providers.values()].flatMap((p) => p.staticModels || []);
   }
   async getModelListFromProvider(
     providerArg: BaseProvider,
@@ -177,6 +180,15 @@ export class LLMManager {
       });
 
     return [...dynamicModels, ...staticModels];
+  }
+  getStaticModelListFromProvider(providerArg: BaseProvider) {
+    const provider = this._providers.get(providerArg.name);
+
+    if (!provider) {
+      throw new Error(`Provider ${providerArg.name} not found`);
+    }
+
+    return [...(provider.staticModels || [])];
   }
 
   getDefaultProvider(): BaseProvider {

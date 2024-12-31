@@ -182,28 +182,32 @@ export async function streamText(props: {
   });
 
   const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
-
-  const modelsList = [
-    ...(provider.staticModels || []),
-    ...(await LLMManager.getInstance().getModelListFromProvider(provider, {
-      apiKeys,
-      providerSettings,
-      serverEnv: serverEnv as any,
-    })),
-  ];
-
-  if (!modelsList.length) {
-    throw new Error(`No models found for provider ${provider.name}`);
-  }
-
-  let modelDetails = modelsList.find((m) => m.name === currentModel);
+  const staticModels = LLMManager.getInstance().getStaticModelListFromProvider(provider);
+  let modelDetails = staticModels.find((m) => m.name === currentModel);
 
   if (!modelDetails) {
-    // Fallback to first model
-    logger.warn(
-      `MODEL [${currentModel}] not found in provider [${provider.name}]. Falling back to first model. ${modelsList[0].name}`,
-    );
-    modelDetails = modelsList[0];
+    const modelsList = [
+      ...(provider.staticModels || []),
+      ...(await LLMManager.getInstance().getModelListFromProvider(provider, {
+        apiKeys,
+        providerSettings,
+        serverEnv: serverEnv as any,
+      })),
+    ];
+
+    if (!modelsList.length) {
+      throw new Error(`No models found for provider ${provider.name}`);
+    }
+
+    modelDetails = modelsList.find((m) => m.name === currentModel);
+
+    if (!modelDetails) {
+      // Fallback to first model
+      logger.warn(
+        `MODEL [${currentModel}] not found in provider [${provider.name}]. Falling back to first model. ${modelsList[0].name}`,
+      );
+      modelDetails = modelsList[0];
+    }
   }
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
