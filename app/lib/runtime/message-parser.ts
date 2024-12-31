@@ -63,6 +63,26 @@ function cleanoutMarkdownSyntax(content: string) {
     return content;
   }
 }
+
+function cleanCodeContent(content: string) {
+  const lines = content.split('\n');
+
+  const minIndent = lines.reduce((min, line) => {
+    if (line.trim() === '') {
+      return min;
+    }
+
+    const leadingSpaces = (line.match(/^\s*/) || [''])[0].length;
+
+    return Math.min(min, leadingSpaces);
+  }, Infinity);
+
+  return lines
+    .map((line) => line.slice(minIndent))
+    .join('\n')
+    .trim();
+}
+
 export class StreamingMessageParser {
   #messages = new Map<string, MessageState>();
 
@@ -103,25 +123,6 @@ export class StreamingMessageParser {
           if (closeIndex !== -1) {
             const contentWithIndentation = input.slice(i, closeIndex);
 
-            const cleanCodeContent = (content: string) => {
-              const lines = content.split('\n');
-
-              const minIndent = lines.reduce((min, line) => {
-                if (line.trim() === '') {
-                  return min;
-                }
-
-                const leadingSpaces = (line.match(/^\s*/) || [''])[0].length;
-
-                return Math.min(min, leadingSpaces);
-              }, Infinity);
-
-              return lines
-                .map((line) => line.slice(minIndent))
-                .join('\n')
-                .trim();
-            };
-
             currentAction.content += cleanCodeContent(contentWithIndentation);
 
             let content = currentAction.content.trim();
@@ -157,10 +158,12 @@ export class StreamingMessageParser {
             i = closeIndex + ARTIFACT_ACTION_TAG_CLOSE.length;
           } else {
             if ('type' in currentAction && currentAction.type === 'file') {
-              let content = input.slice(i);
+              state.currentAction.content += input.slice(i);
+
+              let formattedContent = cleanCodeContent(state.currentAction.content);
 
               if (!currentAction.filePath.endsWith('.md')) {
-                content = cleanoutMarkdownSyntax(content);
+                formattedContent = cleanoutMarkdownSyntax(formattedContent);
               }
 
               this._options.callbacks?.onActionStream?.({
@@ -169,10 +172,11 @@ export class StreamingMessageParser {
                 actionId: String(state.actionId - 1),
                 action: {
                   ...(currentAction as FileAction),
-                  content,
+                  content: formattedContent,
                   filePath: currentAction.filePath,
                 },
               });
+              state.currentAction.content = '';
             }
 
             break;
