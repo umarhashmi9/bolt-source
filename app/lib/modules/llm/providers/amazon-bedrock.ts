@@ -24,19 +24,25 @@ export default class AmazonBedrockProvider extends BaseProvider {
       name: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
       label: 'Claude 3.5 Sonnet (Bedrock)',
       provider: 'AmazonBedrock',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 4096,
     },
     {
       name: 'anthropic.claude-3-sonnet-20240229-v1:0',
       label: 'Claude 3 Sonnet (Bedrock)',
       provider: 'AmazonBedrock',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 4096,
     },
     {
-      name: 'anthropic.claude-3-5-haiku-20241022-v1:0',
-      label: 'Claude 3.5 Haiku (Bedrock)',
+      name: 'anthropic.claude-3-haiku-20240307-v1:0',
+      label: 'Claude 3 Haiku (Bedrock)',
       provider: 'AmazonBedrock',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 4096,
+    },
+    {
+      name: 'mistral.mistral-large-2402-v1:0',
+      label: 'Mistral Large 24.02 (Bedrock)',
+      provider: 'AmazonBedrock',
+      maxTokenAllowed: 4096,
     },
   ];
 
@@ -74,7 +80,6 @@ export default class AmazonBedrockProvider extends BaseProvider {
       region: parsedConfig.region,
       accessKeyId: parsedConfig.accessKeyId,
       secretAccessKey: parsedConfig.secretAccessKey,
-      sessionToken: parsedConfig.sessionToken,
     });
 
     return bedrock(model);
