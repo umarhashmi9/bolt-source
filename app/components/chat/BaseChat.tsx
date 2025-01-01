@@ -325,7 +325,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 Mau Bikin Apa ?
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Masukan prompt, jalankan, edit, dan deploy full-stack web apps
+                  Masukan prompt, jalankan, edit, dan deploy full-stack web apps pakai AI
                 </p>
                   <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
                 Made with ❤️ by <a href="https://www.tiktok.com/@premancode" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">@PremanCode</a>
