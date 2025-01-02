@@ -14,6 +14,7 @@ import AzureOpenAIProvider from './providers/azure-openai';
 import PerplexityProvider from './providers/perplexity';
 import TogetherProvider from './providers/together';
 import XAIProvider from './providers/xai';
+import HyperbolicProvider from './providers/hyperbolic';
 
 export {
   AnthropicProvider,
@@ -22,6 +23,7 @@ export {
   GoogleProvider,
   GroqProvider,
   HuggingFaceProvider,
+  HyperbolicProvider,
   MistralProvider,
   OllamaProvider,
   OpenAIProvider,

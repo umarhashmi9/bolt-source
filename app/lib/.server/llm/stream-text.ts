@@ -150,13 +150,14 @@ export async function streamText(props: {
   files?: FileMap;
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
+  contextOptimization?: boolean;
 }) {
-  const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId } = props;
-
   try {
+    const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId, contextOptimization } = props;
     let currentModel = DEFAULT_MODEL;
     let currentProvider = DEFAULT_PROVIDER.name;
     const MODEL_LIST = await getModelList({ apiKeys, providerSettings, serverEnv: serverEnv as any });
+
     const processedMessages = messages.map((message) => {
       if (message.role === 'user') {
         const { model, provider, content } = extractPropertiesFromMessage(message);
@@ -169,7 +170,12 @@ export async function streamText(props: {
 
         return { ...message, content };
       } else if (message.role == 'assistant') {
-        const content = message.content;
+        let content = message.content;
+
+        if (contextOptimization) {
+          content = simplifyBoltActions(content);
+        }
+
         return { ...message, content };
       }
 
@@ -180,40 +186,31 @@ export async function streamText(props: {
     const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
     const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
 
-    let systemPrompt =
-      PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
-        cwd: WORK_DIR,
-        allowedHtmlElements: allowedHTMLElements,
-        modificationTagName: MODIFICATIONS_TAG_NAME,
-      }) ?? getSystemPrompt();
+    let systemPrompt = PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+      cwd: WORK_DIR,
+      allowedHtmlElements: allowedHTMLElements,
+      modificationTagName: MODIFICATIONS_TAG_NAME,
+    }) ?? getSystemPrompt();
 
-    let codeContext = '';
-
-    if (files) {
-      codeContext = createFilesContext(files);
-      codeContext = '';
+    if (files && contextOptimization) {
+      const codeContext = createFilesContext(files);
       systemPrompt = `${systemPrompt}\n\n ${codeContext}`;
     }
 
-    try {
-      const modelInstance = provider.getModelInstance({
-        model: currentModel,
-        serverEnv,
-        apiKeys,
-        providerSettings,
-      });
+    const modelInstance = provider.getModelInstance({
+      model: currentModel,
+      serverEnv,
+      apiKeys,
+      providerSettings,
+    });
 
-      return _streamText({
-        model: modelInstance,
-        system: systemPrompt,
-        maxTokens: dynamicMaxTokens,
-        messages: convertToCoreMessages(processedMessages as any),
-        ...options,
-      });
-    } catch (error) {
-      console.error('Error creating model instance:', error);
-      throw error instanceof Error ? error : new Error(String(error));
-    }
+    return _streamText({
+      model: modelInstance,
+      system: systemPrompt,
+      maxTokens: dynamicMaxTokens,
+      messages: convertToCoreMessages(processedMessages as any),
+      ...options,
+    });
   } catch (error) {
     console.error('Error in streamText:', error);
     throw error instanceof Error ? error : new Error(String(error));
