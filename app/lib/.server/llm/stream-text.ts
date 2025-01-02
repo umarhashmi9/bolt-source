@@ -4,7 +4,6 @@ import { getSystemPrompt } from '~/lib/common/prompts/prompts';
 import {
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
-  getModelList,
   MODEL_REGEX,
   MODIFICATIONS_TAG_NAME,
   PROVIDER_LIST,
@@ -15,6 +14,8 @@ import ignore from 'ignore';
 import type { IProviderSetting } from '~/types/model';
 import { PromptLibrary } from '~/lib/common/prompt-library';
 import { allowedHTMLElements } from '~/utils/markdown';
+import { LLMManager } from '~/lib/modules/llm/manager';
+import { createScopedLogger } from '~/utils/logger';
 
 interface ToolResult<Name extends string, Args, Result> {
   toolCallId: string;
@@ -142,6 +143,8 @@ function extractPropertiesFromMessage(message: Message): { model: string; provid
   return { model, provider, content: cleanedContent };
 }
 
+const logger = createScopedLogger('stream-text');
+
 export async function streamText(props: {
   messages: Messages;
   env: Env;
@@ -152,67 +155,87 @@ export async function streamText(props: {
   promptId?: string;
   contextOptimization?: boolean;
 }) {
-  try {
-    const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId, contextOptimization } = props;
-    let currentModel = DEFAULT_MODEL;
-    let currentProvider = DEFAULT_PROVIDER.name;
-    const MODEL_LIST = await getModelList({ apiKeys, providerSettings, serverEnv: serverEnv as any });
+  const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId, contextOptimization } = props;
 
-    const processedMessages = messages.map((message) => {
-      if (message.role === 'user') {
-        const { model, provider, content } = extractPropertiesFromMessage(message);
+  // console.log({serverEnv});
 
-        if (MODEL_LIST.find((m) => m.name === model)) {
-          currentModel = model;
-        }
+  let currentModel = DEFAULT_MODEL;
+  let currentProvider = DEFAULT_PROVIDER.name;
+  const processedMessages = messages.map((message) => {
+    if (message.role === 'user') {
+      const { model, provider, content } = extractPropertiesFromMessage(message);
+      currentModel = model;
+      currentProvider = provider;
 
-        currentProvider = provider;
+      return { ...message, content };
+    } else if (message.role == 'assistant') {
+      let content = message.content;
 
-        return { ...message, content };
-      } else if (message.role == 'assistant') {
-        let content = message.content;
-
-        if (contextOptimization) {
-          content = simplifyBoltActions(content);
-        }
-
-        return { ...message, content };
+      if (contextOptimization) {
+        content = simplifyBoltActions(content);
       }
 
-      return message;
-    });
+      return { ...message, content };
+    }
 
-    const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
-    const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
-    const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
+    return message;
+  });
 
-    let systemPrompt = PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+  const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
+  const staticModels = LLMManager.getInstance().getStaticModelListFromProvider(provider);
+  let modelDetails = staticModels.find((m) => m.name === currentModel);
+
+  if (!modelDetails) {
+    const modelsList = [
+      ...(provider.staticModels || []),
+      ...(await LLMManager.getInstance().getModelListFromProvider(provider, {
+        apiKeys,
+        providerSettings,
+        serverEnv: serverEnv as any,
+      })),
+    ];
+
+    if (!modelsList.length) {
+      throw new Error(`No models found for provider ${provider.name}`);
+    }
+
+    modelDetails = modelsList.find((m) => m.name === currentModel);
+
+    if (!modelDetails) {
+      // Fallback to first model
+      logger.warn(
+        `MODEL [${currentModel}] not found in provider [${provider.name}]. Falling back to first model. ${modelsList[0].name}`,
+      );
+      modelDetails = modelsList[0];
+    }
+  }
+
+  const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
+
+  let systemPrompt =
+    PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
       cwd: WORK_DIR,
       allowedHtmlElements: allowedHTMLElements,
       modificationTagName: MODIFICATIONS_TAG_NAME,
     }) ?? getSystemPrompt();
 
-    if (files && contextOptimization) {
-      const codeContext = createFilesContext(files);
-      systemPrompt = `${systemPrompt}\n\n ${codeContext}`;
-    }
+  if (files && contextOptimization) {
+    const codeContext = createFilesContext(files);
+    systemPrompt = `${systemPrompt}\n\n ${codeContext}`;
+  }
 
-    const modelInstance = provider.getModelInstance({
+  logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
+
+  return _streamText({
+    model: provider.getModelInstance({
       model: currentModel,
       serverEnv,
       apiKeys,
       providerSettings,
-    });
-
-    return _streamText({
-      model: modelInstance,
-      system: systemPrompt,
-      maxTokens: dynamicMaxTokens,
-      messages: convertToCoreMessages(processedMessages as any),
-      ...options,
-    });
-  } catch (error) {
-    console.error('Error in streamText:', error);
-    throw error instanceof Error ? error : new Error(String(error));
-  }
+    }),
+    system: systemPrompt,
+    maxTokens: dynamicMaxTokens,
+    messages: convertToCoreMessages(processedMessages as any),
+    ...options,
+  });
 }
