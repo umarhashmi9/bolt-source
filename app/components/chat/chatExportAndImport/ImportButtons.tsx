@@ -5,10 +5,6 @@ import { ImportFolderButton } from '~/components/chat/ImportFolderButton';
 type ChatData = {
   messages?: Message[]; // Standard Bolt format
   description?: string; // Optional description
-  history?: Array<{ messages: Message[]; description?: string }>; // Backup format
-  boltHistory?: {
-    chats: Record<string, { messages: Message[]; description?: string }>; // Chrome extension format
-  };
 };
 
 export function ImportButtons(importChat: ((description: string, messages: Message[]) => Promise<void>) | undefined) {
@@ -36,24 +32,6 @@ export function ImportButtons(importChat: ((description: string, messages: Messa
                     await importChat(data.description || 'Imported Chat', data.messages);
                     toast.success('Chat imported successfully');
                     return;
-                  }
-
-                  // Backup format
-                  if (data.history?.[0]?.messages) {
-                    const chat = data.history[0];
-                    await importChat(chat.description || 'Imported Chat', chat.messages);
-                    toast.success('Chat imported successfully');
-                    return;
-                  }
-
-                  // Chrome format
-                  if (data.boltHistory?.chats) {
-                    const chat = Object.values(data.boltHistory.chats)[0];
-                    if (chat?.messages) {
-                      await importChat(chat.description || 'Imported Chat', chat.messages);
-                      toast.success('Chat imported successfully');
-                      return;
-                    }
                   }
 
                   toast.error('Invalid chat file format');

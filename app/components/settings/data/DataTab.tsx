@@ -232,85 +232,45 @@ export default function DataTab() {
     event.target.value = '';
   };
 
+  const processChatData = (data: any): Array<{
+    id: string;
+    messages: Message[];
+    description: string;
+    urlId?: string;
+  }> => {
+    // Handle Bolt standard format (single chat)
+    if (data.messages && Array.isArray(data.messages)) {
+      const chatId = crypto.randomUUID();
+      return [{
+        id: chatId,
+        messages: data.messages,
+        description: data.description || 'Imported Chat',
+        urlId: chatId
+      }];
+    }
+
+      // Handle Bolt export format (multiple chats)
+      if (data.chats && Array.isArray(data.chats)) {
+        return data.chats.map((chat: { id?: string; messages: Message[]; description?: string; urlId?: string; }) => ({
+          id: chat.id || crypto.randomUUID(),
+          messages: chat.messages,
+          description: chat.description || 'Imported Chat',
+          urlId: chat.urlId,
+        }));
+      }
+
+    console.error('No matching format found for:', data);
+    throw new Error('Unsupported chat format');
+  };
+
   const handleImportChats = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
 
-    const processChatData = (data: any): Array<{
-      id: string;
-      messages: Message[];
-      description: string;
-      urlId?: string;
-    }> => {
-      // Add logging to debug format detection
-      console.log('Processing data:', {
-        hasMessages: !!data.messages,
-        isMessagesArray: Array.isArray(data.messages),
-        hasBoltHistory: !!data.boltHistory,
-        hasHistory: !!data.history,
-        hasChats: !!data.chats,
-        keys: Object.keys(data)
-      });
-
-      // Handle Bolt standard format (single chat)
-      if (data.messages && Array.isArray(data.messages)) {
-        console.log('Importing single chat:', {
-          messages: data.messages.length,
-          description: data.description
-        });
-
-        // Generate both id and urlId for single chat
-        const chatId = crypto.randomUUID();
-        return [{
-          id: chatId,
-          messages: data.messages,
-          description: data.description || 'Imported Chat',
-          urlId: chatId  // Add urlId for proper navigation
-        }];
-      }
-
-      // Handle Chrome extension format
-      if (data.boltHistory?.chats) {
-        return Object.values(data.boltHistory.chats).map((chat: any) => ({
-          id: chat.id || crypto.randomUUID(),
-          messages: chat.messages,
-          description: chat.description || 'Imported Chat',
-          urlId: chat.urlId
-        }));
-      }
-
-      // Handle history array format
-      if (data.history && Array.isArray(data.history)) {
-        return data.history.map((chat: any) => ({
-          id: chat.id || crypto.randomUUID(),
-          messages: chat.messages,
-          description: chat.description || 'Imported Chat',
-          urlId: chat.urlId
-        }));
-      }
-
-      // Handle Bolt export format (multiple chats)
-      if (data.chats && Array.isArray(data.chats)) {
-        return data.chats.map((chat: {
-          id?: string;
-          messages: Message[];
-          description?: string;
-          urlId?: string;
-        }) => ({
-          id: chat.id || crypto.randomUUID(),
-          messages: chat.messages,
-          description: chat.description || 'Imported Chat',
-          urlId: chat.urlId
-        }));
-      }
-
-      console.error('No matching format found for:', data);
-      throw new Error('Unsupported chat format');
-    };
-
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
+
       if (!file || !db) {
         toast.error('Something went wrong');
         return;
@@ -330,7 +290,7 @@ export default function DataTab() {
         window.location.reload();
       } catch (error) {
         if (error instanceof Error) {
-          logStore.logError('Failed to import chats', error);
+          logStore.logError('Failed to import chats:', error);
           toast.error('Failed to import chats: ' + error.message);
         } else {
           toast.error('Failed to import chats');
