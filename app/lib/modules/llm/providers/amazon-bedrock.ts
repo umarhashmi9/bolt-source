@@ -39,10 +39,22 @@ export default class AmazonBedrockProvider extends BaseProvider {
       maxTokenAllowed: 4096,
     },
     {
+      name: 'amazon.nova-pro-v1:0',
+      label: 'Amazon Nova Pro (Bedrock)',
+      provider: 'AmazonBedrock',
+      maxTokenAllowed: 5120,
+    },
+    {
+      name: 'amazon.nova-lite-v1:0',
+      label: 'Amazon Nova Lite (Bedrock)',
+      provider: 'AmazonBedrock',
+      maxTokenAllowed: 5120,
+    },
+    {
       name: 'mistral.mistral-large-2402-v1:0',
       label: 'Mistral Large 24.02 (Bedrock)',
       provider: 'AmazonBedrock',
-      maxTokenAllowed: 4096,
+      maxTokenAllowed: 8192,
     },
   ];
 
