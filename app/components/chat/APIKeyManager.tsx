@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import type { ProviderInfo } from '~/types/model';
+import Cookies from 'js-cookie';
 
 interface APIKeyManagerProps {
   provider: ProviderInfo;
@@ -23,6 +24,22 @@ const ENV_API_KEY_MAP: Record<string, string> = {
   Together: 'TOGETHER_API_KEY',
   OpenRouter: 'OPENROUTER_API_KEY',
 };
+const apiKeyMemoizeCache: { [k: string]: Record<string, string> } = {};
+
+export function getApiKeysFromCookies() {
+  const storedApiKeys = Cookies.get('apiKeys');
+  let parsedKeys = {};
+
+  if (storedApiKeys) {
+    parsedKeys = apiKeyMemoizeCache[storedApiKeys];
+
+    if (!parsedKeys) {
+      parsedKeys = apiKeyMemoizeCache[storedApiKeys] = JSON.parse(storedApiKeys);
+    }
+  }
+
+  return parsedKeys;
+}
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, setApiKey }) => {
