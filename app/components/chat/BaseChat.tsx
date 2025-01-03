@@ -32,6 +32,8 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
+import { SignInButton, SignUpButton, useSignUp, useUser } from '@clerk/remix';
+import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -312,6 +314,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     };
 
+    const [dialogOpen, setDialogOpen] = useState(false);
+
+    const { isSignedIn } = useUser();
+
+    const handleSignInDialog = () => {
+      setDialogOpen(!dialogOpen);
+    };
+    const handleSignUpDialog = () => {
+      setDialogOpen(!dialogOpen);
+    };
+
     const baseChat = (
       <div
         ref={ref}
@@ -498,6 +511,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                           event.preventDefault();
 
+                          if (!isSignedIn) {
+                            setDialogOpen(true);
+                            return;
+                          }
+
                           if (isStreaming) {
                             handleStop?.();
                             return;
@@ -616,6 +634,29 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
               {!chatStarted && <StarterTemplates />}
             </div>
           </div>
+          <DialogRoot open={dialogOpen}>
+            <Dialog
+              onBackdrop={handleSignInDialog}
+              onClose={handleSignInDialog}
+              className="max-w-[600px] flex items-center justify-center flex-col p-8"
+            >
+              <DialogTitle className="border-none text-xl pb-0">Continue with StackBlitz</DialogTitle>
+              <DialogDescription className="text-sm text-bolt-elements-textSecondary mb-2 pt-0">
+                To use Bolt you must log into an existing account or create one.
+              </DialogDescription>
+              <div className="flex flex-col gap-4">
+                <DialogButton type="secondary" onClick={handleSignInDialog} className="text-base w-[300px]">
+                  <SignInButton>Sign in</SignInButton>
+                </DialogButton>
+                <DialogButton type="primary" onClick={handleSignInDialog} className="text-base w-[300px]">
+                  <SignUpButton>Sign up</SignUpButton>
+                </DialogButton>
+              </div>
+              <DialogDescription className="text-sm text-bolt-elements-textTertiary">
+                To use Bolt you must log into an existing account or create one.
+              </DialogDescription>
+            </Dialog>
+          </DialogRoot>
           <ClientOnly>{() => <Workbench chatStarted={chatStarted} isStreaming={isStreaming} />}</ClientOnly>
         </div>
       </div>

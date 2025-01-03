@@ -11,6 +11,9 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
+import { useClerk, useUser } from '@clerk/remix';
+import { DialogTrigger } from '@radix-ui/react-dialog';
+import Button from '../ui/button';
 
 const menuVariants = {
   closed: {
@@ -60,6 +63,7 @@ export const Menu = () => {
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
@@ -137,6 +141,23 @@ export const Menu = () => {
     loadEntries(); // Reload the list after duplication
   };
 
+  const handleSignOutDialog = () => {
+    setDialogOpen(!dialogOpen);
+  };
+
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const handleSignOut = async () => {
+    setDialogOpen(!dialogOpen);
+    await signOut();
+    window.location.reload();
+  };
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <motion.div
       ref={menuRef}
@@ -151,7 +172,7 @@ export const Menu = () => {
         <div className="p-4 select-none">
           <a
             href="/"
-            className="flex gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme mb-4"
+            className="flex gap-2 items-center bg-bolt-elements-sidebar-c text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme mb-4"
           >
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
@@ -221,8 +242,59 @@ export const Menu = () => {
             </Dialog>
           </DialogRoot>
         </div>
+        <div className="dark:bg-black bg-white p-4 flex flex-col gap-2">
+          <div
+            className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
+            onClick={() => setIsSettingsOpen(true)}
+          >
+            <span className="i-ph:gear text-xl" />
+            <p className="text-bolt-elements-textPrimary text-sm font-medium">Settings</p>
+          </div>
+          <div
+            className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
+            onClick={() => {}}
+          >
+            <span className="i-ph:credit-card text-xl" />
+            <p className="text-bolt-elements-textPrimary text-sm font-medium">My Subscription</p>
+          </div>
+          <DialogRoot open={dialogOpen}>
+            <DialogTrigger asChild>
+              <div
+                className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
+                onClick={handleSignOutDialog}
+              >
+                <span className="i-ph:sign-out text-xl" />
+                <p className="text-bolt-elements-textPrimary text-sm font-medium">Sign out</p>
+              </div>
+            </DialogTrigger>
+            <Dialog onBackdrop={handleSignOutDialog} onClose={handleSignOutDialog}>
+              <DialogTitle>Log Out</DialogTitle>
+              <DialogDescription>Are you sure you want to sign out?</DialogDescription>
+              <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+                <DialogButton type="secondary" onClick={handleSignOutDialog}>
+                  Cancel
+                </DialogButton>
+                <DialogButton type="primary" onClick={handleSignOut}>
+                  Sign out
+                </DialogButton>
+              </div>
+            </Dialog>
+          </DialogRoot>
+        </div>
         <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
-          <SettingsButton onClick={() => setIsSettingsOpen(true)} />
+          {/* */}
+
+          <div className="flex items-center gap-2">
+            <img
+              src={`https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18ycjVFSW9CWVlzWkpGTlc2UUYwUTFnUm5YeDkifQ`}
+              alt="logo"
+              className="rounded-full"
+            />
+            <div>
+              <p className="text-bolt-elements-textPrimary text-sm font-medium">{user?.fullName}</p>
+              <p className="text-bolt-elements-textTertiary text-sm font-medium">Free Plan</p>
+            </div>
+          </div>
           <ThemeSwitch />
         </div>
       </div>
