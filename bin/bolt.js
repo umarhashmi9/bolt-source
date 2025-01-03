@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
-// bin/bolt.js
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Find the root directory where the package is installed
 const rootDir = join(__dirname, '..');
+
+
+const BUILT_APP_PATH = join(rootDir, 'build');
+const FUNCTIONS_PATH = join(rootDir, 'functions');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -93,7 +97,7 @@ async function showVersion() {
           B O L T . D I Y
 ★═══════════════════════════════════════★
 Version: ${version}
-${commitHash?`Commit:  ${commitHash}\n`:''}`);
+${commitHash ? `Commit:  ${commitHash}\n` : ''}`);
 }
 
 async function displayBanner() {
@@ -112,12 +116,10 @@ async function displayBanner() {
   console.log('         ⚡️  Welcome  ⚡️');
   console.log('★═══════════════════════════════════════★');
   console.log(`📍 Current Version Tag: v${version}`);
-  // console.log(`📍 Current Commit Version: "${commitHash}"`);
   console.log(`📍 Starting on port: ${options.port}`);
   console.log('  Please wait until the URL appears here');
   console.log('★═══════════════════════════════════════★');
 }
-
 
 async function startApp() {
   if (options.help) {
@@ -133,20 +135,50 @@ async function startApp() {
   await displayBanner();
 
   try {
-    // Use the local remix CLI from node_modules
-    const remixBinPath = join(rootDir, 'node_modules', '.bin', 'remix');
+    // First build the app
+    // await buildApp();
 
-    // Then start the development server using the local remix binary
-    const devProcess = spawn(remixBinPath, ['vite:dev', '--port', options.port.toString()], {
-      cwd: rootDir,
-      stdio: 'inherit',
-      shell: true,
-      env: {
-        ...process.env,
-        PORT: options.port.toString(),
-        PATH: `${join(rootDir, 'node_modules', '.bin')}:${process.env.PATH}`,
+    
+    // Use wrangler from node_modules
+    const wranglerBinPath = join(rootDir, 'node_modules', '.bin', 'wrangler');
+
+    let buildPath = join(rootDir, 'build/client');
+
+    // Start wrangler pages dev with the build directory
+    const devProcess = spawn(
+      wranglerBinPath,
+      [
+        'pages',
+        'dev',
+        // '--build-output-dir',
+        buildPath,
+        // './build', // assuming this is your build output directory
+        '--port',
+        options.port.toString(),
+        '--compatibility-flag',
+        'nodejs_compat',
+        '--compatibility-date',
+        '2024-07-01',
+        '--proxy',
+        options.port.toString(),
+        '--binding',
+        'ENVIRONMENT=development',
+      ],
+      {
+        cwd: rootDir,
+        stdio: 'inherit',
+        shell: true,
+        env: {
+          ...process.env,
+          PORT: options.port.toString(),
+          PATH: `${join(rootDir, 'node_modules', '.bin')}:${process.env.PATH}`,
+          WRANGLER_FUNCTIONS_DIR: FUNCTIONS_PATH,
+          WRANGLER_PUBLIC_DIR: BUILT_APP_PATH,
+          PORT: options.port.toString(),
+          NODE_ENV: 'production',
+        },
       },
-    });
+    );
 
     devProcess.on('error', (err) => {
       console.error('Failed to start development server:', err);
