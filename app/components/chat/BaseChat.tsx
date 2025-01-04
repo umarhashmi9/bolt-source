@@ -34,6 +34,7 @@ import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import { SignInButton, SignUpButton, useSignUp, useUser } from '@clerk/remix';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
+import { Link } from '@remix-run/react';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -552,7 +553,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               handleStop?.();
                               return;
                             }
-
+                            if (!isSignedIn) {
+                              setDialogOpen(true);
+                              return;
+                            }
                             if (input.length > 0 || uploadedFiles.length > 0) {
                               handleSendMessage?.(event);
                             }
@@ -645,12 +649,16 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 To use Bolt you must log into an existing account or create one.
               </DialogDescription>
               <div className="flex flex-col gap-4">
-                <DialogButton type="secondary" onClick={handleSignInDialog} className="text-base w-[300px]">
-                  <SignInButton>Sign in</SignInButton>
-                </DialogButton>
-                <DialogButton type="primary" onClick={handleSignInDialog} className="text-base w-[300px]">
-                  <SignUpButton>Sign up</SignUpButton>
-                </DialogButton>
+                <Link to="/sign-in">
+                  <DialogButton type="secondary" onClick={handleSignInDialog} className="text-base w-[300px]">
+                    Sign in
+                  </DialogButton>
+                </Link>
+                <Link to="/sign-in">
+                  <DialogButton type="primary" onClick={handleSignInDialog} className="text-base w-[300px]">
+                    Sign up
+                  </DialogButton>
+                </Link>
               </div>
               <DialogDescription className="text-sm text-bolt-elements-textTertiary">
                 To use Bolt you must log into an existing account or create one.

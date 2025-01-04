@@ -41,16 +41,18 @@ export function Header() {
       )}
       <SignedOut>
         <div className="flex gap-2">
-          <SignInButton>
-            <button className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]">
-              Sign In
-            </button>
-          </SignInButton>
-          <SignUpButton>
-            <button className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#9E0DE1]">
-              Get Started
-            </button>
-          </SignUpButton>
+          <Link
+            to="/sign-in"
+            className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]"
+          >
+            Sign In
+          </Link>
+          <Link
+            to="/sign-up"
+            className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#9E0DE1]"
+          >
+            Get Started
+          </Link>
         </div>
       </SignedOut>
     </header>
