@@ -156,6 +156,8 @@ export const Menu = () => {
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
           </a>
+        </div>
+        <div className="pl-4 pr-4 my-2">
           <div className="relative w-full">
             <input
               className="w-full bg-white dark:bg-bolt-elements-background-depth-4 relative px-2 py-1.5 rounded-md focus:outline-none placeholder-bolt-elements-textTertiary text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary border border-bolt-elements-borderColor"

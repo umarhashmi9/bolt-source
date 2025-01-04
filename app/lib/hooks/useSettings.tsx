@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
-import { logStore } from '~/lib/stores/logs'; // assuming logStore is imported from this location
+import { logStore } from '~/lib/stores/logs';
 
 interface CommitData {
   commit: string;
@@ -27,11 +27,11 @@ const versionData: CommitData = {
 
 export function useSettings() {
   const providers = useStore(providersStore);
-  const debug = useStore(isDebugMode);
-  const eventLogs = useStore(isEventLogsEnabled);
+  const debug: boolean = useStore(isDebugMode);
+  const eventLogs: boolean = useStore(isEventLogsEnabled);
   const promptId = useStore(promptStore);
-  const isLocalModel = useStore(isLocalModelsEnabled);
-  const isLatestBranch = useStore(latestBranchStore);
+  const isLocalModel: boolean = useStore(isLocalModelsEnabled);
+  const isLatestBranch: boolean = useStore(latestBranchStore);
   const autoSelectTemplate = useStore(autoSelectStarterTemplate);
   const [activeProviders, setActiveProviders] = useState<ProviderInfo[]>([]);
   const contextOptimizationEnabled = useStore(enableContextOptimizationStore);
@@ -189,6 +189,7 @@ export function useSettings() {
     promptStore.set(promptId);
     Cookies.set('promptId', promptId);
   }, []);
+
   const enableLatestBranch = useCallback((enabled: boolean) => {
     latestBranchStore.set(enabled);
     logStore.logSystem(`Main branch updates ${enabled ? 'enabled' : 'disabled'}`);

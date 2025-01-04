@@ -49,6 +49,11 @@ export function useGit() {
       }
 
       fileData.current = {};
+
+      // Check if this is a GitHub URL and we have a token
+      const isGithubUrl = url.includes('github.com');
+      const githubToken = isGithubUrl ? localStorage.getItem('github_token') : null;
+
       await git.clone({
         fs,
         http,
@@ -58,8 +63,15 @@ export function useGit() {
         singleBranch: true,
         corsProxy: 'https://cors.isomorphic-git.org',
         onAuth: (url) => {
-          // let domain=url.split("/")[2]
+          // If we have a GitHub token, use it
+          if (isGithubUrl && githubToken) {
+            return {
+              username: githubToken,
+              password: 'x-oauth-basic',
+            };
+          }
 
+          // For non-GitHub repos, use saved credentials
           let auth = lookupSavedPassword(url);
 
           if (auth) {
@@ -80,7 +92,10 @@ export function useGit() {
           toast.error(`Error Authenticating with ${url.split('/')[2]}`);
         },
         onAuthSuccess: (url, auth) => {
-          saveGitAuth(url, auth);
+          // Only save non-GitHub credentials
+          if (!isGithubUrl) {
+            saveGitAuth(url, auth);
+          }
         },
       });
 
@@ -92,7 +107,7 @@ export function useGit() {
 
       return { workdir: webcontainer.workdir, data };
     },
-    [webcontainer],
+    [webcontainer, fs, ready],
   );
 
   return { ready, gitClone };
