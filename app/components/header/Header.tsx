@@ -4,12 +4,12 @@ import { chatStore } from '~/lib/stores/chat';
 import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
-import { SignInButton, SignOutButton, SignUpButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/remix';
 import { Link } from '@remix-run/react';
+import { useState } from 'react';
 
 export function Header() {
   const chat = useStore(chatStore);
-  const { user } = useUser();
+  const [user, setUser] = useState();
   return (
     <header
       className={classNames('flex items-center justify-between p-5 border-b h-[var(--header-height)]', {
@@ -39,7 +39,7 @@ export function Header() {
           </ClientOnly>
         </>
       )}
-      <SignedOut>
+      {!user && (
         <div className="flex gap-2">
           <Link
             to="/sign-in"
@@ -54,7 +54,7 @@ export function Header() {
             Get Started
           </Link>
         </div>
-      </SignedOut>
+      )}
     </header>
   );
 }

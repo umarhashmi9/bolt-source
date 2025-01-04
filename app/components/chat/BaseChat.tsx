@@ -32,7 +32,6 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
-import { SignInButton, SignUpButton, useSignUp, useUser } from '@clerk/remix';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { Link } from '@remix-run/react';
 
@@ -317,8 +316,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const { isSignedIn } = useUser();
-
     const handleSignInDialog = () => {
       setDialogOpen(!dialogOpen);
     };
@@ -512,10 +509,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                           event.preventDefault();
 
-                          if (!isSignedIn) {
-                            setDialogOpen(true);
-                            return;
-                          }
+                          // if (!isSignedIn) {
+                          //   setDialogOpen(true);
+                          //   return;
+                          // }
 
                           if (isStreaming) {
                             handleStop?.();
@@ -553,10 +550,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               handleStop?.();
                               return;
                             }
-                            if (!isSignedIn) {
-                              setDialogOpen(true);
-                              return;
-                            }
+                            // if (!isSignedIn) {
+                            //   setDialogOpen(true);
+                            //   return;
+                            // }
                             if (input.length > 0 || uploadedFiles.length > 0) {
                               handleSendMessage?.(event);
                             }

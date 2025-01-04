@@ -11,7 +11,6 @@ import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
-import { useClerk, useUser } from '@clerk/remix';
 import { DialogTrigger } from '@radix-ui/react-dialog';
 import Button from '../ui/button';
 
@@ -144,19 +143,18 @@ export const Menu = () => {
   const handleSignOutDialog = () => {
     setDialogOpen(!dialogOpen);
   };
-
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const [user, setUser] = useState<any>();
 
   const handleSignOut = async () => {
     setDialogOpen(!dialogOpen);
-    await signOut();
+
+    // handle sign out here
     window.location.reload();
   };
 
-  if (!user) {
-    return null;
-  }
+  // if (!user) {
+  //   return null;
+  // }
 
   return (
     <motion.div

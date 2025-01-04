@@ -1,5 +1,5 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Link, redirect } from '@remix-run/react';
+import { data, Form, Link, redirect } from '@remix-run/react';
 import Input from '~/components/ui/input';
 import { authenticator } from '~/lib/services/auth.server';
 import { commitSession, getSession } from '~/lib/services/session.server';
@@ -48,10 +48,12 @@ export default function SignInPage() {
           </p>
         </div>
         <div className="flex items-center flex-col gap-7 rounded-md flex items-center justify-center ">
-          <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-            <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
-            <span className="text-sm font-bold">Sign up with GitHub</span>
-          </button>
+          <Form action="github" method="post" className="w-full">
+            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
+              <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
+              <span className="text-sm font-bold">Sign up with GitHub</span>
+            </button>
+          </Form>
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <div className="w-full flex flex-col gap-2">
             <Input placeholder="Email or Username" />
