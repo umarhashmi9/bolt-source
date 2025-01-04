@@ -32,7 +32,7 @@ const apiKeyMemoizeCache: { [k: string]: Record<string, string> } = {};
 
 export function getApiKeysFromCookies() {
   const storedApiKeys = Cookies.get('apiKeys');
-  let parsedKeys = {};
+  let parsedKeys: Record<string, string> = {};
 
   if (storedApiKeys) {
     parsedKeys = apiKeyMemoizeCache[storedApiKeys];
@@ -51,10 +51,14 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   const [tempKey, setTempKey] = useState(apiKey);
   const [isEnvKeySet, setIsEnvKeySet] = useState(false);
 
-  // Reset states when provider changes
+  // Reset states and load saved key when provider changes
   useEffect(() => {
-    setTempKey('');
-    setApiKey('');
+    // Load saved API key from cookies for this provider
+    const savedKeys = getApiKeysFromCookies();
+    const savedKey = savedKeys[provider.name] || '';
+
+    setTempKey(savedKey);
+    setApiKey(savedKey);
     setIsEditing(false);
   }, [provider.name]);
 
@@ -84,7 +88,14 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   }, [checkEnvApiKey]);
 
   const handleSave = () => {
+    // Save to parent state
     setApiKey(tempKey);
+
+    // Save to cookies
+    const currentKeys = getApiKeysFromCookies();
+    const newKeys = { ...currentKeys, [provider.name]: tempKey };
+    Cookies.set('apiKeys', JSON.stringify(newKeys));
+
     setIsEditing(false);
   };
 
