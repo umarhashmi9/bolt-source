@@ -32,40 +32,35 @@ console.debug('main: import.meta.env:', import.meta.env);
 const __dirname = fileURLToPath(import.meta.url);
 const isDev = !(global.process.env.NODE_ENV === 'production' || app.isPackaged);
 
-async function appLogger(...args: any[]) {
-  const message = args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg)).join(' ');
-  console.log(message);
-}
-
-appLogger('main: isDev:', isDev);
-appLogger('NODE_ENV:', global.process.env.NODE_ENV);
-appLogger('isPackaged:', app.isPackaged);
+console.log('main: isDev:', isDev);
+console.log('NODE_ENV:', global.process.env.NODE_ENV);
+console.log('isPackaged:', app.isPackaged);
 
 const DEFAULT_PORT = 8080;
 
 // Log unhandled errors
 process.on('uncaughtException', async (error) => {
-  await appLogger('Uncaught Exception:', error);
+  await console.log('Uncaught Exception:', error);
 });
 
 process.on('unhandledRejection', async (error) => {
-  await appLogger('Unhandled Rejection:', error);
+  await console.log('Unhandled Rejection:', error);
 });
 
 (() => {
   const root = global.process.env.APP_PATH_ROOT ?? import.meta.env.VITE_APP_PATH_ROOT;
 
   if (root === undefined) {
-    appLogger('no given APP_PATH_ROOT or VITE_APP_PATH_ROOT. default path is used.');
+    console.log('no given APP_PATH_ROOT or VITE_APP_PATH_ROOT. default path is used.');
     return;
   }
 
   if (!path.isAbsolute(root)) {
-    appLogger('APP_PATH_ROOT must be absolute path.');
+    console.log('APP_PATH_ROOT must be absolute path.');
     global.process.exit(1);
   }
 
-  appLogger(`APP_PATH_ROOT: ${root}`);
+  console.log(`APP_PATH_ROOT: ${root}`);
 
   const subdirName = pkg.name;
 
@@ -80,18 +75,18 @@ process.on('unhandledRejection', async (error) => {
   app.setAppLogsPath(path.join(root, `${subdirName}/Logs`));
 })();
 
-appLogger('appPath:', app.getAppPath());
+console.log('appPath:', app.getAppPath());
 
 const keys: Parameters<typeof app.getPath>[number][] = ['home', 'appData', 'userData', 'sessionData', 'logs', 'temp'];
-keys.forEach((key) => appLogger(`${key}:`, app.getPath(key)));
+keys.forEach((key) => console.log(`${key}:`, app.getPath(key)));
 
 const store = new ElectronStore<any>({ encryptionKey: 'something' });
 
 const createWindow = async (rendererURL: string) => {
-  appLogger('Creating window with URL:', rendererURL);
+  console.log('Creating window with URL:', rendererURL);
 
   const bounds = store.get('bounds');
-  appLogger('restored bounds:', bounds);
+  console.log('restored bounds:', bounds);
 
   const win = new BrowserWindow({
     ...{
@@ -106,17 +101,17 @@ const createWindow = async (rendererURL: string) => {
     },
   });
 
-  appLogger('Window created, loading URL...');
+  console.log('Window created, loading URL...');
   win.loadURL(rendererURL).catch((err) => {
-    appLogger('Failed to load URL:', err);
+    console.log('Failed to load URL:', err);
   });
 
   win.webContents.on('did-fail-load', (_, errorCode, errorDescription) => {
-    appLogger('Failed to load:', errorCode, errorDescription);
+    console.log('Failed to load:', errorCode, errorDescription);
   });
 
   win.webContents.on('did-finish-load', () => {
-    appLogger('Window finished loading');
+    console.log('Window finished loading');
   });
 
   // Open devtools in development
@@ -134,7 +129,7 @@ const createWindow = async (rendererURL: string) => {
   return win;
 };
 
-appLogger('start whenReady');
+console.log('start whenReady');
 
 const rendererClientPath = isDev ? path.join(__dirname, '../../client') : path.join(app.getAppPath(), 'build/client');
 
@@ -145,22 +140,22 @@ declare global {
 
 async function loadServerBuild(): Promise<any> {
   if (isDev) {
-    appLogger('Dev mode: server build not loaded');
+    console.log('Dev mode: server build not loaded');
     return;
   }
 
   const serverBuildPath = path.join(app.getAppPath(), 'build/server/index.js');
-  appLogger(`Loading server build... path is ${serverBuildPath}`);
+  console.log(`Loading server build... path is ${serverBuildPath}`);
 
   try {
     const fileUrl = pathToFileURL(serverBuildPath).href;
     const serverBuild: ServerBuild = /** @type {ServerBuild} */ await import(fileUrl);
-    appLogger('Server build loaded successfully');
+    console.log('Server build loaded successfully');
 
     // eslint-disable-next-line consistent-return
     return serverBuild;
   } catch (buildError) {
-    appLogger('Failed to load server build:', {
+    console.log('Failed to load server build:', {
       message: (buildError as Error)?.message,
       stack: (buildError as Error)?.stack,
       error: JSON.stringify(buildError, Object.getOwnPropertyNames(buildError as object)),
@@ -172,15 +167,15 @@ async function loadServerBuild(): Promise<any> {
 
 (async () => {
   await app.whenReady();
-  appLogger('App is ready');
+  console.log('App is ready');
 
   const serverBuild = await loadServerBuild();
 
   protocol.handle('http', async (req) => {
-    appLogger('Handling request for:', req.url);
+    console.log('Handling request for:', req.url);
 
     if (isDev) {
-      appLogger('Dev mode: forwarding to vite server');
+      console.log('Dev mode: forwarding to vite server');
       return await fetch(req);
     }
 
@@ -191,7 +186,7 @@ async function loadServerBuild(): Promise<any> {
 
       // Forward requests to specific local server ports
       if (url.port !== `${DEFAULT_PORT}`) {
-        appLogger('Forwarding request to local server:', req.url);
+        console.log('Forwarding request to local server:', req.url);
         return await fetch(req);
       }
 
@@ -199,31 +194,26 @@ async function loadServerBuild(): Promise<any> {
       const res = await serveAsset(req, rendererClientPath);
 
       if (res) {
-        appLogger('Served asset:', req.url);
+        console.log('Served asset:', req.url);
         return res;
       }
 
       // Create request handler with the server build
       const handler = createRequestHandler(serverBuild, 'production');
-      appLogger('Handling request with server build:', req.url);
+      console.log('Handling request with server build:', req.url);
 
       const result = await handler(req, {
+        /*
+         * Remix app access cloudflare.env
+         * Need to pass an empty object to prevent undefined
+         */
         // @ts-ignore:next-line
         cloudflare: {},
       });
 
-      if (result.status >= 400) {
-        const body = await result.text();
-        appLogger('Error response from handler:', {
-          url: req.url,
-          status: result.status,
-          body,
-        });
-      }
-
       return result;
     } catch (err) {
-      appLogger('Error handling request:', {
+      console.log('Error handling request:', {
         url: req.url,
         error:
           err instanceof Error
@@ -260,7 +250,7 @@ async function loadServerBuild(): Promise<any> {
       })()
     : `http://localhost:${DEFAULT_PORT}`);
 
-  appLogger('Using renderer URL:', rendererURL);
+  console.log('Using renderer URL:', rendererURL);
 
   const win = await createWindow(rendererURL);
 
@@ -270,7 +260,7 @@ async function loadServerBuild(): Promise<any> {
     }
   });
 
-  appLogger('end whenReady');
+  console.log('end whenReady');
 
   return win;
 })()
@@ -278,7 +268,7 @@ async function loadServerBuild(): Promise<any> {
     // IPC samples : send and recieve.
     let count = 0;
     setInterval(() => win.webContents.send('ping', `hello from main! ${count++}`), 60 * 1000);
-    ipcMain.handle('ipcTest', (event, ...args) => appLogger('ipc: renderer -> main', { event, ...args }));
+    ipcMain.handle('ipcTest', (event, ...args) => console.log('ipc: renderer -> main', { event, ...args }));
 
     return win;
   })
@@ -338,15 +328,15 @@ app.on('before-quit', async (_event) => {
    * event.preventDefault();
    */
   try {
-    appLogger('will close vite-dev-server.');
+    console.log('will close vite-dev-server.');
     await viteServer.close();
-    appLogger('closed vite-dev-server.');
+    console.log('closed vite-dev-server.');
 
     // app.quit(); // Not working. causes recursively 'before-quit' events.
     app.exit(); // Not working expectedly SOMETIMES. Still throws exception and macOS shows dialog.
     // global.process.exit(0); // Not working well... I still see exceptional dialog.
   } catch (err) {
-    appLogger('failed to close Vite server:', err);
+    console.log('failed to close Vite server:', err);
   }
 });
 
@@ -354,20 +344,20 @@ app.on('before-quit', async (_event) => {
 export async function serveAsset(req: Request, assetsPath: string): Promise<Response | undefined> {
   const url = new URL(req.url);
   const fullPath = path.join(assetsPath, decodeURIComponent(url.pathname));
-  appLogger('Serving asset, path:', fullPath);
+  console.log('Serving asset, path:', fullPath);
 
   if (!fullPath.startsWith(assetsPath)) {
-    appLogger('Path is outside assets directory:', fullPath);
+    console.log('Path is outside assets directory:', fullPath);
     return;
   }
 
   const stat = await fs.stat(fullPath).catch((err) => {
-    appLogger('Failed to stat file:', fullPath, err);
+    console.log('Failed to stat file:', fullPath, err);
     return undefined;
   });
 
   if (!stat?.isFile()) {
-    appLogger('Not a file:', fullPath);
+    console.log('Not a file:', fullPath);
     return;
   }
 
@@ -378,7 +368,7 @@ export async function serveAsset(req: Request, assetsPath: string): Promise<Resp
     headers.set('Content-Type', mimeType);
   }
 
-  appLogger('Serving file with mime type:', mimeType);
+  console.log('Serving file with mime type:', mimeType);
 
   const body = createReadableStreamFromReadable(createReadStream(fullPath));
 
@@ -416,7 +406,7 @@ const { signal } = abort;
     }
 
     if (err.name === 'AbortError') {
-      appLogger('abort watching:', dir);
+      console.log('abort watching:', dir);
       return;
     }
   }
