@@ -23,6 +23,7 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+      
       'process': JSON.stringify({
         env: process.env,
         version: process.version,
@@ -47,11 +48,11 @@ export default defineConfig((config) => {
     plugins: [
       nodePolyfills({
         include: ['path', 'buffer'],
-        globals: {
-          Buffer: true,
-          global: true,
-          process: true,
-        },
+        // globals: {
+        //   Buffer: true,
+        //   global: true,
+        //   process: true,
+        // },
         // Ensure polyfills are inlined during build
         protocolImports: true,
       }),
@@ -69,22 +70,22 @@ export default defineConfig((config) => {
       chrome129IssuePlugin(),
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
       // Add polyfill injection plugin
-      {
-        name: 'inject-polyfills',
-        transform(code, id) {
-          // Only inject in client builds
-          if (!isServer && id.includes('entry.client')) {
-            const injection = `
-              import { Buffer } from 'buffer';
-              window.Buffer = Buffer;
-            `;
-            return {
-              code: injection + code,
-              map: null
-            };
-          }
-        }
-      },
+      // {
+      //   name: 'inject-polyfills',
+      //   transform(code, id) {
+      //     // Only inject in client builds
+      //     if (!isServer && id.includes('entry.client')) {
+      //       const injection = `
+      //         import { Buffer } from 'buffer';
+      //         window.Buffer = Buffer;
+      //       `;
+      //       return {
+      //         code: injection + code,
+      //         map: null
+      //       };
+      //     }
+      //   }
+      // },
 
     ],
     
