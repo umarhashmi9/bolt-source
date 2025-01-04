@@ -1,4 +1,5 @@
-import { convertToCoreMessages, streamText as _streamText } from 'ai';
+import { convertToCoreMessages, streamText as _streamText, type CoreMessage } from 'ai';
+import fs from 'fs';
 import { MAX_TOKENS } from './constants';
 import { getSystemPrompt } from '~/lib/common/prompts/prompts';
 import {
@@ -50,16 +51,12 @@ type Dirent = File | Folder;
 export type FileMap = Record<string, Dirent | undefined>;
 
 export function simplifyBoltActions(input: string): string {
-  // Using regex to match boltAction tags that have type="file"
   const regex = /(<boltAction[^>]*type="file"[^>]*>)([\s\S]*?)(<\/boltAction>)/g;
-
-  // Replace each matching occurrence
   return input.replace(regex, (_0, openingTag, _2, closingTag) => {
     return `${openingTag}\n          ...\n        ${closingTag}`;
   });
 }
 
-// Common patterns to ignore, similar to .gitignore
 const IGNORE_PATTERNS = [
   'node_modules/**',
   '.git/**',
@@ -79,6 +76,12 @@ const IGNORE_PATTERNS = [
   '**/*lock.yml',
 ];
 const ig = ignore().add(IGNORE_PATTERNS);
+
+const CACHE_CONTROL_METADATA = {
+  experimental_providerMetadata: {
+    anthropic: { cacheControl: { type: 'ephemeral' } },
+  },
+};
 
 function createFilesContext(files: FileMap) {
   let filePaths = Object.keys(files);
@@ -107,6 +110,15 @@ function createFilesContext(files: FileMap) {
   return `Below are the code files present in the webcontainer:\ncode format:\n<line number>|<line content>\n <codebase>${fileContexts.join('\n\n')}\n\n</codebase>`;
 }
 
+function persistMessages(messages: CoreMessage[]) {
+  try {
+    const messagesFilePath = 'messages.json';
+    fs.writeFileSync(messagesFilePath, JSON.stringify(messages, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Error writing messages to file:', error);
+  }
+}
+
 function extractPropertiesFromMessage(message: Message): { model: string; provider: string; content: string } {
   const textContent = Array.isArray(message.content)
     ? message.content.find((item) => item.type === 'text')?.text || ''
@@ -115,16 +127,7 @@ function extractPropertiesFromMessage(message: Message): { model: string; provid
   const modelMatch = textContent.match(MODEL_REGEX);
   const providerMatch = textContent.match(PROVIDER_REGEX);
 
-  /*
-   * Extract model
-   * const modelMatch = message.content.match(MODEL_REGEX);
-   */
   const model = modelMatch ? modelMatch[1] : DEFAULT_MODEL;
-
-  /*
-   * Extract provider
-   * const providerMatch = message.content.match(PROVIDER_REGEX);
-   */
   const provider = providerMatch ? providerMatch[1] : DEFAULT_PROVIDER.name;
 
   const cleanedContent = Array.isArray(message.content)
@@ -136,7 +139,7 @@ function extractPropertiesFromMessage(message: Message): { model: string; provid
           };
         }
 
-        return item; // Preserve image_url and other types as is
+        return item;
       })
     : textContent.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, '');
 
@@ -154,20 +157,36 @@ export async function streamText(props: {
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
   contextOptimization?: boolean;
+  isPromptCachingEnabled?: boolean;
 }) {
-  const { messages, env: serverEnv, options, apiKeys, files, providerSettings, promptId, contextOptimization } = props;
-
-  // console.log({serverEnv});
+  const {
+    messages,
+    env: serverEnv,
+    options,
+    apiKeys,
+    files,
+    providerSettings,
+    promptId,
+    contextOptimization,
+    isPromptCachingEnabled,
+  } = props;
 
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  const processedMessages = messages.map((message) => {
+
+  const processedMessages = messages.map((message, idx) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
       currentModel = model;
       currentProvider = provider;
 
-      return { ...message, content };
+      const putCacheControl = isPromptCachingEnabled && idx >= messages?.length - 4;
+
+      return {
+        ...message,
+        content,
+        ...(putCacheControl && CACHE_CONTROL_METADATA),
+      };
     } else if (message.role == 'assistant') {
       let content = message.content;
 
@@ -225,6 +244,33 @@ export async function streamText(props: {
   }
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
+
+  if (isPromptCachingEnabled) {
+    const messages = [
+      {
+        role: 'system',
+        content: systemPrompt,
+        experimental_providerMetadata: {
+          anthropic: { cacheControl: { type: 'ephemeral' } },
+        },
+      },
+      ...processedMessages,
+    ] as CoreMessage[];
+
+    persistMessages(messages);
+
+    return _streamText({
+      model: provider.getModelInstance({
+        model: currentModel,
+        serverEnv,
+        apiKeys,
+        providerSettings,
+      }),
+      maxTokens: dynamicMaxTokens,
+      messages,
+      ...options,
+    });
+  }
 
   return _streamText({
     model: provider.getModelInstance({
