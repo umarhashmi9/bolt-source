@@ -321,6 +321,9 @@ importers:
       vite:
         specifier: ^5.4.11
         version: 5.4.11(@types/node@22.10.1)(sass-embedded@1.81.0)
+      vite-plugin-copy:
+        specifier: ^0.1.6
+        version: 0.1.6
       vite-plugin-node-polyfills:
         specifier: ^0.22.0
         version: 0.22.0(rollup@4.28.0)(vite@5.4.11(@types/node@22.10.1)(sass-embedded@1.81.0))
@@ -6579,6 +6582,10 @@ packages:
     resolution: {integrity: sha512-uPAwSr57kYjAUux+8E2j0q0Fxpn8M9VoyfGiRI8Kfktz9NcYMCenwY5RnZxnF1WTu3TGiYipirIzacLL3VVGFg==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
+
+  vite-plugin-copy@0.1.6:
+    resolution: {integrity: sha512-bqIaefZOE2Jx8P5wJuHKL5GzCERa/pcwdUQWaocyTNXgalN2xkxXH7LmqRJ34V2OlKF2F9E/zj0zITS7U6PpUg==}
+    engines: {node: '>=14.8.0'}
 
   vite-plugin-node-polyfills@0.22.0:
     resolution: {integrity: sha512-F+G3LjiGbG8QpbH9bZ//GSBr9i1InSTkaulfUHFa9jkLqVGORFBoqc2A/Yu5Mmh1kNAbiAeKeK+6aaQUf3x0JA==}
@@ -14186,6 +14193,10 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  vite-plugin-copy@0.1.6:
+    dependencies:
+      fast-glob: 3.3.2
 
   vite-plugin-node-polyfills@0.22.0(rollup@4.28.0)(vite@5.4.11(@types/node@22.10.1)(sass-embedded@1.81.0)):
     dependencies:

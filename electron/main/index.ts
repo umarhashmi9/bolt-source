@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createReadableStreamFromReadable, createRequestHandler } from '@remix-run/node';
+import type { ServerBuild } from '@remix-run/node';
 import electron, { app, BrowserWindow, ipcMain, Menu, protocol } from 'electron';
 import log from 'electron-log'; // write logs into ${app.getPath("logs")}/main.log without `/main`.
 import ElectronStore from 'electron-store';
@@ -31,19 +32,9 @@ console.debug('main: import.meta.env:', import.meta.env);
 const __dirname = fileURLToPath(import.meta.url);
 const isDev = !(global.process.env.NODE_ENV === 'production' || app.isPackaged);
 
-// Set up logging
-const logFile = path.join(app.getPath('userData'), 'electron-app.log');
-
 async function appLogger(...args: any[]) {
   const message = args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg)).join(' ');
-
-  if (isDev) {
-    console.log(message);
-  } else {
-    const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${message}\n`;
-    await fs.appendFile(logFile, logMessage);
-  }
+  console.log(message);
 }
 
 appLogger('main: isDev:', isDev);
@@ -163,7 +154,7 @@ async function loadServerBuild(): Promise<any> {
 
   try {
     const fileUrl = pathToFileURL(serverBuildPath).href;
-    const serverBuild = await import(fileUrl);
+    const serverBuild: ServerBuild = /** @type {ServerBuild} */ await import(fileUrl);
     appLogger('Server build loaded successfully');
 
     // eslint-disable-next-line consistent-return
@@ -204,20 +195,33 @@ async function loadServerBuild(): Promise<any> {
         return await fetch(req);
       }
 
-      // Skip asset serving for API routes
-      if (!url.pathname.startsWith('/api/')) {
-        const res = await serveAsset(req, rendererClientPath);
+      // Always try to serve asset first
+      const res = await serveAsset(req, rendererClientPath);
 
-        if (res) {
-          appLogger('Served asset:', req.url);
-          return res;
-        }
+      if (res) {
+        appLogger('Served asset:', req.url);
+        return res;
       }
 
       // Create request handler with the server build
       const handler = createRequestHandler(serverBuild, 'production');
+      appLogger('Handling request with server build:', req.url);
 
-      return await handler(req);
+      const result = await handler(req, {
+        // @ts-ignore:next-line
+        cloudflare: {},
+      });
+
+      if (result.status >= 400) {
+        const body = await result.text();
+        appLogger('Error response from handler:', {
+          url: req.url,
+          status: result.status,
+          body,
+        });
+      }
+
+      return result;
     } catch (err) {
       appLogger('Error handling request:', {
         url: req.url,
