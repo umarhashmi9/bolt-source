@@ -1,5 +1,3 @@
-// remix-electron.config.ts
-
 import { defineConfig } from 'vite';
 import { vitePlugin as remixVitePlugin } from '@remix-run/dev';
 import UnoCSS from 'unocss/vite';
@@ -7,8 +5,23 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+import { execSync } from 'child_process';
+
+// Get git hash with fallback
+const getGitHash = () => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'no-git-info';
+  }
+};
+
 export default defineConfig((config) => {
   return {
+    define: {
+      __COMMIT_HASH: JSON.stringify(getGitHash()),
+      __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+    },
     build: {
       target: 'esnext',
     },
@@ -44,7 +57,13 @@ export default defineConfig((config) => {
         },
       },
     ],
-    envPrefix: ['VITE_', 'OPENAI_LIKE_API_', 'OLLAMA_API_BASE_URL', 'LMSTUDIO_API_BASE_URL', 'TOGETHER_API_BASE_URL'],
+    envPrefix: [
+      'VITE_',
+      'OPENAI_LIKE_API_BASE_URL',
+      'OLLAMA_API_BASE_URL',
+      'LMSTUDIO_API_BASE_URL',
+      'TOGETHER_API_BASE_URL',
+    ],
     css: {
       preprocessorOptions: {
         scss: {

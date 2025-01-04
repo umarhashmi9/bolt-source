@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useSettings } from '~/lib/hooks/useSettings';
-import commit from '~/commit.json';
 import { toast } from 'react-toastify';
+import { providerBaseUrlEnvKeys } from '~/utils/constants';
 
 interface ProviderStatus {
   name: string;
@@ -22,6 +22,12 @@ interface SystemInfo {
   timezone: string;
   memory: string;
   cores: number;
+  deviceType: string;
+  colorDepth: string;
+  pixelRatio: number;
+  online: boolean;
+  cookiesEnabled: boolean;
+  doNotTrack: boolean;
 }
 
 interface IProviderConfig {
@@ -34,15 +40,41 @@ interface IProviderConfig {
 
 interface CommitData {
   commit: string;
+  version?: string;
 }
 
+const connitJson: CommitData = {
+  commit: __COMMIT_HASH,
+  version: __APP_VERSION,
+};
+
 const LOCAL_PROVIDERS = ['Ollama', 'LMStudio', 'OpenAILike'];
-const versionHash = commit.commit;
+
+const versionHash = connitJson.commit;
+const versionTag = connitJson.version;
+
 const GITHUB_URLS = {
   original: 'https://api.github.com/repos/stackblitz-labs/bolt.diy/commits/main',
   fork: 'https://api.github.com/repos/Stijnus/bolt.new-any-llm/commits/main',
-  commitJson: (branch: string) =>
-    `https://raw.githubusercontent.com/stackblitz-labs/bolt.diy/${branch}/app/commit.json`,
+  commitJson: async (branch: string) => {
+    try {
+      const response = await fetch(`https://api.github.com/repos/stackblitz-labs/bolt.diy/commits/${branch}`);
+      const data: { sha: string } = await response.json();
+
+      const packageJsonResp = await fetch(
+        `https://raw.githubusercontent.com/stackblitz-labs/bolt.diy/${branch}/package.json`,
+      );
+      const packageJson: { version: string } = await packageJsonResp.json();
+
+      return {
+        commit: data.sha.slice(0, 7),
+        version: packageJson.version,
+      };
+    } catch (error) {
+      console.log('Failed to fetch local commit info:', error);
+      throw new Error('Failed to fetch local commit info');
+    }
+  },
 };
 
 function getSystemInfo(): SystemInfo {
@@ -58,14 +90,100 @@ function getSystemInfo(): SystemInfo {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getBrowserInfo = (): string => {
+    const ua = navigator.userAgent;
+    let browser = 'Unknown';
+
+    if (ua.includes('Firefox/')) {
+      browser = 'Firefox';
+    } else if (ua.includes('Chrome/')) {
+      if (ua.includes('Edg/')) {
+        browser = 'Edge';
+      } else if (ua.includes('OPR/')) {
+        browser = 'Opera';
+      } else {
+        browser = 'Chrome';
+      }
+    } else if (ua.includes('Safari/')) {
+      if (!ua.includes('Chrome')) {
+        browser = 'Safari';
+      }
+    }
+
+    // Extract version number
+    const match = ua.match(new RegExp(`${browser}\\/([\\d.]+)`));
+    const version = match ? ` ${match[1]}` : '';
+
+    return `${browser}${version}`;
+  };
+
+  const getOperatingSystem = (): string => {
+    const ua = navigator.userAgent;
+    const platform = navigator.platform;
+
+    if (ua.includes('Win')) {
+      return 'Windows';
+    }
+
+    if (ua.includes('Mac')) {
+      if (ua.includes('iPhone') || ua.includes('iPad')) {
+        return 'iOS';
+      }
+
+      return 'macOS';
+    }
+
+    if (ua.includes('Linux')) {
+      return 'Linux';
+    }
+
+    if (ua.includes('Android')) {
+      return 'Android';
+    }
+
+    return platform || 'Unknown';
+  };
+
+  const getDeviceType = (): string => {
+    const ua = navigator.userAgent;
+
+    if (ua.includes('Mobile')) {
+      return 'Mobile';
+    }
+
+    if (ua.includes('Tablet')) {
+      return 'Tablet';
+    }
+
+    return 'Desktop';
+  };
+
+  // Get more detailed memory info if available
+  const getMemoryInfo = (): string => {
+    if ('memory' in performance) {
+      const memory = (performance as any).memory;
+      return `${formatBytes(memory.jsHeapSizeLimit)} (Used: ${formatBytes(memory.usedJSHeapSize)})`;
+    }
+
+    return 'Not available';
+  };
+
   return {
-    os: navigator.platform,
-    browser: navigator.userAgent.split(' ').slice(-1)[0],
+    os: getOperatingSystem(),
+    browser: getBrowserInfo(),
     screen: `${window.screen.width}x${window.screen.height}`,
     language: navigator.language,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    memory: formatBytes(performance?.memory?.jsHeapSizeLimit || 0),
+    memory: getMemoryInfo(),
     cores: navigator.hardwareConcurrency || 0,
+    deviceType: getDeviceType(),
+
+    // Add new fields
+    colorDepth: `${window.screen.colorDepth}-bit`,
+    pixelRatio: window.devicePixelRatio,
+    online: navigator.onLine,
+    cookiesEnabled: navigator.cookieEnabled,
+    doNotTrack: navigator.doNotTrack === '1',
   };
 }
 
@@ -140,7 +258,7 @@ const checkProviderStatus = async (url: string | null, providerName: string): Pr
     }
 
     // Try different endpoints based on provider
-    const checkUrls = [`${url}/api/health`, `${url}/v1/models`];
+    const checkUrls = [`${url}/api/health`, url.endsWith('v1') ? `${url}/models` : `${url}/v1/models`];
     console.log(`[Debug] Checking additional endpoints:`, checkUrls);
 
     const results = await Promise.all(
@@ -207,7 +325,7 @@ const checkProviderStatus = async (url: string | null, providerName: string): Pr
 };
 
 export default function DebugTab() {
-  const { providers, useLatestBranch } = useSettings();
+  const { providers, isLatestBranch } = useSettings();
   const [activeProviders, setActiveProviders] = useState<ProviderStatus[]>([]);
   const [updateMessage, setUpdateMessage] = useState<string>('');
   const [systemInfo] = useState<SystemInfo>(getSystemInfo());
@@ -225,14 +343,16 @@ export default function DebugTab() {
           .filter(([, provider]) => LOCAL_PROVIDERS.includes(provider.name))
           .map(async ([, provider]) => {
             const envVarName =
-              provider.name.toLowerCase() === 'ollama'
-                ? 'OLLAMA_API_BASE_URL'
-                : provider.name.toLowerCase() === 'lmstudio'
-                  ? 'LMSTUDIO_API_BASE_URL'
-                  : `REACT_APP_${provider.name.toUpperCase()}_URL`;
+              providerBaseUrlEnvKeys[provider.name].baseUrlKey || `REACT_APP_${provider.name.toUpperCase()}_URL`;
 
             // Access environment variables through import.meta.env
-            const url = import.meta.env[envVarName] || provider.settings.baseUrl || null; // Ensure baseUrl is used
+            let settingsUrl = provider.settings.baseUrl;
+
+            if (settingsUrl && settingsUrl.trim().length === 0) {
+              settingsUrl = undefined;
+            }
+
+            const url = settingsUrl || import.meta.env[envVarName] || null; // Ensure baseUrl is used
             console.log(`[Debug] Using URL for ${provider.name}:`, url, `(from ${envVarName})`);
 
             const status = await checkProviderStatus(url, provider.name);
@@ -267,17 +387,12 @@ export default function DebugTab() {
       setIsCheckingUpdate(true);
       setUpdateMessage('Checking for updates...');
 
-      const branchToCheck = useLatestBranch ? 'main' : 'stable';
+      const branchToCheck = isLatestBranch ? 'main' : 'stable';
       console.log(`[Debug] Checking for updates against ${branchToCheck} branch`);
 
-      const localCommitResponse = await fetch(GITHUB_URLS.commitJson(branchToCheck));
+      const latestCommitResp = await GITHUB_URLS.commitJson(branchToCheck);
 
-      if (!localCommitResponse.ok) {
-        throw new Error('Failed to fetch local commit info');
-      }
-
-      const localCommitData = (await localCommitResponse.json()) as CommitData;
-      const remoteCommitHash = localCommitData.commit;
+      const remoteCommitHash = latestCommitResp.commit;
       const currentCommitHash = versionHash;
 
       if (remoteCommitHash !== currentCommitHash) {
@@ -295,7 +410,7 @@ export default function DebugTab() {
     } finally {
       setIsCheckingUpdate(false);
     }
-  }, [isCheckingUpdate, useLatestBranch]);
+  }, [isCheckingUpdate, isLatestBranch]);
 
   const handleCopyToClipboard = useCallback(() => {
     const debugInfo = {
@@ -312,7 +427,7 @@ export default function DebugTab() {
       })),
       Version: {
         hash: versionHash.slice(0, 7),
-        branch: useLatestBranch ? 'main' : 'stable',
+        branch: isLatestBranch ? 'main' : 'stable',
       },
       Timestamp: new Date().toISOString(),
     };
@@ -320,7 +435,7 @@ export default function DebugTab() {
     navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2)).then(() => {
       toast.success('Debug information copied to clipboard!');
     });
-  }, [activeProviders, systemInfo, useLatestBranch]);
+  }, [activeProviders, systemInfo, isLatestBranch]);
 
   return (
     <div className="p-4 space-y-6">
@@ -381,8 +496,29 @@ export default function DebugTab() {
                 <p className="text-sm font-medium text-bolt-elements-textPrimary">{systemInfo.os}</p>
               </div>
               <div>
+                <p className="text-xs text-bolt-elements-textSecondary">Device Type</p>
+                <p className="text-sm font-medium text-bolt-elements-textPrimary">{systemInfo.deviceType}</p>
+              </div>
+              <div>
                 <p className="text-xs text-bolt-elements-textSecondary">Browser</p>
                 <p className="text-sm font-medium text-bolt-elements-textPrimary">{systemInfo.browser}</p>
+              </div>
+              <div>
+                <p className="text-xs text-bolt-elements-textSecondary">Display</p>
+                <p className="text-sm font-medium text-bolt-elements-textPrimary">
+                  {systemInfo.screen} ({systemInfo.colorDepth}) @{systemInfo.pixelRatio}x
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-bolt-elements-textSecondary">Connection</p>
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${systemInfo.online ? 'bg-green-500' : 'bg-red-500'}`}
+                  />
+                  <span className={`${systemInfo.online ? 'text-green-600' : 'text-red-600'}`}>
+                    {systemInfo.online ? 'Online' : 'Offline'}
+                  </span>
+                </p>
               </div>
               <div>
                 <p className="text-xs text-bolt-elements-textSecondary">Screen Resolution</p>
@@ -404,9 +540,9 @@ export default function DebugTab() {
             <div className="mt-3 pt-3 border-t border-bolt-elements-surface-hover">
               <p className="text-xs text-bolt-elements-textSecondary">Version</p>
               <p className="text-sm font-medium text-bolt-elements-textPrimary font-mono">
-                {versionHash.slice(0, 7)}
+                {connitJson.commit.slice(0, 7)}
                 <span className="ml-2 text-xs text-bolt-elements-textSecondary">
-                  ({new Date().toLocaleDateString()})
+                  (v{versionTag || '0.0.1'}) - {isLatestBranch ? 'nightly' : 'stable'}
                 </span>
               </p>
             </div>
