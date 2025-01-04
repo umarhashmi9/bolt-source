@@ -14,7 +14,7 @@ const ENV_API_KEY_MAP: Record<string, string> = {
   OpenRouter: 'OPENROUTER_API_KEY',
 };
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async ({ context, request }) => {
   const url = new URL(request.url);
   const provider = url.searchParams.get('provider');
 
@@ -23,7 +23,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   }
 
   const envVarName = ENV_API_KEY_MAP[provider];
-  const isSet = !!process.env[envVarName];
+  const isSet = !!(process.env[envVarName] || (context?.cloudflare?.env as Record<string, any>)?.[envVarName]);
 
   return Response.json({ isSet });
 };

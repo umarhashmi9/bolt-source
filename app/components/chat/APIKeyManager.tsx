@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import type { ProviderInfo } from '~/types/model';
 import Cookies from 'js-cookie';
@@ -24,6 +24,10 @@ const ENV_API_KEY_MAP: Record<string, string> = {
   Together: 'TOGETHER_API_KEY',
   OpenRouter: 'OPENROUTER_API_KEY',
 };
+
+// cache which stores whether the provider's API key is set via environment variable
+const providerEnvKeyStatusCache: Record<string, boolean> = {};
+
 const apiKeyMemoizeCache: { [k: string]: Record<string, string> } = {};
 
 export function getApiKeysFromCookies() {
@@ -46,31 +50,38 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   const [isEditing, setIsEditing] = useState(false);
   const [tempKey, setTempKey] = useState(apiKey);
   const [isEnvKeySet, setIsEnvKeySet] = useState(false);
-  const previousProvider = useRef(provider.name);
 
+  // Reset states when provider changes
   useEffect(() => {
-    if (previousProvider.current !== provider.name) {
-      setTempKey('');
-      setApiKey('');
-      setIsEditing(false);
-      previousProvider.current = provider.name;
-    }
-  }, [provider.name, setApiKey]);
-
-  useEffect(() => {
-    const checkEnvApiKey = async () => {
-      try {
-        const response = await fetch(`/api/check-env-key?provider=${encodeURIComponent(provider.name)}`);
-        const data = await response.json();
-        setIsEnvKeySet((data as { isSet: boolean }).isSet);
-      } catch (error) {
-        console.error('Failed to check environment API key:', error);
-        setIsEnvKeySet(false);
-      }
-    };
-
-    checkEnvApiKey();
+    setTempKey('');
+    setApiKey('');
+    setIsEditing(false);
   }, [provider.name]);
+
+  const checkEnvApiKey = useCallback(async () => {
+    // Check cache first
+    if (providerEnvKeyStatusCache[provider.name] !== undefined) {
+      setIsEnvKeySet(providerEnvKeyStatusCache[provider.name]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/check-env-key?provider=${encodeURIComponent(provider.name)}`);
+      const data = await response.json();
+      const isSet = (data as { isSet: boolean }).isSet;
+
+      // Cache the result
+      providerEnvKeyStatusCache[provider.name] = isSet;
+      setIsEnvKeySet(isSet);
+    } catch (error) {
+      console.error('Failed to check environment API key:', error);
+      setIsEnvKeySet(false);
+    }
+  }, [provider.name]);
+
+  useEffect(() => {
+    checkEnvApiKey();
+  }, [checkEnvApiKey]);
 
   const handleSave = () => {
     setApiKey(tempKey);
