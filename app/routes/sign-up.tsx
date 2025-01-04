@@ -1,7 +1,7 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
 import { data, Form, Link, redirect } from '@remix-run/react';
 import { getSession, commitSession } from '~/lib/services/session.server';
-import { prisma } from '~/lib/prisma';
+// import { prisma } from '~/lib/prisma';
 import { authenticator } from '~/lib/services/auth.server';
 import Input from '~/components/ui/input';
 
@@ -11,24 +11,23 @@ export const action: ActionFunction = async ({ request }) => {
   const username = form.get('username');
   const password = form.get('password');
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      password,
-    },
-  });
-  try {
-    await authenticator.authenticate('user-pass', request);
-    let session = await getSession(request);
-    session.set('user', user);
-
-    throw redirect('/', {
-      headers: { 'Set-Cookie': await commitSession(session) },
-    });
-  } catch (error) {
-    console.error(error);
-  }
+  // const user = await prisma.user.create({
+  //   data: {
+  //     username,
+  //     email,
+  //     password,
+  //   },
+  // });
+  // try {
+  //   await authenticator.authenticate('user-pass', request);
+  //   let session = await getSession(request);
+  //   session.set('user', user);
+  //   throw redirect('/', {
+  //     headers: { 'Set-Cookie': await commitSession(session) },
+  //   });
+  // } catch (error) {
+  //   console.error(error);
+  // }
 };
 
 export const loader: LoaderFunction = async ({ request }) => {
@@ -47,10 +46,12 @@ const SignUpPage = () => {
           <p className="text-bolt-elements-textSecondary">Create your Bolt.diy account.</p>
         </div>
         <div className="flex items-center flex-col gap-7 rounded-md flex items-center justify-center">
-          <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-            <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
-            <span className="text-sm font-bold">Sign up with GitHub</span>
-          </button>
+          <Form action="github" method="post" className="w-full">
+            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
+              <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
+              <span className="text-sm font-bold">Sign up with GitHub</span>
+            </button>
+          </Form>
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="flex flex-col gap-2">

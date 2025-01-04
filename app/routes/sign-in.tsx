@@ -10,24 +10,24 @@ export const action: ActionFunction = async ({ request }) => {
   const username = form.get('username');
   const password = form.get('password');
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      password,
-    },
-  });
-  try {
-    await authenticator.authenticate('user-pass', request);
-    let session = await getSession(request);
-    session.set('user', user);
+  // const user = await prisma.user.create({
+  //   data: {
+  //     username,
+  //     email,
+  //     password,
+  //   },
+  // });
+  // try {
+  //   await authenticator.authenticate('user-pass', request);
+  //   let session = await getSession(request);
+  //   session.set('user', user);
 
-    throw redirect('/', {
-      headers: { 'Set-Cookie': await commitSession(session) },
-    });
-  } catch (error) {
-    console.error(error);
-  }
+  //   throw redirect('/', {
+  //     headers: { 'Set-Cookie': await commitSession(session) },
+  //   });
+  // } catch (error) {
+  //   console.error(error);
+  // }
 };
 
 export const loader: LoaderFunction = async ({ request }) => {

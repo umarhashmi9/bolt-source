@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react';
-import type { LinksFunction, LoaderFunction } from '@remix-run/cloudflare';
+import type { LinksFunction } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
@@ -7,9 +7,6 @@ import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
 import { useEffect } from 'react';
 
-// Import ClerkApp
-import { ClerkApp } from '@clerk/remix';
-import { rootAuthLoader } from '@clerk/remix/ssr.server';
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
 import globalStyles from './styles/index.scss?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
@@ -55,9 +52,6 @@ const inlineThemeCode = stripIndents`
   }
 `;
 
-// Export as the root route loader
-export const loader: LoaderFunction = (args) => rootAuthLoader(args);
-
 export const Head = createHead(() => (
   <>
     <meta charSet="utf-8" />
@@ -86,7 +80,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 import { logStore } from './lib/stores/logs';
 
-function App() {
+export default function App() {
   const theme = useStore(themeStore);
 
   useEffect(() => {
@@ -104,5 +98,3 @@ function App() {
     </Layout>
   );
 }
-
-export default ClerkApp(App);
