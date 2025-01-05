@@ -34,8 +34,8 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
   const artifact = artifacts[messageId];
 
   const actions = useStore(
-    computed(artifact?.runner?.actions ?? [], (actions) => {
-      return Object.values(actions);
+    computed(artifact?.runner?.actions, (actions) => {
+      return actions ? Object.values(actions): [] ;
     }),
   );
 
