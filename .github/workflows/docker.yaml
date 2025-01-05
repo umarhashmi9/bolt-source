@@ -59,6 +59,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: bolt-ai-production
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
