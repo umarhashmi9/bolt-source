@@ -72,7 +72,7 @@ export default function ConnectionsTab() {
         hasToken: !!githubToken,
       });
       toast.success('GitHub credentials verified and saved successfully!');
-      Cookies.set('git:github.com', JSON.stringify({ username: githubToken, password: 'x-oauth-basic' }));
+      Cookies.set('git:github.com', JSON.stringify({ username: githubUsername, password: githubToken }));
       setIsConnected(true);
     } else {
       toast.error('Invalid GitHub credentials. Please check your username and token.');
