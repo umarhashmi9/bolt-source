@@ -72,10 +72,10 @@ Options:
   -p, --port      Specify a custom port (default: 5173)
 
 Examples:
-  bolt              Start with default settings
-  bolt --port 3000  Start on port 3000
-  bolt --help       Show this help message
-  bolt --version    Show version information
+  bolt.diy              Start with default settings
+  bolt.diy --port 3000  Start on port 3000
+  bolt.diy --help       Show this help message
+  bolt.diy --version    Show version information
 
 For more information, visit: https://github.com/stackblitz-labs/bolt.diy
 `);

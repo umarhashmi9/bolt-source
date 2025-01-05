@@ -4,6 +4,7 @@ import { defineConfig, type ViteDevServer } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import fs from 'fs';
 
 import { execSync } from 'child_process';
 
@@ -18,21 +19,20 @@ const getGitHash = () => {
 
 
 export default defineConfig((config) => {
-  const isServer = process.env.NODE_ENV === 'production' && process.env.BUILDING_SERVER === 'true';
+  const isServer = process.env.NODE_ENV === 'production'&& process.env.BUILDING_SERVER === 'true';
+  
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
+      'process.env': JSON.stringify(process.env),
+      'global': 'globalThis',
     },
     build: {
       target: 'esnext',
       rollupOptions: {
         // Mark problematic modules as external for server build
-        external: isServer ? [
-          'vite-plugin-node-polyfills/shims/process',
-          'buffer',
-          'path'
-        ] : [],
+        external: isServer ? ['buffer', 'path'] : [],
         output: {
           // Ensure correct format for server build
           format: 'esm',
@@ -42,14 +42,26 @@ export default defineConfig((config) => {
     plugins: [
       nodePolyfills({
         include: ['path', 'buffer'],
-        // globals: {
-        //   Buffer: true,
-        //   global: true,
-        //   process: true,
-        // },
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
         // Ensure polyfills are inlined during build
         protocolImports: true,
       }),
+      // {
+      //   name: 'inject-process-shim',
+      //   transform(code, id) {
+      //     // Inject process shim only for server build entry point
+      //     if (isServer && id.includes('entry.server')) {
+      //       return {
+      //         code: processShim + '\n' + code,
+      //         map: null
+      //       };
+      //     }
+      //   },
+      // },
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {
@@ -62,25 +74,8 @@ export default defineConfig((config) => {
       UnoCSS(),
       tsconfigPaths(),
       chrome129IssuePlugin(),
+      
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
-      // Add polyfill injection plugin
-      // {
-      //   name: 'inject-polyfills',
-      //   transform(code, id) {
-      //     // Only inject in client builds
-      //     if (!isServer && id.includes('entry.client')) {
-      //       const injection = `
-      //         import { Buffer } from 'buffer';
-      //         window.Buffer = Buffer;
-      //       `;
-      //       return {
-      //         code: injection + code,
-      //         map: null
-      //       };
-      //     }
-      //   }
-      // },
-
     ],
     
     envPrefix: ["VITE_","OPENAI_LIKE_API_BASE_URL", "OLLAMA_API_BASE_URL", "LMSTUDIO_API_BASE_URL","TOGETHER_API_BASE_URL"],

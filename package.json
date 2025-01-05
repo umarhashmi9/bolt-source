@@ -1,6 +1,6 @@
 {
-  "name": "bolt.diy",
-  "description": "An AI Agent",
+  "name": "@stackblitz-labs/bolt.diy",
+  "description": "Welcome to bolt.diy, An open source tool that lets you use multiple AI language models in one place. Supports OpenAI, Anthropic, Gemini, Mistral, and others, with easy integration for additional models via the Vercel AI SDK.",
   "private": false,
   "license": "MIT",
   "sideEffects": false,
@@ -24,7 +24,8 @@
   "peerDependencies": {
     "wrangler": "^3.91.0",
     "@remix-run/cloudflare": "^2.15.0",
-    "@remix-run/cloudflare-pages": "^2.15.0"
+    "@remix-run/cloudflare-pages": "^2.15.0",
+    "vite-plugin-node-polyfills": "^0.22.0"
   },
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
