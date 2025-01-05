@@ -1,4 +1,3 @@
-
 interface OllamaModelDetails {
   parent_model: string;
   format: string;
@@ -19,10 +18,4 @@ export interface OllamaModel {
 
 export interface OllamaApiResponse {
   models: OllamaModel[];
-}
-
-export interface ModelInfo {
-  name: string;
-  label: string;
-  provider: string;
 }

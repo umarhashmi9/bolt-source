@@ -1,4 +1,8 @@
-import type { ModelInfo, OllamaApiResponse, OllamaModel } from './types';
+import type { IProviderSetting } from '~/types/model';
+
+import { LLMManager } from '~/lib/modules/llm/manager';
+import type { ModelInfo } from '~/lib/modules/llm/types';
+import type { Template } from '~/types/template';
 
 export const WORK_DIR_NAME = 'project';
 export const WORK_DIR = `/home/${WORK_DIR_NAME}`;
@@ -6,129 +10,140 @@ export const MODIFICATIONS_TAG_NAME = 'bolt_file_modifications';
 export const MODEL_REGEX = /^\[Model: (.*?)\]\n\n/;
 export const PROVIDER_REGEX = /\[Provider: (.*?)\]\n\n/;
 export const DEFAULT_MODEL = 'claude-3-5-sonnet-latest';
-export const DEFAULT_PROVIDER = 'Anthropic';
+export const PROMPT_COOKIE_KEY = 'cachedPrompt';
 
-const staticModels: ModelInfo[] = [
-  { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
-  { name: 'anthropic/claude-3.5-sonnet', label: 'Anthropic: Claude 3.5 Sonnet (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'anthropic/claude-3-haiku', label: 'Anthropic: Claude 3 Haiku (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'deepseek/deepseek-coder', label: 'Deepseek-Coder V2 236B (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'google/gemini-flash-1.5', label: 'Google Gemini Flash 1.5 (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'google/gemini-pro-1.5', label: 'Google Gemini Pro 1.5 (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'x-ai/grok-beta', label: "xAI Grok Beta (OpenRouter)", provider: 'OpenRouter' },
-  { name: 'mistralai/mistral-nemo', label: 'OpenRouter Mistral Nemo (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'qwen/qwen-110b-chat', label: 'OpenRouter Qwen 110b Chat (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'cohere/command', label: 'Cohere Command (OpenRouter)', provider: 'OpenRouter' },
-  { name: 'gemini-1.5-flash-latest', label: 'Gemini 1.5 Flash', provider: 'Google' },
-  { name: 'gemini-1.5-pro-latest', label: 'Gemini 1.5 Pro', provider: 'Google' },
-  { name: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70b (Groq)', provider: 'Groq' },
-  { name: 'llama-3.1-8b-instant', label: 'Llama 3.1 8b (Groq)', provider: 'Groq' },
-  { name: 'llama-3.2-11b-vision-preview', label: 'Llama 3.2 11b (Groq)', provider: 'Groq' },
-  { name: 'llama-3.2-3b-preview', label: 'Llama 3.2 3b (Groq)', provider: 'Groq' },
-  { name: 'llama-3.2-1b-preview', label: 'Llama 3.2 1b (Groq)', provider: 'Groq' },
-  { name: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet (new)', provider: 'Anthropic' },
-  { name: 'claude-3-5-sonnet-20240620', label: 'Claude 3.5 Sonnet (old)', provider: 'Anthropic' },
-  { name: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (new)', provider: 'Anthropic' },
-  { name: 'claude-3-opus-latest', label: 'Claude 3 Opus', provider: 'Anthropic' },
-  { name: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', provider: 'Anthropic' },
-  { name: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', provider: 'Anthropic' },
-  { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI' },
-  { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI' },
-  { name: 'gpt-4', label: 'GPT-4', provider: 'OpenAI' },
-  { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'OpenAI' },
-  { name: 'grok-beta', label: "xAI Grok Beta", provider: 'xAI' },
-  { name: 'deepseek-coder', label: 'Deepseek-Coder', provider: 'Deepseek'},
-  { name: 'deepseek-chat', label: 'Deepseek-Chat', provider: 'Deepseek'},
-  { name: 'open-mistral-7b', label: 'Mistral 7B', provider: 'Mistral' },
-  { name: 'open-mixtral-8x7b', label: 'Mistral 8x7B', provider: 'Mistral' },
-  { name: 'open-mixtral-8x22b', label: 'Mistral 8x22B', provider: 'Mistral' },
-  { name: 'open-codestral-mamba', label: 'Codestral Mamba', provider: 'Mistral' },
-  { name: 'open-mistral-nemo', label: 'Mistral Nemo', provider: 'Mistral' },
-  { name: 'ministral-8b-latest', label: 'Mistral 8B', provider: 'Mistral' },
-  { name: 'mistral-small-latest', label: 'Mistral Small', provider: 'Mistral' },
-  { name: 'codestral-latest', label: 'Codestral', provider: 'Mistral' },
-  { name: 'mistral-large-latest', label: 'Mistral Large Latest', provider: 'Mistral' },
+const llmManager = LLMManager.getInstance(import.meta.env);
+
+export const PROVIDER_LIST = llmManager.getAllProviders();
+export const DEFAULT_PROVIDER = llmManager.getDefaultProvider();
+
+let MODEL_LIST = llmManager.getModelList();
+
+const providerBaseUrlEnvKeys: Record<string, { baseUrlKey?: string; apiTokenKey?: string }> = {};
+PROVIDER_LIST.forEach((provider) => {
+  providerBaseUrlEnvKeys[provider.name] = {
+    baseUrlKey: provider.config.baseUrlKey,
+    apiTokenKey: provider.config.apiTokenKey,
+  };
+});
+
+// Export the getModelList function using the manager
+export async function getModelList(options: {
+  apiKeys?: Record<string, string>;
+  providerSettings?: Record<string, IProviderSetting>;
+  serverEnv?: Record<string, string>;
+}) {
+  return await llmManager.updateModelList(options);
+}
+
+async function initializeModelList(options: {
+  env?: Record<string, string>;
+  providerSettings?: Record<string, IProviderSetting>;
+  apiKeys?: Record<string, string>;
+}): Promise<ModelInfo[]> {
+  const { providerSettings, apiKeys, env } = options;
+  const list = await getModelList({
+    apiKeys,
+    providerSettings,
+    serverEnv: env,
+  });
+  MODEL_LIST = list || MODEL_LIST;
+
+  return list;
+}
+
+// initializeModelList({})
+export { initializeModelList, providerBaseUrlEnvKeys, MODEL_LIST };
+
+// starter Templates
+
+export const STARTER_TEMPLATES: Template[] = [
+  {
+    name: 'bolt-astro-basic',
+    label: 'Astro Basic',
+    description: 'Lightweight Astro starter template for building fast static websites',
+    githubRepo: 'thecodacus/bolt-astro-basic-template',
+    tags: ['astro', 'blog', 'performance'],
+    icon: 'i-bolt:astro',
+  },
+  {
+    name: 'bolt-nextjs-shadcn',
+    label: 'Next.js with shadcn/ui',
+    description: 'Next.js starter fullstack template integrated with shadcn/ui components and styling system',
+    githubRepo: 'thecodacus/bolt-nextjs-shadcn-template',
+    tags: ['nextjs', 'react', 'typescript', 'shadcn', 'tailwind'],
+    icon: 'i-bolt:nextjs',
+  },
+  {
+    name: 'bolt-qwik-ts',
+    label: 'Qwik TypeScript',
+    description: 'Qwik framework starter with TypeScript for building resumable applications',
+    githubRepo: 'thecodacus/bolt-qwik-ts-template',
+    tags: ['qwik', 'typescript', 'performance', 'resumable'],
+    icon: 'i-bolt:qwik',
+  },
+  {
+    name: 'bolt-remix-ts',
+    label: 'Remix TypeScript',
+    description: 'Remix framework starter with TypeScript for full-stack web applications',
+    githubRepo: 'thecodacus/bolt-remix-ts-template',
+    tags: ['remix', 'typescript', 'fullstack', 'react'],
+    icon: 'i-bolt:remix',
+  },
+  {
+    name: 'bolt-slidev',
+    label: 'Slidev Presentation',
+    description: 'Slidev starter template for creating developer-friendly presentations using Markdown',
+    githubRepo: 'thecodacus/bolt-slidev-template',
+    tags: ['slidev', 'presentation', 'markdown'],
+    icon: 'i-bolt:slidev',
+  },
+  {
+    name: 'bolt-sveltekit',
+    label: 'SvelteKit',
+    description: 'SvelteKit starter template for building fast, efficient web applications',
+    githubRepo: 'bolt-sveltekit-template',
+    tags: ['svelte', 'sveltekit', 'typescript'],
+    icon: 'i-bolt:svelte',
+  },
+  {
+    name: 'vanilla-vite',
+    label: 'Vanilla + Vite',
+    description: 'Minimal Vite starter template for vanilla JavaScript projects',
+    githubRepo: 'thecodacus/vanilla-vite-template',
+    tags: ['vite', 'vanilla-js', 'minimal'],
+    icon: 'i-bolt:vite',
+  },
+  {
+    name: 'bolt-vite-react',
+    label: 'React + Vite + typescript',
+    description: 'React starter template powered by Vite for fast development experience',
+    githubRepo: 'thecodacus/bolt-vite-react-ts-template',
+    tags: ['react', 'vite', 'frontend'],
+    icon: 'i-bolt:react',
+  },
+  {
+    name: 'bolt-vite-ts',
+    label: 'Vite + TypeScript',
+    description: 'Vite starter template with TypeScript configuration for type-safe development',
+    githubRepo: 'thecodacus/bolt-vite-ts-template',
+    tags: ['vite', 'typescript', 'minimal'],
+    icon: 'i-bolt:typescript',
+  },
+  {
+    name: 'bolt-vue',
+    label: 'Vue.js',
+    description: 'Vue.js starter template with modern tooling and best practices',
+    githubRepo: 'thecodacus/bolt-vue-template',
+    tags: ['vue', 'typescript', 'frontend'],
+    icon: 'i-bolt:vue',
+  },
+  {
+    name: 'bolt-angular',
+    label: 'Angular Starter',
+    description: 'A modern Angular starter template with TypeScript support and best practices configuration',
+    githubRepo: 'thecodacus/bolt-angular-template',
+    tags: ['angular', 'typescript', 'frontend', 'spa'],
+    icon: 'i-bolt:angular',
+  },
 ];
-
-export let MODEL_LIST: ModelInfo[] = [...staticModels];
-
-const getOllamaBaseUrl = () => {
-  const defaultBaseUrl = import.meta.env.OLLAMA_API_BASE_URL || 'http://localhost:11434';
-  // Check if we're in the browser
-  if (typeof window !== 'undefined') {
-    // Frontend always uses localhost
-    return defaultBaseUrl;
-  }
-
-  // Backend: Check if we're running in Docker
-  const isDocker = process.env.RUNNING_IN_DOCKER === 'true';
-
-  return isDocker
-    ? defaultBaseUrl.replace("localhost", "host.docker.internal")
-    : defaultBaseUrl;
-};
-
-async function getOllamaModels(): Promise<ModelInfo[]> {
-  try {
-    const base_url = getOllamaBaseUrl();
-    const response = await fetch(`${base_url}/api/tags`);
-    const data = await response.json() as OllamaApiResponse;
-
-    return data.models.map((model: OllamaModel) => ({
-      name: model.name,
-      label: `${model.name} (${model.details.parameter_size})`,
-      provider: 'Ollama',
-    }));
-  } catch (e) {
-    return [];
-  }
-}
-
-async function getOpenAILikeModels(): Promise<ModelInfo[]> {
-  try {
-    const base_url = import.meta.env.OPENAI_LIKE_API_BASE_URL || "";
-    if (!base_url) {
-      return [];
-    }
-    const api_key = import.meta.env.OPENAI_LIKE_API_KEY ?? "";
-    const response = await fetch(`${base_url}/models`, {
-      headers: {
-        Authorization: `Bearer ${api_key}`,
-      }
-    });
-    const res = await response.json() as any;
-    return res.data.map((model: any) => ({
-      name: model.id,
-      label: model.id,
-      provider: 'OpenAILike',
-    }));
-  } catch (e) {
-    return []
-  }
-
-}
-
-async function getLMStudioModels(): Promise<ModelInfo[]> {
-  try {
-    const base_url = import.meta.env.LMSTUDIO_API_BASE_URL || "http://localhost:1234";
-    const response = await fetch(`${base_url}/v1/models`);
-    const data = await response.json() as any;
-    return data.data.map((model: any) => ({
-      name: model.id,
-      label: model.id,
-      provider: 'LMStudio',
-    }));
-  } catch (e) {
-    return [];
-  }
-}
-
-
-async function initializeModelList(): Promise<void> {
-  const ollamaModels = await getOllamaModels();
-  const openAiLikeModels = await getOpenAILikeModels();
-  const lmstudioModels = await getLMStudioModels();
-  MODEL_LIST = [...ollamaModels,...openAiLikeModels, ...staticModels,...lmstudioModels,];
-}
-initializeModelList().then();
-export { getOllamaModels,getOpenAILikeModels,getLMStudioModels,initializeModelList };
