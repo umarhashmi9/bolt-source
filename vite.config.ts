@@ -23,12 +23,6 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-      
-      'process': JSON.stringify({
-        env: process.env,
-        version: process.version,
-      }),
-      'global': 'globalThis',
     },
     build: {
       target: 'esnext',

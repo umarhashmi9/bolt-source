@@ -1,0 +1,82 @@
+name: Publish Package to GitHub Registry
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on any tag push starting with 'v'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@${{ github.repository_owner }}'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Setup package for publishing
+        run: |
+          # Update package.json name to include scope if needed
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          if [[ $PACKAGE_NAME != @${GITHUB_REPOSITORY_OWNER}/* ]]; then
+            npm pkg set name="@${GITHUB_REPOSITORY_OWNER}/${PACKAGE_NAME}"
+          fi
+
+      - name: Pack package
+        run: |
+          pnpm pack
+          echo "PACKAGE_FILENAME=$(ls *.tgz)" >> $GITHUB_ENV
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ env.PACKAGE_FILENAME }}
+          retention-days: 5
+
+      - name: Publish to GitHub Package Registry
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm publish --no-git-tag-version --access public
+
+      - name: Attach package to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          gh release upload $TAG_NAME ${{ env.PACKAGE_FILENAME }} --clobber
