@@ -26,14 +26,14 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-      'process.env': JSON.stringify(process.env)
+      // 'process.env': JSON.stringify(process.env)
     },
     build: {
       target: 'esnext',
     },
     plugins: [
       nodePolyfills({
-        include: ['path', 'buffer'],
+        include: ['path', 'buffer', 'process'],
       }),
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
