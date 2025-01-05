@@ -33,11 +33,6 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
   const artifacts = useStore(workbenchStore.artifacts);
   const artifact = artifacts[messageId];
 
-  // Early return if no artifact exists
-  if (!artifact) {
-    return null;
-  }
-
   const actions = useStore(
     computed(artifact?.runner?.actions ?? [], (actions) => {
       return Object.values(actions);
@@ -62,6 +57,11 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
       }
     }
   }, [actions]);
+
+  // Early return if no artifact exists
+  if (!artifact) {
+    return <></>;
+  }
 
   return (
     <div className="artifact border border-bolt-elements-borderColor flex flex-col overflow-hidden rounded-lg w-full transition-border duration-150">
