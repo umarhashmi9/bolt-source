@@ -11,7 +11,7 @@ on:
       - "*"
 
 permissions:
-    packages: write
+  packages: write
 
 env:
   REGISTRY: ghcr.io
