@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 import { createReadableStreamFromReadable, createRequestHandler } from '@remix-run/node';
 import type { ServerBuild } from '@remix-run/node';
-import electron, { app, BrowserWindow, ipcMain, Menu, protocol } from 'electron';
-import log from 'electron-log'; // write logs into ${app.getPath("logs")}/main.log without `/main`.
+import electron, { app, BrowserWindow, ipcMain, Menu, protocol, session } from 'electron';
+import log from 'electron-log';
 import ElectronStore from 'electron-store';
 import mime from 'mime';
 import { createReadStream, promises as fs } from 'node:fs';
@@ -36,7 +36,7 @@ console.log('main: isDev:', isDev);
 console.log('NODE_ENV:', global.process.env.NODE_ENV);
 console.log('isPackaged:', app.isPackaged);
 
-const DEFAULT_PORT = 8080;
+const DEFAULT_PORT = 5173;
 
 // Log unhandled errors
 process.on('uncaughtException', async (error) => {
@@ -81,6 +81,32 @@ const keys: Parameters<typeof app.getPath>[number][] = ['home', 'appData', 'user
 keys.forEach((key) => console.log(`${key}:`, app.getPath(key)));
 
 const store = new ElectronStore<any>({ encryptionKey: 'something' });
+
+/**
+ * On app startup: read any existing `apiKeys` from store and set it as a cookie.
+ */
+async function initApiKeysCookie() {
+  const savedApiKeys = store.get('apiKeys');
+
+  if (!savedApiKeys) {
+    console.log('No saved "apiKeys" found in ElectronStore, skipping cookie init.');
+    return;
+  }
+
+  try {
+    console.log('Restoring cookie from ElectronStore, apiKeys:', savedApiKeys);
+
+    // Set the cookie in the default Electron session
+    await session.defaultSession.cookies.set({
+      url: `http://localhost:${DEFAULT_PORT}`,
+      name: 'apiKeys',
+      value: savedApiKeys,
+      path: '/',
+    });
+  } catch (err) {
+    console.log('Failed to set session cookie from ElectronStore:', err);
+  }
+}
 
 const createWindow = async (rendererURL: string) => {
   console.log('Creating window with URL:', rendererURL);
@@ -169,6 +195,9 @@ async function loadServerBuild(): Promise<any> {
   await app.whenReady();
   console.log('App is ready');
 
+  // Load any existing apiKeys from ElectronStore, set as cookie
+  await initApiKeysCookie();
+
   const serverBuild = await loadServerBuild();
 
   protocol.handle('http', async (req) => {
@@ -196,6 +225,14 @@ async function loadServerBuild(): Promise<any> {
       if (res) {
         console.log('Served asset:', req.url);
         return res;
+      }
+
+      // Forward cookies to remix server
+      const cookies = await session.defaultSession.cookies.get({ name: 'apiKeys' });
+
+      if (cookies.length > 0) {
+        req.headers.set('Cookie', cookies.map((c) => `${c.name}=${c.value}`).join('; '));
+        store.set('apiKeys', cookies[0].value);
       }
 
       // Create request handler with the server build
