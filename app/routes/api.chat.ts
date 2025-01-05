@@ -140,6 +140,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       status: 200,
       headers: {
         contentType: 'text/event-stream',
+        connection: 'keep-alive',
       },
     });
   } catch (error: any) {
