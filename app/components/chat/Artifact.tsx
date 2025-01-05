@@ -33,8 +33,13 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
   const artifacts = useStore(workbenchStore.artifacts);
   const artifact = artifacts[messageId];
 
+  // Early return if no artifact exists
+  if (!artifact) {
+    return null;
+  }
+
   const actions = useStore(
-    computed(artifact.runner.actions, (actions) => {
+    computed(artifact?.runner?.actions ?? [], (actions) => {
       return Object.values(actions);
     }),
   );
