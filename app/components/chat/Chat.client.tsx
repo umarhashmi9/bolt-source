@@ -23,6 +23,7 @@ import type { ProviderInfo } from '~/types/model';
 import { useSearchParams } from '@remix-run/react';
 import { createSampler } from '~/utils/sampler';
 import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTemplate';
+import { fileModificationsToHTML } from '~/utils/diff';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -382,6 +383,7 @@ export const ChatImpl = memo(
       }
 
       if (fileModifications !== undefined) {
+        const diff = fileModificationsToHTML(fileModifications);
         /**
          * If we have file modifications we append a new user message manually since we have to prefix
          * the user input with the file modifications and we don't want the new user input to appear
@@ -394,7 +396,7 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${_input}`,
+              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${diff}\n\n${_input}`,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
