@@ -1,35 +1,46 @@
 import { Authenticator } from 'remix-auth';
 import { GitHubStrategy } from 'remix-auth-github';
-// import { prisma } from './db.server';
 import { FormStrategy } from 'remix-auth-form';
-import { sessionStorage } from './session.server';
+import type { AuthError, FormInputs, userTypes } from '~/types/auth';
 
-type userTypes = {
-  id: string;
-  email: string;
-  username: string;
-  password: string;
-};
+export let authenticator = new Authenticator<FormInputs>();
 
-export let authenticator = new Authenticator<userTypes>();
+authenticator.use(
+  new FormStrategy(async ({ form }) => {
+    const inputs: FormInputs = {
+      email: { value: (form.get('email') as string) || '' },
+      username: { value: (form.get('username') as string) || '' },
+      password: { value: (form.get('password') as string) || '' },
+      confirmPassword: { value: (form.get('confirmPassword') as string) || '' },
+    };
 
-// authenticator.use(
-//   new FormStrategy(async ({ form }) => {
-//     const email = form.get('email');
-//     const password = form.get('password');
+    // Validate inputs
+    if (!inputs.email.value) {
+      inputs.email.error = 'Email is required';
+    }
+    if (!inputs.username.value) {
+      inputs.username.error = 'Username is required';
+    }
+    if (!inputs.password.value) {
+      inputs.password.error = 'Password is required';
+    } else {
+      const password = inputs.password.value;
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasDigitOrSymbol = /[\d\W]/.test(password);
 
-//     const user = await prisma.user.findUnique({
-//       where: { email },
-//     });
+      if (!hasUpperCase || !hasLowerCase || !hasDigitOrSymbol) {
+        inputs.password.error = 'Password must contain at least 1 uppercase, 1 lowercase, and 1 digit or symbol';
+      }
+    }
+    if (inputs.password.value !== inputs.confirmPassword.value) {
+      inputs.confirmPassword.error = 'Passwords do not match';
+    }
 
-//     if (!user || user.password !== password) {
-//       throw new Error('Invalid email or password');
-//     }
-
-//     return user;
-//   }),
-//   'form',
-// );
+    return inputs;
+  }),
+  'user-pass',
+);
 
 authenticator.use(
   new GitHubStrategy(
@@ -40,17 +51,26 @@ authenticator.use(
       scopes: ['user:email'], // optional
     },
     async ({ tokens, request }) => {
-      // const user = await prisma.user.upsert({
-      //   where: { githubId: profile.id },
-      //   update: {},
-      //   create: {
-      //     githubId: profile.id,
-      //     name: profile.name,
-      //     email: profile.email,
+      // const response = await fetch('https://api.github.com/user', {
+      //   headers: {
+      //     Authorization: `token ${tokens.accessToken}`,
       //   },
       // });
 
-      return await getUser(tokens, request);
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch user information from GitHub');
+      // }
+
+      // const profile: any = await response.json();
+
+      // const user: userTypes = {
+      //   id: profile.id.toString(), // GitHub user ID
+      //   email: profile.email || 'user@example.com', // GitHub email, may need additional API call to get primary email
+      //   username: profile.login, // GitHub username
+      //   password: '', // GitHub OAuth doesn't provide a password, use a placeholder
+      // };
+
+      return { tokens, request };
     },
   ),
   'github',

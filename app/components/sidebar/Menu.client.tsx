@@ -13,6 +13,7 @@ import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { DialogTrigger } from '@radix-ui/react-dialog';
 import Button from '../ui/button';
+import PricingWindow from '../pricing/Pricing';
 
 const menuVariants = {
   closed: {
@@ -62,6 +63,7 @@ export const Menu = () => {
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+  const [pricingDialog, setPricingDialog] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -250,7 +252,7 @@ export const Menu = () => {
           </div>
           <div
             className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
-            onClick={() => {}}
+            onClick={() => setPricingDialog(true)}
           >
             <span className="i-ph:credit-card text-xl" />
             <p className="text-bolt-elements-textPrimary text-sm font-medium">My Subscription</p>
@@ -297,6 +299,7 @@ export const Menu = () => {
         </div>
       </div>
       <SettingsWindow open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <PricingWindow pricingDialog={pricingDialog} setPricingDialog={setPricingDialog} />
     </motion.div>
   );
 };
