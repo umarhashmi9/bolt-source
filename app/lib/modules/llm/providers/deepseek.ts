@@ -38,6 +38,7 @@ export default class DeepseekProvider extends BaseProvider {
     }
 
     const openai = createOpenAI({
+
       baseURL: 'https://api.deepseek.com/v1',
       apiKey,
     });
