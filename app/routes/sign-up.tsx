@@ -1,8 +1,10 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Form, Link, redirect, useLoaderData } from '@remix-run/react';
+import { data, Form, Link, redirect, useActionData, useLoaderData } from '@remix-run/react';
 import { getSession } from '~/lib/services/session.server';
 import { authenticator } from '~/lib/services/auth.server';
 import Input from '~/components/ui/input';
+import { useState } from 'react';
+import type { FormInputs } from '~/types/auth';
 
 /**
  * called when the user hits button to login
@@ -11,8 +13,11 @@ import Input from '~/components/ui/input';
  * @returns
  */
 export const action: ActionFunction = async ({ request, context }) => {
-  const resp = await authenticator.authenticate('user-pass', request);
-  console.log('resp', resp);
+  const resp: any = await authenticator.authenticate('user-pass', request);
+  console.log(resp);
+  if (resp.error === 'passwords-do-not-match') {
+    return { error: 'Passwords do not match!' };
+  }
   return resp;
 };
 
@@ -36,7 +41,9 @@ export const loader: LoaderFunction = async ({ request }) => {
  */
 export default function SignUpPage() {
   const loaderData = useLoaderData();
-  console.log(loaderData);
+  const actionData = useActionData<FormInputs>();
+  console.log(actionData);
+
   return (
     <div className="h-screen bg-bolt-elements-background-depth-2 flex justify-center items-center">
       <div className="flex justify-center items-center flex-col gap-10 w-[344px]">
@@ -54,10 +61,23 @@ export default function SignUpPage() {
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="flex flex-col gap-2">
-              <Input placeholder="Email" id="email" name="email" />
-              <Input placeholder="Username" id="username" name="username" />
-              <Input placeholder="Password" id="password" name="password" />
-              <Input placeholder="Confirm Password" id="confirmPassword" name="confirmPassword" />
+              <Input placeholder="Email" id="email" name="email" type="email" error={actionData?.email.error} />
+              <Input placeholder="Username" id="username" name="username" error={actionData?.username.error} />
+              <Input
+                placeholder="Password"
+                id="password"
+                name="password"
+                type="password"
+                error={actionData?.password.error}
+              />
+              <Input
+                placeholder="Confirm Password"
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                error={actionData?.confirmPassword.error}
+              />
+
               <button
                 type="submit"
                 className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full hover:bg-bolt-elements-background-depth-4 border border-bolt-elements-borderColor dark:bg-[#292d32] bg-bolt-elements-prompt-background justify-center"
