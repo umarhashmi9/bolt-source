@@ -139,8 +139,8 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     return new Response(stream.readable, {
       status: 200,
       headers: {
-        'Content-Type': 'text/event-stream', // Correct SSE content type
-        Connection: 'keep-alive', // Maintain connection
+        contentType: 'text/event-stream',
+        connection: 'keep-alive',
       },
     });
   } catch (error: any) {
