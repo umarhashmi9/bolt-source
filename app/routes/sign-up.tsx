@@ -1,35 +1,28 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Form, Link, redirect } from '@remix-run/react';
-import { getSession, commitSession } from '~/lib/services/session.server';
-// import { prisma } from '~/lib/prisma';
+import { data, Form, Link, redirect, useLoaderData } from '@remix-run/react';
+import { getSession } from '~/lib/services/session.server';
 import { authenticator } from '~/lib/services/auth.server';
 import Input from '~/components/ui/input';
 
-export const action: ActionFunction = async ({ request }) => {
-  const form = await request.formData();
-  const email = form.get('email');
-  const username = form.get('username');
-  const password = form.get('password');
-
-  // const user = await prisma.user.create({
-  //   data: {
-  //     username,
-  //     email,
-  //     password,
-  //   },
-  // });
-  // try {
-  //   await authenticator.authenticate('user-pass', request);
-  //   let session = await getSession(request);
-  //   session.set('user', user);
-  //   throw redirect('/', {
-  //     headers: { 'Set-Cookie': await commitSession(session) },
-  //   });
-  // } catch (error) {
-  //   console.error(error);
-  // }
+/**
+ * called when the user hits button to login
+ *
+ * @param param0
+ * @returns
+ */
+export const action: ActionFunction = async ({ request, context }) => {
+  const resp = await authenticator.authenticate('user-pass', request);
+  console.log('resp', resp);
+  return resp;
 };
 
+/**
+ * get the cookie and see if there are any errors that were
+ * generated when attempting to login
+ *
+ * @param param0
+ * @returns
+ */
 export const loader: LoaderFunction = async ({ request }) => {
   const session = await getSession(request);
   const user = session.get('user');
@@ -37,7 +30,13 @@ export const loader: LoaderFunction = async ({ request }) => {
   return data(null);
 };
 
-const SignUpPage = () => {
+/**
+ *
+ * @returns
+ */
+export default function SignUpPage() {
+  const loaderData = useLoaderData();
+  console.log(loaderData);
   return (
     <div className="h-screen bg-bolt-elements-background-depth-2 flex justify-center items-center">
       <div className="flex justify-center items-center flex-col gap-10 w-[344px]">
@@ -55,11 +54,14 @@ const SignUpPage = () => {
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="flex flex-col gap-2">
-              <Input placeholder="Email" />
-              <Input placeholder="Username" />
-              <Input placeholder="Password" />
-              <Input placeholder="Confirm Password" />
-              <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full hover:bg-bolt-elements-background-depth-4 border border-bolt-elements-borderColor dark:bg-[#292d32] bg-bolt-elements-prompt-background justify-center">
+              <Input placeholder="Email" id="email" name="email" />
+              <Input placeholder="Username" id="username" name="username" />
+              <Input placeholder="Password" id="password" name="password" />
+              <Input placeholder="Confirm Password" id="confirmPassword" name="confirmPassword" />
+              <button
+                type="submit"
+                className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full hover:bg-bolt-elements-background-depth-4 border border-bolt-elements-borderColor dark:bg-[#292d32] bg-bolt-elements-prompt-background justify-center"
+              >
                 <span className="text-sm font-semibold">Sign Up</span>
               </button>
               <Link to="/sign-in">
@@ -77,6 +79,4 @@ const SignUpPage = () => {
       </div>
     </div>
   );
-};
-
-export default SignUpPage;
+}

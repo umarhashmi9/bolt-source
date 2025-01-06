@@ -1,8 +1,6 @@
 import { Authenticator } from 'remix-auth';
 import { GitHubStrategy } from 'remix-auth-github';
-// import { prisma } from './db.server';
 import { FormStrategy } from 'remix-auth-form';
-import { sessionStorage } from './session.server';
 
 type userTypes = {
   id: string;
@@ -13,23 +11,23 @@ type userTypes = {
 
 export let authenticator = new Authenticator<userTypes>();
 
-// authenticator.use(
-//   new FormStrategy(async ({ form }) => {
-//     const email = form.get('email');
-//     const password = form.get('password');
+authenticator.use(
+  new FormStrategy(async ({ form }) => {
+    const email = (form.get('email') as string) || '';
+    const username = (form.get('username') as string) || '';
+    const password = (form.get('password') as string) || '';
 
-//     const user = await prisma.user.findUnique({
-//       where: { email },
-//     });
+    const user: userTypes = {
+      id: 'some-unique-id', // Replace with actual logic to generate or retrieve a user ID
+      email,
+      username,
+      password,
+    };
 
-//     if (!user || user.password !== password) {
-//       throw new Error('Invalid email or password');
-//     }
-
-//     return user;
-//   }),
-//   'form',
-// );
+    return user;
+  }),
+  'user-pass',
+);
 
 authenticator.use(
   new GitHubStrategy(
