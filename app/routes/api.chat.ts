@@ -139,8 +139,10 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     return new Response(stream.readable, {
       status: 200,
       headers: {
-        contentType: 'text/event-stream',
-        connection: 'keep-alive',
+        'Content-Type': 'text/event-stream',
+        Connection: 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'Transfer-Encoding': 'chunked',
       },
     });
   } catch (error: any) {
