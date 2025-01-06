@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import type { ProviderInfo } from '~/types/model';
 import Cookies from 'js-cookie';
+import { providerBaseUrlEnvKeys } from '~/utils/constants';
 
 interface APIKeyManagerProps {
   provider: ProviderInfo;
@@ -10,20 +11,6 @@ interface APIKeyManagerProps {
   getApiKeyLink?: string;
   labelForGetApiKey?: string;
 }
-
-const ENV_API_KEY_MAP: Record<string, string> = {
-  Anthropic: 'ANTHROPIC_API_KEY',
-  OpenAI: 'OPENAI_API_KEY',
-  xAI: 'XAI_API_KEY',
-  Cohere: 'COHERE_API_KEY',
-  Google: 'GOOGLE_API_KEY',
-  Groq: 'GROQ_API_KEY',
-  HuggingFace: 'HUGGINGFACE_API_KEY',
-  Deepseek: 'DEEPSEEK_API_KEY',
-  Mistral: 'MISTRAL_API_KEY',
-  Together: 'TOGETHER_API_KEY',
-  OpenRouter: 'OPENROUTER_API_KEY',
-};
 
 // cache which stores whether the provider's API key is set via environment variable
 const providerEnvKeyStatusCache: Record<string, boolean> = {};
@@ -110,7 +97,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
                 <>
                   <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
                   <span className="text-xs text-green-500">
-                    Set via {ENV_API_KEY_MAP[provider.name]} environment variable
+                    Set via {providerBaseUrlEnvKeys[provider.name].apiTokenKey} environment variable
                   </span>
                 </>
               ) : apiKey ? (
