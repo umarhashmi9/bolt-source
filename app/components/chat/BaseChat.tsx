@@ -175,15 +175,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         try {
           parsedApiKeys = getApiKeysFromCookies();
           setApiKeys(parsedApiKeys);
-
-          // If we have a provider selected, set its API key
-          if (provider) {
-            const savedKey = parsedApiKeys[provider.name] || '';
-
-            if (savedKey) {
-              onApiKeysChange(provider.name, savedKey);
-            }
-          }
         } catch (error) {
           console.error('Error loading API keys from cookies:', error);
 
@@ -193,7 +184,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         setIsModelLoading('all');
         initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
           .then((modelList) => {
-            // console.log('Model List: ', modelList);
             setModelList(modelList);
           })
           .catch((error) => {
