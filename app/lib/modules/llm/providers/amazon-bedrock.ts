@@ -58,6 +58,33 @@ export default class AmazonBedrockProvider extends BaseProvider {
     },
   ];
 
+  private _parseAndValidateConfig(apiKey: string): AWSBedRockConfig {
+    let parsedConfig: AWSBedRockConfig;
+
+    try {
+      parsedConfig = JSON.parse(apiKey);
+    } catch {
+      throw new Error(
+        'Invalid AWS Bedrock configuration format. Please provide a valid JSON string containing region, accessKeyId, and secretAccessKey.',
+      );
+    }
+
+    const { region, accessKeyId, secretAccessKey, sessionToken } = parsedConfig;
+
+    if (!region || !accessKeyId || !secretAccessKey) {
+      throw new Error(
+        'Missing required AWS credentials. Configuration must include region, accessKeyId, and secretAccessKey.',
+      );
+    }
+
+    return {
+      region,
+      accessKeyId,
+      secretAccessKey,
+      ...(sessionToken && { sessionToken }),
+    };
+  }
+
   getModelInstance(options: {
     model: string;
     serverEnv: any;
@@ -78,21 +105,8 @@ export default class AmazonBedrockProvider extends BaseProvider {
       throw new Error(`Missing API key for ${this.name} provider`);
     }
 
-    const parsedConfig: AWSBedRockConfig = JSON.parse(apiKey);
-
-    const { region, accessKeyId, secretAccessKey } = parsedConfig;
-
-    if (!region || !accessKeyId || !secretAccessKey) {
-      throw new Error(
-        `The provided API configuration is incomplete. Ensure that 'region', 'accessKeyId', and 'secretAccessKey' are included.`,
-      );
-    }
-
-    const bedrock = createAmazonBedrock({
-      region: parsedConfig.region,
-      accessKeyId: parsedConfig.accessKeyId,
-      secretAccessKey: parsedConfig.secretAccessKey,
-    });
+    const config = this._parseAndValidateConfig(apiKey);
+    const bedrock = createAmazonBedrock(config);
 
     return bedrock(model);
   }
