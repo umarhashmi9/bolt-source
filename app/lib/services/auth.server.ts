@@ -2,8 +2,9 @@ import { Authenticator } from 'remix-auth';
 import { GitHubStrategy } from 'remix-auth-github';
 import { FormStrategy } from 'remix-auth-form';
 import type { AuthError, FormInputs, userTypes } from '~/types/auth';
+import { fetchGitHubProfile } from '~/utils/fetchGitHubProfile';
 
-export let authenticator = new Authenticator<FormInputs>();
+export let authenticator = new Authenticator<any>();
 
 authenticator.use(
   new FormStrategy(async ({ form }) => {
@@ -48,29 +49,19 @@ authenticator.use(
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       redirectURI: process.env.GITHUB_CALLBACK_URL!,
-      scopes: ['user:email'], // optional
+      scopes: ['user:email'],
     },
-    async ({ tokens, request }) => {
-      // const response = await fetch('https://api.github.com/user', {
-      //   headers: {
-      //     Authorization: `token ${tokens.accessToken}`,
-      //   },
-      // });
-
-      // if (!response.ok) {
-      //   throw new Error('Failed to fetch user information from GitHub');
-      // }
-
-      // const profile: any = await response.json();
-
-      // const user: userTypes = {
-      //   id: profile.id.toString(), // GitHub user ID
-      //   email: profile.email || 'user@example.com', // GitHub email, may need additional API call to get primary email
-      //   username: profile.login, // GitHub username
-      //   password: '', // GitHub OAuth doesn't provide a password, use a placeholder
-      // };
-
-      return { tokens, request };
+    async ({ tokens }) => {
+      const { access_token } = tokens.data as { access_token: string };
+      const githubProfile = await fetchGitHubProfile(access_token);
+      const { id, login, email, avatar_url, name } = githubProfile as {
+        id: string;
+        login: string;
+        email: string;
+        avatar_url: string;
+        name: string;
+      };
+      return { id, login, email, avatar_url, name };
     },
   ),
   'github',
