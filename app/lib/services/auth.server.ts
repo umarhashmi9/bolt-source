@@ -18,7 +18,7 @@ authenticator.use(
     const password = (form.get('password') as string) || '';
 
     const user: userTypes = {
-      id: 'some-unique-id', // Replace with actual logic to generate or retrieve a user ID
+      id: 'some-unique-id',
       email,
       username,
       password,
@@ -38,17 +38,26 @@ authenticator.use(
       scopes: ['user:email'], // optional
     },
     async ({ tokens, request }) => {
-      // const user = await prisma.user.upsert({
-      //   where: { githubId: profile.id },
-      //   update: {},
-      //   create: {
-      //     githubId: profile.id,
-      //     name: profile.name,
-      //     email: profile.email,
+      // const response = await fetch('https://api.github.com/user', {
+      //   headers: {
+      //     Authorization: `token ${tokens.accessToken}`,
       //   },
       // });
 
-      return await getUser(tokens, request);
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch user information from GitHub');
+      // }
+
+      // const profile: any = await response.json();
+
+      // const user: userTypes = {
+      //   id: profile.id.toString(), // GitHub user ID
+      //   email: profile.email || 'user@example.com', // GitHub email, may need additional API call to get primary email
+      //   username: profile.login, // GitHub username
+      //   password: '', // GitHub OAuth doesn't provide a password, use a placeholder
+      // };
+
+      return { tokens, request };
     },
   ),
   'github',
