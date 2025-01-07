@@ -5,11 +5,41 @@ import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 import { Link } from '@remix-run/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
 
 export function Header() {
   const chat = useStore(chatStore);
   const [user, setUser] = useState();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userIdFromUrl = urlParams.get('userId');
+    const userfromlocalstorage = localStorage.getItem('userId');
+    if (userfromlocalstorage) {
+      setUserId(userfromlocalstorage);
+    } else if (userIdFromUrl) {
+      setUserId(userIdFromUrl);
+      localStorage.setItem('userId', userIdFromUrl);
+    }
+  }, []);
+
+  const handleSubscribe = async () => {
+    const response = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_12345' }), // Replace with your Stripe Price ID
+    });
+
+    const data = await response.json();
+
+    if (data.url) {
+      window.location.href = data.url; // Redirect to Stripe Checkout
+    } else {
+      console.error(data.error);
+    }
+  };
   return (
     <header
       className={classNames('flex items-center justify-between p-5 border-b h-[var(--header-height)]', {
@@ -39,7 +69,7 @@ export function Header() {
           </ClientOnly>
         </>
       )}
-      {!user && (
+      {!userId ? (
         <div className="flex gap-2">
           <Link
             to="/sign-in"
@@ -53,6 +83,15 @@ export function Header() {
           >
             Get Started
           </Link>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Link to="/logout" className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]">
+            {userId}
+          </Link>
+          <button onClick={handleSubscribe} className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]">
+            Subscribe
+          </button>
         </div>
       )}
     </header>

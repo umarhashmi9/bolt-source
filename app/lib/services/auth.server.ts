@@ -14,8 +14,6 @@ authenticator.use(
       password: { value: (form.get('password') as string) || '' },
       confirmPassword: { value: (form.get('confirmPassword') as string) || '' },
     };
-
-    // Validate inputs
     if (!inputs.email.value) {
       inputs.email.error = 'Email is required';
     }

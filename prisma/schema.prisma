@@ -14,7 +14,91 @@ datasource db {
 }
 
 model User {
-  id    String @id @default(cuid())
-  email String @unique
-  name  String
+  id             String         @id @default(cuid())
+  email          String?        @unique
+  name           String         @unique
+  password       String?
+  subscriptionId String?
+  subscription   subscriptions?
+  customer       customers?
+  githubId       Int?           @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model subscriptions {
+  subscriptionId         String              @id @default(uuid())
+  providerSubscriptionId String?
+  userId                 String              @unique
+  planType               PlanType
+  user                   User                @relation(fields: [userId], references: [id])
+  status                 SubscriptionStatus? // trialing, active, canceled, incomplete, incomplete_expired, past_due, unpaid, paused
+  quantity               Int?
+  priceId                String?
+  price                  prices?             @relation(fields: [priceId], references: [id])
+  cancelAtPeriodEnd      Boolean             @default(false)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  endedAt                DateTime?
+  cancelAt               DateTime?
+  canceledAt             DateTime?
+}
+
+model customers {
+  id         String @id @default(uuid())
+  customerId String
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id])
+}
+
+model products {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  active      Boolean  @default(true)
+  name        String
+  description String?
+  prices      prices[]
+}
+
+model prices {
+  id                  String              @id @default(uuid())
+  priceId             String              @unique
+  productId           String
+  product             products            @relation(fields: [productId], references: [id])
+  description         String?
+  unitAmount          Int
+  currency            String
+  pricingType         PricingType // one_time, recurring
+  pricingPlanInterval PricingPlanInterval // day, week, month, year
+  intervalCount       Int
+  subscription        subscriptions[]
+  type                PlanType // basic, pro
+}
+
+enum PlanType {
+  basic
+  pro
+}
+
+enum PricingType {
+  one_time
+  recurring
+}
+
+enum PricingPlanInterval {
+  day
+  week
+  month
+  year
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  canceled
+  incomplete
+  incomplete_expired
+  past_due
+  unpaid
+  paused
 }
