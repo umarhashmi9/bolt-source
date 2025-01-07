@@ -23,6 +23,7 @@ const API_KEY_PROVIDERS = [
   'Perplexity',
   'Cohere',
   'AzureOpenAI',
+  'AmazonBedrock',
 ] as const;
 
 interface ApiKeys {
