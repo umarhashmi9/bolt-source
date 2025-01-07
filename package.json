@@ -117,7 +117,7 @@
     "husky": "9.1.7",
     "is-ci": "^3.0.1",
     "node-fetch": "^3.3.2",
-    "pnpm": "^9.14.4",
+    "pnpm": "^7.14.4",
     "prettier": "^3.4.1",
     "sass-embedded": "^1.81.0",
     "typescript": "^5.7.2",
@@ -134,5 +134,5 @@
   "resolutions": {
     "@typescript-eslint/utils": "^8.0.0-alpha.30"
   },
-  "packageManager": "pnpm@9.4.0"
+  "packageManager": "pnpm@7.14.4"
 }
