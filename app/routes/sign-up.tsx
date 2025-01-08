@@ -45,17 +45,23 @@ export default function SignUpPage() {
   console.log(actionData);
 
   return (
-    <div className="h-screen bg-bolt-elements-background-depth-2 flex justify-center items-center">
+    <div className="pt-24 pb-10 bg-bolt-elements-background-depth-2 flex justify-center items-center">
       <div className="flex justify-center items-center flex-col gap-10 w-[344px]">
         <div className="flex flex-col gap-2 items-center">
           <h1 className="text-bolt-elements-textPrimary text-3xl font-semibold">Get Started</h1>
           <p className="text-bolt-elements-textSecondary">Create your Bolt.diy account.</p>
         </div>
         <div className="flex items-center flex-col gap-7 rounded-md flex items-center justify-center">
-          <Form action="github" method="post" className="w-full">
+          <Form action="/auth/github" method="post" className="w-full">
             <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
               <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
               <span className="text-sm font-bold">Sign up with GitHub</span>
+            </button>
+          </Form>
+          <Form action="/auth/google" method="post" className="w-full">
+            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
+              <img src="/icons/Google-login.svg" alt="Google" className="w-6 h-6" />
+              <span className="text-sm font-bold">Sign up with Google</span>
             </button>
           </Form>
           <span className="text-bolt-elements-textSecondary">- or -</span>

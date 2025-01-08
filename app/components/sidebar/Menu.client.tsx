@@ -14,6 +14,7 @@ import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { DialogTrigger } from '@radix-ui/react-dialog';
 import Button from '../ui/button';
 import PricingWindow from '../pricing/Pricing';
+import { useGetUser } from '~/lib/hooks/useGetUser';
 
 const menuVariants = {
   closed: {
@@ -145,14 +146,19 @@ export const Menu = () => {
   const handleSignOutDialog = () => {
     setDialogOpen(!dialogOpen);
   };
-  const [user, setUser] = useState<any>();
+  const { user } = useGetUser();
 
-  const handleSignOut = async () => {
-    setDialogOpen(!dialogOpen);
-
-    // handle sign out here
-    window.location.reload();
+  const handlePricingDialogOpen = () => {
+    setPricingDialog(true);
+    window.history.pushState(null, '', '/?showPricing=true');
   };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('showPricing') === 'true') {
+      setPricingDialog(true);
+    }
+  }, []);
 
   // if (!user) {
   //   return null;
@@ -166,7 +172,7 @@ export const Menu = () => {
       variants={menuVariants}
       className="flex selection-accent flex-col side-menu fixed top-0 w-[350px] h-full bg-bolt-elements-background-depth-2 border-r rounded-r-3xl border-bolt-elements-borderColor z-sidebar shadow-xl shadow-bolt-elements-sidebar-dropdownShadow text-sm"
     >
-      <div className="h-[60px]" /> {/* Spacer for top margin */}
+      <div className="h-[60px]" />
       <CurrentDateTime />
       <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
         <div className="p-4 select-none">
@@ -252,7 +258,7 @@ export const Menu = () => {
           </div>
           <div
             className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
-            onClick={() => setPricingDialog(true)}
+            onClick={handlePricingDialogOpen}
           >
             <span className="i-ph:credit-card text-xl" />
             <p className="text-bolt-elements-textPrimary text-sm font-medium">My Subscription</p>
@@ -274,9 +280,9 @@ export const Menu = () => {
                 <DialogButton type="secondary" onClick={handleSignOutDialog}>
                   Cancel
                 </DialogButton>
-                <DialogButton type="primary" onClick={handleSignOut}>
-                  Sign out
-                </DialogButton>
+                <form method="post" action="/logout">
+                  <DialogButton type="primary">Sign out</DialogButton>
+                </form>
               </div>
             </Dialog>
           </DialogRoot>
@@ -284,15 +290,15 @@ export const Menu = () => {
         <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
           {/* */}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <img
-              src={`https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18ycjVFSW9CWVlzWkpGTlc2UUYwUTFnUm5YeDkifQ`}
+              src={`https://avatars.githubusercontent.com/u/${user?.githubId}?v=4`}
               alt="logo"
-              className="rounded-full"
+              className="rounded-full w-8 h-8"
             />
             <div>
-              <p className="text-bolt-elements-textPrimary text-sm font-medium">{user?.fullName}</p>
-              <p className="text-bolt-elements-textTertiary text-sm font-medium">Free Plan</p>
+              <p className="text-bolt-elements-textPrimary text-sm font-medium">{user?.name}</p>
+              <p className="text-bolt-elements-textSecondary text-sm font-regular">Personal Plan</p>
             </div>
           </div>
           <ThemeSwitch />

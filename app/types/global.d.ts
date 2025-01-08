@@ -11,3 +11,21 @@ interface Performance {
     usedJSHeapSize: number;
   };
 }
+
+interface Pricing {
+  id: string;
+  price: number;
+  tokens: number;
+  tokens_before?: number;
+  description: string;
+  annual: number;
+  priceId: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  githubId: string;
+  subscriptionId: string;
+}

@@ -1,5 +1,4 @@
-
-import { Request, Response } from 'express'; // or your server framework
+import type { Request, Response } from 'express'; // or your server framework
 
 export async function handleStripeWebhook(req: Request, res: Response) {
   const sig = req.headers['stripe-signature'];

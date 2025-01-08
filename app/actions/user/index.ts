@@ -1,11 +1,11 @@
-import type { Prisma, User } from "@prisma/client";
-import db from "../prisma";
+import type { Prisma, User } from '@prisma/client';
+import db from '../prisma';
 import * as bcrypt from 'bcrypt';
 
 export const createUser = async (user: User) => {
   if (user.password) {
     const hashedPassword = await bcrypt.hash(user.password, 10);
-    user.password = hashedPassword
+    user.password = hashedPassword;
   }
 
   const newUser = await db.user.upsert({
@@ -26,7 +26,4 @@ export const createUser = async (user: User) => {
     },
   });
   return newUser;
-
-
 };
-

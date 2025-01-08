@@ -1,8 +1,9 @@
 import { Authenticator } from 'remix-auth';
 import { GitHubStrategy } from 'remix-auth-github';
 import { FormStrategy } from 'remix-auth-form';
-import type { AuthError, FormInputs, userTypes } from '~/types/auth';
+import type { FormInputs } from '~/types/auth';
 import { fetchGitHubProfile } from '~/utils/fetchGitHubProfile';
+import { OAuth2Strategy, CodeChallengeMethod } from 'remix-auth-oauth2';
 
 export let authenticator = new Authenticator<any>();
 
@@ -52,15 +53,42 @@ authenticator.use(
     async ({ tokens }) => {
       const { access_token } = tokens.data as { access_token: string };
       const githubProfile = await fetchGitHubProfile(access_token);
-      const { id, login, email, avatar_url, name } = githubProfile as {
+      const { id, login, email, name } = githubProfile as {
         id: string;
         login: string;
         email: string;
-        avatar_url: string;
         name: string;
       };
-      return { id, login, email, avatar_url, name };
+      return { id, login, email, name };
     },
   ),
   'github',
 );
+
+// authenticator.use(
+//   new OAuth2Strategy(
+//     {
+//       cookie: "oauth2", // Optional, can also be an object with more options
+
+//       clientId: CLIENT_ID,
+//       clientSecret: CLIENT_SECRET,
+
+//       authorizationEndpoint: "https://provider.com/oauth2/authorize",
+//       tokenEndpoint: "https://provider.com/oauth2/token",
+//       redirectURI: "https://example.app/auth/callback",
+
+//       tokenRevocationEndpoint: "https://provider.com/oauth2/revoke", // optional
+
+//       scopes: ["openid", "email", "profile"], // optional
+//       codeChallengeMethod: CodeChallengeMethod.S256, // optional
+//     },
+//     async ({ tokens, request }) => {
+//       // here you can use the params above to get the user and return it
+//       // what you do inside this and how you find the user is up to you
+//       return await getUser(tokens, request);
+//     }
+//   ),
+//   // this is optional, but if you setup more than one OAuth2 instance you will
+//   // need to set a custom name to each one
+//   "provider-name"
+// );
