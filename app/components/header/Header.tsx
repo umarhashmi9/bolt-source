@@ -6,10 +6,11 @@ import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 import { Link } from '@remix-run/react';
 import { useGetUser } from '~/lib/hooks/useGetUser';
+import HeaderLoginButtons from './HeaderLoginButtons';
 
 export function Header() {
   const chat = useStore(chatStore);
-  const { user, loading } = useGetUser();
+  const { user } = useGetUser();
 
   return (
     <header
@@ -40,22 +41,7 @@ export function Header() {
           </ClientOnly>
         </>
       )}
-      {!user && !loading && (
-        <div className="flex gap-2">
-          <Link
-            to="/sign-in"
-            className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/sign-up"
-            className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#9E0DE1]"
-          >
-            Get Started
-          </Link>
-        </div>
-      )}
+      <ClientOnly>{() => <HeaderLoginButtons user={user} />}</ClientOnly>
     </header>
   );
 }

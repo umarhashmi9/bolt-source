@@ -5,6 +5,7 @@ export function useGetUser() {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+
   useEffect(() => {
     async function fetchUser() {
       setLoading(true);
@@ -25,7 +26,7 @@ export function useGetUser() {
     if (userId) {
       fetchUser();
     }
-  }, [userId]);
+  }, [userId, loading]);
 
   return { user, error, loading };
 }

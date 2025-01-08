@@ -34,6 +34,7 @@ import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { Link } from '@remix-run/react';
+import { useGetUser } from '~/lib/hooks/useGetUser';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -323,6 +324,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setDialogOpen(!dialogOpen);
     };
 
+    const { user } = useGetUser();
+
     const baseChat = (
       <div
         ref={ref}
@@ -509,10 +512,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                           event.preventDefault();
 
-                          // if (!isSignedIn) {
-                          //   setDialogOpen(true);
-                          //   return;
-                          // }
+                          if (!user) {
+                            setDialogOpen(true);
+                            return;
+                          }
 
                           if (isStreaming) {
                             handleStop?.();
@@ -550,10 +553,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                               handleStop?.();
                               return;
                             }
-                            // if (!isSignedIn) {
-                            //   setDialogOpen(true);
-                            //   return;
-                            // }
+                            if (!user) {
+                              setDialogOpen(true);
+                              return;
+                            }
                             if (input.length > 0 || uploadedFiles.length > 0) {
                               handleSendMessage?.(event);
                             }
@@ -651,7 +654,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     Sign in
                   </DialogButton>
                 </Link>
-                <Link to="/sign-in">
+                <Link to="/sign-up">
                   <DialogButton type="primary" onClick={handleSignInDialog} className="text-base w-[300px]">
                     Sign up
                   </DialogButton>

@@ -7,6 +7,7 @@ import { BaseChat } from '~/components/chat/BaseChat';
 import { Chat } from '~/components/chat/Chat.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
+import { useGetUser } from '~/lib/hooks/useGetUser';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'Bolt' }, { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' }];
@@ -15,13 +16,19 @@ export const meta: MetaFunction = () => {
 export const loader = () => json({});
 
 export default function Index() {
+  const [userId, setUserId] = useState<string | null>(null);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const userIdFromUrl = urlParams.get('userId');
-    if (userIdFromUrl) {
+    const userfromlocalstorage = localStorage.getItem('userId');
+    if (userfromlocalstorage) {
+      setUserId(userfromlocalstorage);
+    } else if (userIdFromUrl) {
+      setUserId(userIdFromUrl);
       localStorage.setItem('userId', userIdFromUrl);
-      window.history.pushState(null, '', '/');
     }
+    window.history.pushState(null, '', '/');
   }, []);
 
   return (

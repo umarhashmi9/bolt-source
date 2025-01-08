@@ -160,9 +160,9 @@ export const Menu = () => {
     }
   }, []);
 
-  // if (!user) {
-  //   return null;
-  // }
+  if (!user) {
+    return null;
+  }
 
   return (
     <motion.div
