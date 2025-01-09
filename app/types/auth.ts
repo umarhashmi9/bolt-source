@@ -9,6 +9,10 @@ export type FormInputs = {
   password: InputField;
   confirmPassword: InputField;
 };
+export type LoginFormInputs = {
+  email_username: InputField;
+  password: InputField;
+};
 
 export type userTypes = {
   email: string;

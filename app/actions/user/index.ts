@@ -15,6 +15,7 @@ export const createUser = async (user: User) => {
     create: {
       ...(user.email && { email: user.email }),
       name: user.name,
+      ...(user.avatar && { avatar: user.avatar }),
       ...(user.githubId && { githubId: user.githubId }),
       ...(user.password && { password: user.password }),
     },

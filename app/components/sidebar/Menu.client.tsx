@@ -160,6 +160,13 @@ export const Menu = () => {
     }
   }, []);
 
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase();
+
   if (!user) {
     return null;
   }
@@ -291,11 +298,23 @@ export const Menu = () => {
           {/* */}
 
           <div className="flex items-center gap-3">
-            <img
-              src={`https://avatars.githubusercontent.com/u/${user?.githubId}?v=4`}
-              alt="logo"
-              className="rounded-full w-8 h-8"
-            />
+            {user?.githubId ? (
+              <img
+                src={`https://avatars.githubusercontent.com/u/${user?.githubId}?v=4`}
+                alt="avatar"
+                className="rounded-full w-8 h-8 cursor-default"
+              />
+            ) : (
+              <div>
+                <div
+                  className="flex items-center justify-center w-8 h-8 text-white rounded-full text-base "
+                  style={{ background: `${user.avatar}` }}
+                >
+                  <span className="mb-[1px]">{getInitials(user.name)}</span>
+                </div>
+              </div>
+            )}
+
             <div>
               <p className="text-bolt-elements-textPrimary text-sm font-medium">{user?.name}</p>
               <p className="text-bolt-elements-textSecondary text-sm font-regular">Personal Plan</p>

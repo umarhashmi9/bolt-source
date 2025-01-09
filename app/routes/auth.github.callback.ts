@@ -15,7 +15,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   const newUser: GithubUser = {
     email: resp.email as string,
-    name: resp.name as string,
+    name: resp.login as string,
     id: resp.id,
   };
 
@@ -25,6 +25,8 @@ export const loader: LoaderFunction = async ({ request }) => {
     githubId: newUser.id,
     id: '',
     password: null,
+    avatar: null,
+    subscriptionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   });

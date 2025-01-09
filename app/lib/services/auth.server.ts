@@ -1,9 +1,10 @@
 import { Authenticator } from 'remix-auth';
 import { GitHubStrategy } from 'remix-auth-github';
 import { FormStrategy } from 'remix-auth-form';
-import type { FormInputs } from '~/types/auth';
+import type { FormInputs, LoginFormInputs } from '~/types/auth';
 import { fetchGitHubProfile } from '~/utils/fetchGitHubProfile';
 import { OAuth2Strategy, CodeChallengeMethod } from 'remix-auth-oauth2';
+import db from '~/actions/prisma';
 
 export let authenticator = new Authenticator<any>();
 
@@ -17,9 +18,25 @@ authenticator.use(
     };
     if (!inputs.email.value) {
       inputs.email.error = 'Email is required';
+    } else {
+      const existingEmail = await db.user.findUnique({
+        where: { email: inputs.email.value },
+      });
+
+      if (existingEmail) {
+        inputs.email.error = 'Email already exists';
+      }
     }
     if (!inputs.username.value) {
       inputs.username.error = 'Username is required';
+    } else {
+      const existingUsername = await db.user.findUnique({
+        where: { name: inputs.username.value },
+      });
+
+      if (existingUsername) {
+        inputs.username.error = 'Username already exists';
+      }
     }
     if (!inputs.password.value) {
       inputs.password.error = 'Password is required';
@@ -40,6 +57,41 @@ authenticator.use(
     return inputs;
   }),
   'user-pass',
+);
+
+authenticator.use(
+  new FormStrategy(async ({ form }) => {
+    const inputs: LoginFormInputs = {
+      email_username: { value: (form.get('email_username') as string) || '' },
+      password: { value: (form.get('password') as string) || '' },
+    };
+    if (!inputs.email_username.value) {
+      inputs.email_username.error = 'email_username is required';
+    } else {
+      const existingEmail = await db.user.findUnique({
+        where: { email: inputs.email_username.value },
+      });
+
+      if (existingEmail) {
+        inputs.email_username.error = 'Email already exists';
+      }
+    }
+    if (!inputs.password.value) {
+      inputs.password.error = 'Password is required';
+    } else {
+      const password = inputs.password.value;
+      const hasUpperCase = /[A-Z]/.test(password);
+      const hasLowerCase = /[a-z]/.test(password);
+      const hasDigitOrSymbol = /[\d\W]/.test(password);
+
+      if (!hasUpperCase || !hasLowerCase || !hasDigitOrSymbol) {
+        inputs.password.error = 'Password must contain at least 1 uppercase, 1 lowercase, and 1 digit or symbol';
+      }
+    }
+
+    return inputs;
+  }),
+  'sign-in',
 );
 
 authenticator.use(
@@ -65,30 +117,26 @@ authenticator.use(
   'github',
 );
 
-// authenticator.use(
-//   new OAuth2Strategy(
-//     {
-//       cookie: "oauth2", // Optional, can also be an object with more options
+authenticator.use(
+  new OAuth2Strategy(
+    {
+      cookie: 'oauth2', // Optional, can also be an object with more options
 
-//       clientId: CLIENT_ID,
-//       clientSecret: CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectURI: process.env.GOOGLE_CALLBACK_URL!,
 
-//       authorizationEndpoint: "https://provider.com/oauth2/authorize",
-//       tokenEndpoint: "https://provider.com/oauth2/token",
-//       redirectURI: "https://example.app/auth/callback",
+      authorizationEndpoint: 'https://google.com/oauth2/authorize',
+      tokenEndpoint: 'https://google.com/oauth2/token',
 
-//       tokenRevocationEndpoint: "https://provider.com/oauth2/revoke", // optional
+      tokenRevocationEndpoint: 'https://google.com/oauth2/revoke', // optional
 
-//       scopes: ["openid", "email", "profile"], // optional
-//       codeChallengeMethod: CodeChallengeMethod.S256, // optional
-//     },
-//     async ({ tokens, request }) => {
-//       // here you can use the params above to get the user and return it
-//       // what you do inside this and how you find the user is up to you
-//       return await getUser(tokens, request);
-//     }
-//   ),
-//   // this is optional, but if you setup more than one OAuth2 instance you will
-//   // need to set a custom name to each one
-//   "provider-name"
-// );
+      scopes: ['openid', 'email', 'profile'], // optional
+      codeChallengeMethod: CodeChallengeMethod.S256, // optional
+    },
+    async ({ tokens, request }) => {
+      return await { tokens };
+    },
+  ),
+  'google',
+);

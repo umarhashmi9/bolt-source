@@ -28,4 +28,5 @@ interface User {
   name: string;
   githubId: string;
   subscriptionId: string;
+  avatar: string;
 }

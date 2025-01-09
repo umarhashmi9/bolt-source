@@ -1,10 +1,19 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Form, Link, redirect, useActionData, useLoaderData } from '@remix-run/react';
+import { data, Form, Link, redirect, useActionData, useLoaderData, type MetaFunction } from '@remix-run/react';
 import { getSession } from '~/lib/services/session.server';
 import { authenticator } from '~/lib/services/auth.server';
 import Input from '~/components/ui/input';
 import { useState } from 'react';
 import type { FormInputs } from '~/types/auth';
+import { createUser } from '~/actions/user';
+import { getRandomGradient } from '~/utils/getRandomGradient';
+
+export const meta: MetaFunction = () => {
+  return [
+    { title: 'Sign Up - Bolt' },
+    { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' },
+  ];
+};
 
 /**
  * called when the user hits button to login
@@ -14,11 +23,24 @@ import type { FormInputs } from '~/types/auth';
  */
 export const action: ActionFunction = async ({ request, context }) => {
   const resp: any = await authenticator.authenticate('user-pass', request);
-  console.log(resp);
-  if (resp.error === 'passwords-do-not-match') {
-    return { error: 'Passwords do not match!' };
+  console.log('resp', resp);
+  if (resp.email.error || resp.username.error || resp.password?.error || resp.confirmPassword?.error) {
+    return resp;
+  } else {
+    const user = await createUser({
+      email: resp.email.value as string,
+      name: resp.username.value as string,
+      password: resp.password.value,
+      avatar: getRandomGradient(),
+      githubId: null,
+      id: '',
+      subscriptionId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    console.log(user.id);
+    return redirect(`/?userId=${user.id}`);
   }
-  return resp;
 };
 
 /**
@@ -40,9 +62,7 @@ export const loader: LoaderFunction = async ({ request }) => {
  * @returns
  */
 export default function SignUpPage() {
-  const loaderData = useLoaderData();
   const actionData = useActionData<FormInputs>();
-  console.log(actionData);
 
   return (
     <div className="pt-24 pb-10 bg-bolt-elements-background-depth-2 flex justify-center items-center">

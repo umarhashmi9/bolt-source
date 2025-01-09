@@ -18,8 +18,8 @@ export const meta: MetaFunction = () => {
  * @param param0
  * @returns
  */
-export const action: ActionFunction = async ({ request, context }) => {
-  const resp = await authenticator.authenticate('user-pass', request);
+export const action: ActionFunction = async ({ request }) => {
+  const resp = await authenticator.authenticate('sign-in', request);
   console.log('resp', resp);
   return resp;
 };
@@ -69,7 +69,12 @@ export default function SignInPage() {
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="w-full flex flex-col gap-2">
-              <Input placeholder="Email or Username" id="email" name="email" error={actionData?.email.error} />
+              <Input
+                placeholder="Email or Username"
+                id="email_username"
+                name="email_username"
+                error={actionData?.email.error}
+              />
               <Input placeholder="Password" id="password" name="password" error={actionData?.password.error} />
               <button
                 type="submit"
