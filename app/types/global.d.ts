@@ -27,6 +27,7 @@ interface User {
   email: string;
   name: string;
   githubId: string;
+  googleId: string;
   subscriptionId: string;
   avatar: string;
 }

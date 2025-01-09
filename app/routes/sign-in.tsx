@@ -1,9 +1,11 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Form, Link, redirect, useActionData, useLoaderData, type MetaFunction } from '@remix-run/react';
+import { data, Form, Link, redirect, useActionData, type MetaFunction } from '@remix-run/react';
+import db from '~/actions/prisma';
 import Input from '~/components/ui/input';
 import { authenticator } from '~/lib/services/auth.server';
+import type { LoginFormInputs } from '~/types/auth';
+import * as bcrypt from 'bcrypt';
 import { getSession } from '~/lib/services/session.server';
-import type { FormInputs } from '~/types/auth';
 
 export const meta: MetaFunction = () => {
   return [
@@ -12,25 +14,27 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-/**
- * called when the user hits button to login
- *
- * @param param0
- * @returns
- */
 export const action: ActionFunction = async ({ request }) => {
   const resp = await authenticator.authenticate('sign-in', request);
-  console.log('resp', resp);
-  return resp;
+
+  if (resp.email_username.error || resp.password?.error) {
+    return resp;
+  } else {
+    const user = await db.user.findFirst({
+      where: {
+        OR: [{ email: resp.email_username.value }, { name: resp.email_username.value }],
+      },
+    });
+
+    if (user && (await bcrypt.compare(resp.password.value, user.password || ''))) {
+      return redirect(`/?userId=${user.id}`);
+    } else {
+      resp.password.error = "Password doesn't match";
+      return resp;
+    }
+  }
 };
 
-/**
- * get the cookie and see if there are any errors that were
- * generated when attempting to login
- *
- * @param param0
- * @returns
- */
 export const loader: LoaderFunction = async ({ request }) => {
   const session = await getSession(request);
   const user = session.get('user');
@@ -38,14 +42,10 @@ export const loader: LoaderFunction = async ({ request }) => {
   return data(null);
 };
 
-/**
- *
- * @returns
- */
 export default function SignInPage() {
-  const actionData = useActionData<FormInputs>();
+  const actionData = useActionData<LoginFormInputs>();
   return (
-    <div className="pt-24 pb-10 bg-bolt-elements-background-depth-2 flex justify-center items-center">
+    <div className="pt-24 pb-10 min-h-screen bg-bolt-elements-background-depth-2 flex justify-center items-center">
       <div className="flex justify-center items-center flex-col gap-10 w-[344px]">
         <div className="flex flex-col gap-2 items-center">
           <h1 className="text-bolt-elements-textPrimary text-3xl font-semibold">Welcome back</h1>
@@ -73,7 +73,7 @@ export default function SignInPage() {
                 placeholder="Email or Username"
                 id="email_username"
                 name="email_username"
-                error={actionData?.email.error}
+                error={actionData?.email_username.error}
               />
               <Input placeholder="Password" id="password" name="password" error={actionData?.password.error} />
               <button
