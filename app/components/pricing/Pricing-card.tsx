@@ -9,7 +9,7 @@ export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yea
   const { user } = useGetUser();
   const handleSubscribe = async (priceId: string) => {
     console.log(user)
-    const response = await fetch('/api/billing-portal', {
+    const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ priceId, userId: user?.id }),
