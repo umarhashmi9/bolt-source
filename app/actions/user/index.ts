@@ -28,3 +28,17 @@ export const createUser = async (user: User) => {
   });
   return newUser;
 };
+
+
+export async function getCustomerByUserId(userId: string) {
+  return await db.user.findUnique({
+    where: { id: userId },
+    select: { customerIs: true },
+  });
+}
+export async function saveStripeCustomerId(userId: string, stripeCustomerId: string) {
+  return await db.user.update({
+    where: { id: userId },
+    data: { customerIs: stripeCustomerId },
+  });
+}

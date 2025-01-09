@@ -21,7 +21,7 @@ model User {
   avatar         String?
   subscriptionId String?
   subscription   subscriptions?
-  customer       customers?
+  customerIs     String?
   githubId       Int?           @unique
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -36,7 +36,7 @@ model subscriptions {
   status                 SubscriptionStatus? // trialing, active, canceled, incomplete, incomplete_expired, past_due, unpaid, paused
   quantity               Int?
   priceId                String?
-  price                  prices?             @relation(fields: [priceId], references: [id])
+  // price                  prices?             @relation(fields: [priceId], references: [id])
   cancelAtPeriodEnd      Boolean             @default(false)
   currentPeriodStart     DateTime?
   currentPeriodEnd       DateTime?
@@ -49,32 +49,31 @@ model customers {
   id         String @id @default(uuid())
   customerId String
   userId     String @unique
-  user       User   @relation(fields: [userId], references: [id])
 }
 
 model products {
-  id          String   @id @default(uuid())
-  productId   String   @unique
-  active      Boolean  @default(true)
+  id          String  @id @default(uuid())
+  productId   String  @unique
+  active      Boolean @default(true)
   name        String
   description String?
-  prices      prices[]
+  // prices      prices[]
 }
 
-model prices {
-  id                  String              @id @default(uuid())
-  priceId             String              @unique
-  productId           String
-  product             products            @relation(fields: [productId], references: [id])
-  description         String?
-  unitAmount          Int
-  currency            String
-  pricingType         PricingType // one_time, recurring
-  pricingPlanInterval PricingPlanInterval // day, week, month, year
-  intervalCount       Int
-  subscription        subscriptions[]
-  type                PlanType // basic, pro
-}
+// model prices {
+//   id                  String              @id @default(uuid())
+//   priceId             String              @unique
+//   productId           String
+//   product             products            @relation(fields: [productId], references: [id])
+//   description         String?
+//   unitAmount          Int
+//   currency            String
+//   pricingType         PricingType // one_time, recurring
+//   pricingPlanInterval PricingPlanInterval // day, week, month, year
+//   intervalCount       Int
+//   subscription        subscriptions[]
+//   type                PlanType // basic, pro
+// }
 
 enum PlanType {
   basic
