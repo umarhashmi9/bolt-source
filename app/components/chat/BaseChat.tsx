@@ -9,7 +9,7 @@ import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
-import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
+import { PROVIDER_LIST } from '~/utils/constants';
 import { Messages } from './Messages.client';
 import { SendButton } from './SendButton.client';
 import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
@@ -32,6 +32,7 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 import { LLMManager } from '~/lib/modules/llm/manager';
+import type { ModelInfo } from '~/lib/modules/llm/types';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -102,7 +103,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
-    const [modelList, setModelList] = useState(MODEL_LIST);
+    const [modelList, setModelList] = useState<ModelInfo[]>([]);
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
@@ -169,7 +170,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
     useEffect(() => {
       if (typeof window !== 'undefined') {
-        const providerSettings = getProviderSettings();
         let parsedApiKeys: Record<string, string> | undefined = {};
 
         try {
@@ -177,17 +177,18 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
           setApiKeys(parsedApiKeys);
         } catch (error) {
           console.error('Error loading API keys from cookies:', error);
-
-          // Clear invalid cookie data
           Cookies.remove('apiKeys');
         }
+
         setIsModelLoading('all');
-        initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
-          .then((modelList) => {
-            setModelList(modelList);
+        fetch('/api/models')
+          .then((response) => response.json())
+          .then((data) => {
+            const typedData = data as { modelList: ModelInfo[] };
+            setModelList(typedData.modelList);
           })
           .catch((error) => {
-            console.error('Error initializing model list:', error);
+            console.error('Error fetching model list:', error);
           })
           .finally(() => {
             setIsModelLoading(undefined);

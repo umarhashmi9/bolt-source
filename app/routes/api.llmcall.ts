@@ -4,8 +4,10 @@ import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { generateText } from 'ai';
-import { getModelList, PROVIDER_LIST } from '~/utils/constants';
+import { PROVIDER_LIST } from '~/utils/constants';
 import { MAX_TOKENS } from '~/lib/.server/llm/constants';
+import { LLMManager } from '~/lib/modules/llm/manager';
+import type { ModelInfo } from '~/lib/modules/llm/types';
 
 export async function action(args: ActionFunctionArgs) {
   return llmCallAction(args);
@@ -29,6 +31,15 @@ function parseCookies(cookieHeader: string) {
   });
 
   return cookies;
+}
+
+async function getModelList(options: {
+  apiKeys?: Record<string, string>;
+  providerSettings?: Record<string, IProviderSetting>;
+  serverEnv?: Record<string, string>;
+}) {
+  const llmManager = LLMManager.getInstance(import.meta.env);
+  return llmManager.updateModelList(options);
 }
 
 async function llmCallAction({ context, request }: ActionFunctionArgs) {
@@ -105,8 +116,8 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
     }
   } else {
     try {
-      const MODEL_LIST = await getModelList({ apiKeys, providerSettings, serverEnv: context.cloudflare.env as any });
-      const modelDetails = MODEL_LIST.find((m) => m.name === model);
+      const models = await getModelList({ apiKeys, providerSettings, serverEnv: context.cloudflare.env as any });
+      const modelDetails = models.find((m: ModelInfo) => m.name === model);
 
       if (!modelDetails) {
         throw new Error('Model not found');
