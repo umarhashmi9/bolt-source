@@ -1,14 +1,18 @@
+import { useGetUser } from "~/lib/hooks/useGetUser";
+
 interface CheckoutResponse {
   url?: string;
   error?: string;
 }
 
 export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yearly: boolean }) {
+  const { user } = useGetUser();
   const handleSubscribe = async (priceId: string) => {
-    const response = await fetch('/api/checkout', {
+    console.log(user)
+    const response = await fetch('/api/billing-portal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceId }),
+      body: JSON.stringify({ priceId, userId: user?.id }),
     });
 
     const data: CheckoutResponse = await response.json();

@@ -16,7 +16,7 @@ const pricingData: Pricing[] = [
     tokens: 10,
     description: 'Ideal for hobbyists and casual users for light, exploratory use.',
     annual: 216,
-    priceId: 'price_1PbpgJKWfbR45IR7mYwUUMT9',
+    priceId: 'price_1PoXddLwHVywsqUKIaIych78',
   },
   {
     id: '2',
@@ -25,7 +25,7 @@ const pricingData: Pricing[] = [
     tokens_before: 25,
     annual: 540,
     description: 'Designed for professionals who need to use Bolt a few times per week.',
-    priceId: 'price_1PbprLKWfbR45IR7HCZf44op',
+    priceId: 'price_1PoXddLwHVywsqUKIaIych78',
   },
   {
     id: '3',
@@ -43,7 +43,7 @@ const pricingData: Pricing[] = [
     tokens_before: 100,
     annual: 2160,
     description: 'Designed for professionals who need to use Bolt a few times per week.',
-    priceId: 'price_1PbPqgKWfbR45IR7L4V0Y7RL',
+    priceId: 'price_1PoXddLwHVywsqUKIaIych78',
   },
 ];
 

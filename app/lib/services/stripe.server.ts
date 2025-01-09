@@ -1,12 +1,11 @@
 import { json } from '@remix-run/node';
 import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia',
 });
 
 export const action = async ({ request }: { request: Request }) => {
-  const { priceId } = await request.json();
+  const { priceId }: { priceId: string } = await request.json();
 
   if (!priceId) {
     return json({ error: 'Missing price ID' }, { status: 400 });
