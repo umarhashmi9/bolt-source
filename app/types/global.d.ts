@@ -30,4 +30,15 @@ interface User {
   googleId: string;
   subscriptionId: string;
   avatar: string;
+  subscription: {
+    name: string;
+    price: number;
+    cancelAt: string | null;
+    cancelAtPeriodEnd: boolean;
+    canceledAt: string | null;
+    currentPeriodEnd: string;
+    currentPeriodStart: string;
+    endedAt: string | null;
+    planType: string;
+  };
 }

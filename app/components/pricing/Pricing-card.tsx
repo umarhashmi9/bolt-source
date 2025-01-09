@@ -1,4 +1,5 @@
-import { useGetUser } from "~/lib/hooks/useGetUser";
+import { useState } from 'react';
+import { useGetUser } from '~/lib/hooks/useGetUser';
 
 interface CheckoutResponse {
   url?: string;
@@ -7,8 +8,9 @@ interface CheckoutResponse {
 
 export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yearly: boolean }) {
   const { user } = useGetUser();
+  const [loading, setLoading] = useState(false);
   const handleSubscribe = async (priceId: string) => {
-    console.log(user)
+    setLoading(true);
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -16,7 +18,6 @@ export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yea
     });
 
     const data: CheckoutResponse = await response.json();
-
     if (data.url) {
       window.location.href = data.url;
     } else {
@@ -59,10 +60,14 @@ export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yea
       <div className="border-t border-bolt-elements-borderColor text-sm">
         <div className="flex justify-center p-6">
           <button
-            className="px-3 py-2 rounded-lg mt-auto text-center text-xs transition-theme flex-1 self-stretch bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text enabled:hover:bg-accent-700"
+            className={`px-3 py-2 rounded-lg mt-auto text-center text-xs transition-theme flex-1 self-stretch text-bolt-elements-button-primary-text enabled:hover:bg-accent-700 ${loading ? 'dark:bg-gray-800 bg-gray-200' : 'bg-bolt-elements-button-primary-background '}`}
             onClick={() => handleSubscribe(pricing.priceId)}
+            disabled={loading}
           >
-            <span className="relative">Upgrade to Pro {pricing.price}</span>
+            <span className="relative">
+              {loading && <span className="absolute -left-6 h-full  i-svg-spinners:90-ring-with-bg size-4"></span>}
+              Upgrade to Pro {pricing.price}
+            </span>
           </button>
         </div>
       </div>

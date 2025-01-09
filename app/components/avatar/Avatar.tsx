@@ -1,13 +1,4 @@
-import React from 'react';
 import { useGetUser } from '~/lib/hooks/useGetUser';
-
-const gradients = [
-  'bg-gradient-to-r from-pink-500 to-yellow-500',
-  'bg-gradient-to-r from-green-400 to-blue-500',
-  'bg-gradient-to-r from-purple-400 to-pink-600',
-  'bg-gradient-to-r from-red-500 to-orange-500',
-  'bg-gradient-to-r from-teal-400 to-green-500',
-];
 
 function Avatar() {
   const { user } = useGetUser();
@@ -27,6 +18,8 @@ function Avatar() {
             alt="avatar"
             className="rounded-full w-7 h-7 cursor-default"
           />
+        ) : user?.googleId ? (
+          <img src={`${user.avatar}`} alt="avatar" className="rounded-full w-7 h-7" />
         ) : (
           <div
             className="size-7 text-white rounded-full flex item-center text-center justify-center"

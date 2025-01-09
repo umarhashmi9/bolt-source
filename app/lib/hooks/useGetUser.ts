@@ -26,7 +26,9 @@ export function useGetUser() {
     if (userId) {
       fetchUser();
     }
-  }, [userId, loading]);
+  }, [userId]);
+
+  console.log(user);
 
   return { user, error, loading };
 }

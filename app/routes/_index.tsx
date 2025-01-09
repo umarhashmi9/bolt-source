@@ -18,7 +18,6 @@ export const loader = () => json({});
 
 export default function Index() {
   const [userId, setUserId] = useState<string | null>(null);
-
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const userIdFromUrl = urlParams.get('userId');
@@ -29,7 +28,9 @@ export default function Index() {
       setUserId(userIdFromUrl);
       localStorage.setItem('userId', userIdFromUrl);
     }
-    window.history.pushState(null, '', '/');
+    if (!window.location.href.includes('api.checkout')) {
+      window.history.pushState(null, '', '/');
+    }
   }, []);
 
   return (

@@ -23,7 +23,7 @@ model User {
   subscription   subscriptions?
   customerIs     String?
   githubId       Int?           @unique
-  googleId       Int?           @unique
+  googleId       String?        @unique
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }

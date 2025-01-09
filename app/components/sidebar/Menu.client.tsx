@@ -15,6 +15,12 @@ import { DialogTrigger } from '@radix-ui/react-dialog';
 import Button from '../ui/button';
 import PricingWindow from '../pricing/Pricing';
 import { useGetUser } from '~/lib/hooks/useGetUser';
+import { useNavigate } from '@remix-run/react';
+
+interface BillingPageResponse {
+  url?: string;
+  error?: string;
+}
 
 const menuVariants = {
   closed: {
@@ -67,6 +73,7 @@ export const Menu = () => {
   const [pricingDialog, setPricingDialog] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
     items: list,
@@ -151,6 +158,21 @@ export const Menu = () => {
   const handlePricingDialogOpen = () => {
     setPricingDialog(true);
     window.history.pushState(null, '', '/?showPricing=true');
+  };
+  const handleBillingPage = async () => {
+    setLoading(true);
+    const response = await fetch('/api/billing-page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user?.id }),
+    });
+
+    const data: BillingPageResponse = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      console.error(data.error);
+    }
   };
 
   useEffect(() => {
@@ -263,12 +285,14 @@ export const Menu = () => {
             <span className="i-ph:gear text-xl" />
             <p className="text-bolt-elements-textPrimary text-sm font-medium">Settings</p>
           </div>
+
           <div
-            className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md"
-            onClick={handlePricingDialogOpen}
+            className="flex items-center gap-2 text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive cursor-pointer p-2 rounded-md relative"
+            onClick={user?.subscription ? handleBillingPage : handlePricingDialogOpen}
           >
             <span className="i-ph:credit-card text-xl" />
             <p className="text-bolt-elements-textPrimary text-sm font-medium">My Subscription</p>
+            {loading && <span className="absolute right-2 h-full  i-svg-spinners:90-ring-with-bg size-4"></span>}
           </div>
           <DialogRoot open={dialogOpen}>
             <DialogTrigger asChild>
@@ -299,11 +323,17 @@ export const Menu = () => {
 
           <div className="flex items-center gap-3">
             {user?.githubId ? (
-              <img
-                src={`https://avatars.githubusercontent.com/u/${user?.githubId}?v=4`}
-                alt="avatar"
-                className="rounded-full w-8 h-8 cursor-default"
-              />
+              <div>
+                <img
+                  src={`https://avatars.githubusercontent.com/u/${user?.githubId}?v=4`}
+                  alt="avatar"
+                  className="rounded-full w-8 h-8 cursor-default"
+                />
+              </div>
+            ) : user?.googleId ? (
+              <div>
+                <img src={`${user.avatar}`} alt="avatar" className="rounded-full w-8 h-8 cursor-default" />
+              </div>
             ) : (
               <div>
                 <div
@@ -317,7 +347,9 @@ export const Menu = () => {
 
             <div>
               <p className="text-bolt-elements-textPrimary text-sm font-medium">{user?.name}</p>
-              <p className="text-bolt-elements-textSecondary text-sm font-regular">Personal Plan</p>
+              <p className="text-bolt-elements-textSecondary text-sm font-regular capitalize">
+                {user?.subscription?.planType ? user?.subscription?.planType : 'Personal'} Plan
+              </p>
             </div>
           </div>
           <ThemeSwitch />

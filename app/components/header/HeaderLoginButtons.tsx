@@ -16,13 +16,13 @@ function HeaderLoginButtons({ user }: any) {
       <Fragment>
         <div className="flex gap-2">
           <Link
-            to="/sign-in"
+            to="/auth/sign-in"
             className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#3B3B3B]"
           >
             Sign In
           </Link>
           <Link
-            to="/sign-up"
+            to="/auth/sign-up"
             className="text-bolt-elements-textPrimary px-[16px] py-[6px] rounded-md text-xs bg-[#9E0DE1]"
           >
             Get Started

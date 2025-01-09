@@ -10,6 +10,7 @@ export const loader = async ({ params }: { params: { id: string } }) => {
   try {
     const user = await db.user.findUnique({
       where: { id },
+      include: { subscription: true },
     });
 
     if (!user) {

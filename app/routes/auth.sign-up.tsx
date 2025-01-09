@@ -6,6 +6,7 @@ import Input from '~/components/ui/input';
 import type { FormInputs } from '~/types/auth';
 import { createUser } from '~/actions/user';
 import { getRandomGradient } from '~/utils/getRandomGradient';
+import AuthButton from '~/components/ui/AuthButton';
 
 export const meta: MetaFunction = () => {
   return [
@@ -26,8 +27,10 @@ export const action: ActionFunction = async ({ request }) => {
       password: resp.password.value,
       avatar: getRandomGradient(),
       githubId: null,
+      googleId: null,
       id: '',
       subscriptionId: null,
+      customerIs: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -53,18 +56,8 @@ export default function SignUpPage() {
           <p className="text-bolt-elements-textSecondary">Create your Bolt.diy account.</p>
         </div>
         <div className="flex items-center flex-col gap-7 rounded-md flex items-center justify-center">
-          <Form action="/auth/github" method="post" className="w-full">
-            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-              <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
-              <span className="text-sm font-bold">Sign up with GitHub</span>
-            </button>
-          </Form>
-          <Form action="/auth/google" method="post" className="w-full">
-            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-              <img src="/icons/Google-login.svg" alt="Google" className="w-6 h-6" />
-              <span className="text-sm font-bold">Sign up with Google</span>
-            </button>
-          </Form>
+          <AuthButton provider="github" icon="Github" />
+          <AuthButton provider="google" icon="Google-login" />
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="flex flex-col gap-2">
@@ -91,7 +84,7 @@ export default function SignUpPage() {
               >
                 <span className="text-sm font-semibold">Sign Up</span>
               </button>
-              <Link to="/sign-in">
+              <Link to="/auth/sign-in">
                 <p className="text-bolt-elements-textSecondary text-sm text-center underline">
                   Have an account? Sign In.
                 </p>

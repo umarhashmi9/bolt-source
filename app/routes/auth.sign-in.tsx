@@ -6,6 +6,7 @@ import { authenticator } from '~/lib/services/auth.server';
 import type { LoginFormInputs } from '~/types/auth';
 import * as bcrypt from 'bcrypt';
 import { getSession } from '~/lib/services/session.server';
+import AuthButton from '~/components/ui/AuthButton';
 
 export const meta: MetaFunction = () => {
   return [
@@ -54,18 +55,8 @@ export default function SignInPage() {
           </p>
         </div>
         <div className="flex items-center flex-col gap-7 rounded-md flex items-center justify-center ">
-          <Form action="/auth/github" method="post" className="w-full">
-            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-              <img src="/icons/Github.svg" alt="GitHub" className="w-6 h-6" />
-              <span className="text-sm font-bold">Sign up with GitHub</span>
-            </button>
-          </Form>
-          <Form action="/auth/google" method="post" className="w-full">
-            <button className="flex items-center gap-2 p-[13px] text-sm text-bolt-elements-textPrimary rounded-md w-full bg-accent-600 justify-center">
-              <img src="/icons/Google-login.svg" alt="Google" className="w-6 h-6" />
-              <span className="text-sm font-bold">Sign up with Google</span>
-            </button>
-          </Form>
+          <AuthButton provider="github" icon="Github" />
+          <AuthButton provider="google" icon="Google-login" />
           <span className="text-bolt-elements-textSecondary">- or -</span>
           <Form method="post" className="w-full">
             <div className="w-full flex flex-col gap-2">
@@ -82,7 +73,7 @@ export default function SignInPage() {
               >
                 <span className="text-sm font-semibold">Sign In</span>
               </button>
-              <Link to="/sign-up">
+              <Link to="/auth/sign-up">
                 <p className="text-bolt-elements-textSecondary text-sm text-center underline">
                   Don't have an account? Sign Up.
                 </p>
