@@ -2,7 +2,6 @@ import { redirect } from '@remix-run/cloudflare';
 import type { LoaderFunction } from '@remix-run/node';
 import { createUser } from '~/actions/user';
 import { authenticator } from '~/lib/services/auth.server';
-import { commitSession, getSession } from '~/lib/services/session.server';
 
 type GithubUser = {
   name: string;
@@ -23,6 +22,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     email: newUser.email as string,
     name: newUser.name as string,
     githubId: newUser.id,
+    googleId: null,
     id: '',
     password: null,
     avatar: null,

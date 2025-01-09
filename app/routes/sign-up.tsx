@@ -1,9 +1,8 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node';
-import { data, Form, Link, redirect, useActionData, useLoaderData, type MetaFunction } from '@remix-run/react';
+import { data, Form, Link, redirect, useActionData, type MetaFunction } from '@remix-run/react';
 import { getSession } from '~/lib/services/session.server';
 import { authenticator } from '~/lib/services/auth.server';
 import Input from '~/components/ui/input';
-import { useState } from 'react';
 import type { FormInputs } from '~/types/auth';
 import { createUser } from '~/actions/user';
 import { getRandomGradient } from '~/utils/getRandomGradient';
@@ -15,15 +14,9 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-/**
- * called when the user hits button to login
- *
- * @param param0
- * @returns
- */
-export const action: ActionFunction = async ({ request, context }) => {
+export const action: ActionFunction = async ({ request }) => {
   const resp: any = await authenticator.authenticate('user-pass', request);
-  console.log('resp', resp);
+
   if (resp.email.error || resp.username.error || resp.password?.error || resp.confirmPassword?.error) {
     return resp;
   } else {
@@ -38,18 +31,10 @@ export const action: ActionFunction = async ({ request, context }) => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    console.log(user.id);
     return redirect(`/?userId=${user.id}`);
   }
 };
 
-/**
- * get the cookie and see if there are any errors that were
- * generated when attempting to login
- *
- * @param param0
- * @returns
- */
 export const loader: LoaderFunction = async ({ request }) => {
   const session = await getSession(request);
   const user = session.get('user');
@@ -57,15 +42,11 @@ export const loader: LoaderFunction = async ({ request }) => {
   return data(null);
 };
 
-/**
- *
- * @returns
- */
 export default function SignUpPage() {
   const actionData = useActionData<FormInputs>();
 
   return (
-    <div className="pt-24 pb-10 bg-bolt-elements-background-depth-2 flex justify-center items-center">
+    <div className="pt-24 pb-10 min-h-screen bg-bolt-elements-background-depth-2 flex justify-center items-center">
       <div className="flex justify-center items-center flex-col gap-10 w-[344px]">
         <div className="flex flex-col gap-2 items-center">
           <h1 className="text-bolt-elements-textPrimary text-3xl font-semibold">Get Started</h1>
