@@ -1,12 +1,11 @@
-import { json } from '@remix-run/node';
 import { stripe } from '~/lib/services/stripe.server'; // Adjust the import path as needed
 import type { ClientActionFunctionArgs } from '@remix-run/react';
-import { getCustomerByUserId, saveStripeCustomerId } from "../actions/user"
+import { getCustomerByUserId, saveStripeCustomerId } from '../actions/user';
 export const action = async ({ request }: ClientActionFunctionArgs) => {
   const { userId }: { userId: string } = await request.json();
 
   if (!userId) {
-    return json({ error: 'User not authenticated' }, { status: 401 });
+    return Response.json({ error: 'User not authenticated' }, { status: 401 });
   }
 
   // Retrieve the customer's Stripe ID from your database
@@ -29,7 +28,7 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
       }
     } catch (err: any) {
       console.error(`Error creating Stripe customer: ${err.message}`);
-      return json({ error: 'Unable to create Stripe customer' }, { status: 500 });
+      return Response.json({ error: 'Unable to create Stripe customer' }, { status: 500 });
     }
   }
 
@@ -38,13 +37,13 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customer.customerIs as string,
 
-      return_url: process.env.BILLING_RETURN_URL || "http://localhost:5173", // Replace with your desired return URL
+      return_url: process.env.BILLING_RETURN_URL || 'http://localhost:5173', // Replace with your desired return URL
     });
 
     // Respond with the portal URL
-    return json({ url: portalSession.url });
+    return Response.json({ url: portalSession.url });
   } catch (err: any) {
     console.error(`Error creating Billing Portal session: ${err.message}`);
-    return json({ error: 'Unable to create Billing Portal session' }, { status: 500 });
+    return Response.json({ error: 'Unable to create Billing Portal session' }, { status: 500 });
   }
 };

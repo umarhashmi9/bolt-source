@@ -1,4 +1,3 @@
-import { json } from '@remix-run/node';
 import { stripe } from '~/lib/services/stripe.server'; // Adjust the import path as needed
 import { createOrUpdateSubscription } from '~/actions/subscription';
 import type { ClientActionFunctionArgs } from '@remix-run/react';
@@ -8,7 +7,7 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
   const sig = request.headers.get('stripe-signature');
 
   if (!sig) {
-    return json({ error: 'Missing Stripe signature header' }, { status: 400 });
+    return Response.json({ error: 'Missing Stripe signature header' }, { status: 400 });
   }
 
   let event: Stripe.Event;
@@ -17,14 +16,10 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
     // Use raw body for Stripe signature verification
     const rawBody = await request.text();
 
-    event = await stripe.webhooks.constructEventAsync(
-      rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = await stripe.webhooks.constructEventAsync(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (err: any) {
     console.error(`Webhook signature verification failed: ${err.message}`);
-    return json({ error: `Webhook signature verification failed: ${err.message}` }, { status: 400 });
+    return Response.json({ error: `Webhook signature verification failed: ${err.message}` }, { status: 400 });
   }
 
   try {
@@ -36,13 +31,10 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
         const userId = session.metadata?.userId;
         const priceId = session.metadata?.priceId;
         const quantity = Number(session.metadata?.quantity) || 1;
-        console.log(
-          "subscriptionId:", subscriptionId,
-
-        )
+        console.log('subscriptionId:', subscriptionId);
         if (!userId || !subscriptionId) {
           console.error('Missing user_id or invalid subscription ID in session metadata');
-          return json({ error: 'Invalid session data' }, { status: 400 });
+          return Response.json({ error: 'Invalid session data' }, { status: 400 });
         }
 
         await createOrUpdateSubscription({
@@ -64,9 +56,9 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    return json({ received: true });
+    return Response.json({ received: true });
   } catch (err: any) {
     console.error(`Error handling webhook event: ${err.message}`);
-    return json({ error: `Error handling webhook event: ${err.message}` }, { status: 500 });
+    return Response.json({ error: `Error handling webhook event: ${err.message}` }, { status: 500 });
   }
 };
