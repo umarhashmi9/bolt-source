@@ -1,4 +1,3 @@
-import { json } from '@remix-run/node';
 import Stripe from 'stripe';
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-12-18.acacia',
@@ -8,7 +7,7 @@ export const action = async ({ request }: { request: Request }) => {
   const { priceId }: { priceId: string } = await request.json();
 
   if (!priceId) {
-    return json({ error: 'Missing price ID' }, { status: 400 });
+    return Response.json({ error: 'Missing price ID' }, { status: 400 });
   }
 
   try {
@@ -25,9 +24,9 @@ export const action = async ({ request }: { request: Request }) => {
       cancel_url: process.env.STRIPE_CANCEL_URL!,
     });
 
-    return json({ url: session.url });
+    return Response.json({ url: session.url });
   } catch (error: any) {
     console.error(error);
-    return json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message }, { status: 500 });
   }
 };
