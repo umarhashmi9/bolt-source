@@ -40,6 +40,10 @@ authenticator.use(
   'sign-in',
 );
 
+if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET || !process.env.GITHUB_CALLBACK_URL) {
+  throw new Error('GitHub authentication configuration is missing. Please check your environment variables.');
+}
+
 authenticator.use(
   new GitHubStrategy(
     {
