@@ -28,7 +28,5 @@ export function useGetUser() {
     }
   }, [userId]);
 
-  console.log(user);
-
   return { user, error, loading };
 }

@@ -68,20 +68,7 @@ function PricingWindow({ pricingDialog, setPricingDialog }: PricingProps) {
             instantly-opening production environments.
           </p>
         </div>
-        <div className="bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-lg p-4 mb-8">
-          <div className="flex justify-between items-center sm:flex-row flex-col gap-5">
-            <div className="flex items-center gap-2 justify-center">
-              <img src="/bolt.png" alt="Bolt" className="w-6 h-6" />
-              <p className="text-bolt-elements-textPrimary text-sm md:text-base font-regular">
-                <span className="font-bold">100K</span> tokens left.
-              </p>
-            </div>
-            <div className="flex flex-col gap-1 sm:justify-end sm:items-end justify-center items-center">
-              <p className="text-bolt-elements-textPrimary text-xs md:text-sm font-bold">Need more tokens?</p>
-              <p className="text-bolt-elements-textPrimary text-xs md:text-sm font-regular">Upgrade your plan below</p>
-            </div>
-          </div>
-        </div>
+
         <div className="mb-8">
           <div className="flex items-center gap-2 justify-center">
             <span className="text-bolt-elements-textSecondary text-sm md:text-base font-regular">Annual Billing</span>

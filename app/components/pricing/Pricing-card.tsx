@@ -33,17 +33,6 @@ export default function PricingCard({ pricing, yearly }: { pricing: Pricing; yea
           <span className="font-bold"> {pricing.price}</span>
         </h1>
         <div>
-          <div className="flex items-center text-base">
-            <div className="font-semibold flex items-center gap-1">
-              <img src="/bolt.png" alt="Bolt" className="w-6 h-6" />
-              <p className="text-bolt-elements-textPrimary text-sm md:text-base font-regular">
-                <span className={`${pricing.tokens_before ? 'text-color-green-500' : ''}`}>
-                  {pricing.tokens}M tokens
-                </span>
-                {pricing.tokens_before && <span className="line-through ml-2">{pricing.tokens_before}M tokens</span>}
-              </p>
-            </div>
-          </div>
           <p className="mt-4 text-xs md:text-sm text-bolt-elements-textSecondary">{pricing.description}</p>
         </div>
       </div>
