@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
-import { SettingsButton } from '~/components/ui/SettingsButton';
 import { db, deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
@@ -12,10 +11,8 @@ import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { DialogTrigger } from '@radix-ui/react-dialog';
-import Button from '../ui/button';
 import PricingWindow from '../pricing/Pricing';
 import { useGetUser } from '~/lib/hooks/useGetUser';
-import { useNavigate } from '@remix-run/react';
 
 interface BillingPageResponse {
   url?: string;
