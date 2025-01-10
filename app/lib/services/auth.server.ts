@@ -7,6 +7,7 @@ import { OAuth2Strategy } from 'remix-auth-oauth2';
 import { SignUpValidation } from '~/utils/sign-up-validation';
 import { SignInValidation } from '~/utils/sign-in-validation';
 import { fetchGoogleProfile } from '~/utils/fetchGoogleProfile';
+import 'dotenv/config';
 
 export let authenticator = new Authenticator<any>();
 
@@ -43,9 +44,9 @@ authenticator.use(
 authenticator.use(
   new GitHubStrategy(
     {
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-      redirectURI: process.env.GITHUB_CALLBACK_URL || '',
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      redirectURI: process.env.GITHUB_CALLBACK_URL!,
       scopes: ['user:email'],
     },
     async ({ tokens }) => {
