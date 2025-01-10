@@ -81,7 +81,6 @@ function PricingWindow({ pricingDialog, setPricingDialog }: PricingProps) {
           ))}
         </div>
         <div className="flex flex-col items-center text-sm">
-          <span className="i-ph:enterprise text-2xl"></span>
           <p className="mt-3 text-bolt-elements-textPrimary text-sm font-medium">
             Looking for <span className="font-bold">Enterprise</span> plans?
           </p>
