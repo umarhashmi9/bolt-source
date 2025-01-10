@@ -8,7 +8,7 @@ export const action = async ({ request }: ClientActionFunctionArgs) => {
     return Response.json({ error: 'User not authenticated' }, { status: 401 });
   }
 
-  let customer = await getCustomerByUserId(userId); // Replace with your logic to fetch the Stripe customer
+  let customer = await getCustomerByUserId(userId);
 
   if (!customer?.customerIs) {
     try {
