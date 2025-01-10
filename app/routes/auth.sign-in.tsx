@@ -1,4 +1,3 @@
-import type { ActionFunction, LoaderFunction } from '@remix-run/node';
 import { data, Form, Link, redirect, useActionData, type MetaFunction } from '@remix-run/react';
 import db from '~/actions/prisma';
 import Input from '~/components/ui/input';
@@ -7,6 +6,7 @@ import type { LoginFormInputs } from '~/types/auth';
 import * as bcrypt from 'bcrypt';
 import { getSession } from '~/lib/services/session.server';
 import AuthButton from '~/components/ui/AuthButton';
+import type { ActionFunction, LoaderFunction } from '@remix-run/cloudflare';
 
 export const meta: MetaFunction = () => {
   return [

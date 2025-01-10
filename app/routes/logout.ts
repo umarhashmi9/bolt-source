@@ -1,4 +1,4 @@
-import type { ActionFunction } from '@remix-run/node';
+import type { ActionFunction } from '@remix-run/cloudflare';
 import { getSession, sessionStorage } from '~/lib/services/session.server';
 
 export const action: ActionFunction = async ({ request }) => {

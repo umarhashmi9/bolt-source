@@ -1,5 +1,4 @@
-import { redirect } from '@remix-run/cloudflare';
-import type { LoaderFunction } from '@remix-run/node';
+import { redirect, type LoaderFunction } from '@remix-run/cloudflare';
 import { createUser } from '~/actions/user';
 import { authenticator } from '~/lib/services/auth.server';
 

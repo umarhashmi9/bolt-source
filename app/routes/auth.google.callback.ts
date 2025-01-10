@@ -1,4 +1,4 @@
-import type { LoaderFunction } from '@remix-run/node';
+import type { LoaderFunction } from '@remix-run/cloudflare';
 import { redirect } from '@remix-run/react';
 import { createUser } from '~/actions/user';
 import { authenticator } from '~/lib/services/auth.server';
