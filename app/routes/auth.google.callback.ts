@@ -28,6 +28,7 @@ export let loader: LoaderFunction = async ({ request }) => {
     id: '',
     githubId: null,
     password: null,
+    customerIs: '',
     subscriptionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),

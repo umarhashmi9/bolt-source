@@ -26,6 +26,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     id: '',
     password: null,
     avatar: null,
+    customerIs: '',
     subscriptionId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
