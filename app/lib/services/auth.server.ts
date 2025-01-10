@@ -51,9 +51,9 @@ authenticator.use(
 authenticator.use(
   new GitHubStrategy(
     {
-      clientId: process.env.REACT_GITHUB_CLIENT_ID!,
-      clientSecret: process.env.REACT_GITHUB_CLIENT_SECRET!,
-      redirectURI: process.env.REACT_GITHUB_CALLBACK_URL!,
+      clientId: process.env.PUBLIC_GITHUB_CLIENT_ID!,
+      clientSecret: process.env.PUBLIC_GITHUB_CLIENT_SECRET!,
+      redirectURI: process.env.PUBLIC_GITHUB_CALLBACK_URL!,
       scopes: ['user:email'],
     },
     async ({ tokens }) => {
@@ -74,9 +74,9 @@ authenticator.use(
 authenticator.use(
   new OAuth2Strategy(
     {
-      clientId: process.env.REACT_GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.REACT_GOOGLE_CLIENT_SECRET!,
-      redirectURI: process.env.REACT_GOOGLE_CALLBACK_URL!,
+      clientId: process.env.PUBLIC_GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.PUBLIC_GOOGLE_CLIENT_SECRET!,
+      redirectURI: process.env.PUBLIC_GOOGLE_CALLBACK_URL!,
       authorizationEndpoint: 'https://accounts.google.com/o/oauth2/auth',
       tokenEndpoint: 'https://oauth2.googleapis.com/token',
       scopes: ['openid', 'email', 'profile'],
