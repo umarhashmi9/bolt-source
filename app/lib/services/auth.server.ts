@@ -40,16 +40,20 @@ authenticator.use(
   'sign-in',
 );
 
-if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET || !process.env.GITHUB_CALLBACK_URL) {
+if (
+  !process.env.REACT_GITHUB_CLIENT_ID ||
+  !process.env.REACT_GITHUB_CLIENT_SECRET ||
+  !process.env.REACT_GITHUB_CALLBACK_URL
+) {
   throw new Error('GitHub authentication configuration is missing. Please check your environment variables.');
 }
 
 authenticator.use(
   new GitHubStrategy(
     {
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      redirectURI: process.env.GITHUB_CALLBACK_URL,
+      clientId: process.env.REACT_GITHUB_CLIENT_ID,
+      clientSecret: process.env.REACT_GITHUB_CLIENT_SECRET,
+      redirectURI: process.env.REACT_GITHUB_CALLBACK_URL,
       scopes: ['user:email'],
     },
     async ({ tokens }) => {
@@ -70,9 +74,9 @@ authenticator.use(
 authenticator.use(
   new OAuth2Strategy(
     {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirectURI: process.env.GOOGLE_CALLBACK_URL!,
+      clientId: process.env.REACT_GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.REACT_GOOGLE_CLIENT_SECRET!,
+      redirectURI: process.env.REACT_GOOGLE_CALLBACK_URL!,
       authorizationEndpoint: 'https://accounts.google.com/o/oauth2/auth',
       tokenEndpoint: 'https://oauth2.googleapis.com/token',
       scopes: ['openid', 'email', 'profile'],
