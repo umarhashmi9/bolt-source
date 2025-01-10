@@ -50,9 +50,6 @@ export default defineConfig((config) => {
       'OLLAMA_API_BASE_URL',
       'LMSTUDIO_API_BASE_URL',
       'TOGETHER_API_BASE_URL',
-      'GITHUB_CLIENT_ID',
-      'GITHUB_CLIENT_SECRET',
-      'GITHUB_CALLBACK_URL',
     ],
     css: {
       preprocessorOptions: {
