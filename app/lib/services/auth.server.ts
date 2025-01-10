@@ -4,7 +4,6 @@ import { FormStrategy } from 'remix-auth-form';
 import type { FormInputs, LoginFormInputs } from '~/types/auth';
 import { fetchGitHubProfile } from '~/utils/fetchGitHubProfile';
 import { OAuth2Strategy } from 'remix-auth-oauth2';
-import db from '~/actions/prisma';
 import { SignUpValidation } from '~/utils/sign-up-validation';
 import { SignInValidation } from '~/utils/sign-in-validation';
 import { fetchGoogleProfile } from '~/utils/fetchGoogleProfile';
