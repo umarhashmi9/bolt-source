@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { IconButton } from '~/components/ui/IconButton';
 import { Switch } from '~/components/ui/Switch';
 import type { ProviderInfo } from '~/types/model';
 import Cookies from 'js-cookie';
+import { providerBaseUrlEnvKeys } from '~/utils/constants';
 
 interface APIKeyManagerProps {
   provider: ProviderInfo;
@@ -12,11 +13,14 @@ interface APIKeyManagerProps {
   labelForGetApiKey?: string;
 }
 
+// cache which stores whether the provider's API key is set via environment variable
+const providerEnvKeyStatusCache: Record<string, boolean> = {};
+
 const apiKeyMemoizeCache: { [k: string]: Record<string, string> } = {};
 
 export function getApiKeysFromCookies() {
   const storedApiKeys = Cookies.get('apiKeys');
-  let parsedKeys = {};
+  let parsedKeys: Record<string, string> = {};
 
   if (storedApiKeys) {
     parsedKeys = apiKeyMemoizeCache[storedApiKeys];
@@ -38,56 +42,137 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
     const savedState = localStorage.getItem('PROMPT_CACHING_ENABLED');
     return savedState !== null ? JSON.parse(savedState) : true;
   });
+  const [isEnvKeySet, setIsEnvKeySet] = useState(false);
 
   useEffect(() => {
     // Update localStorage whenever the prompt caching state changes
     localStorage.setItem('PROMPT_CACHING_ENABLED', JSON.stringify(isPromptCachingEnabled));
   }, [isPromptCachingEnabled]);
 
+  // Reset states and load saved key when provider changes
+  useEffect(() => {
+    // Load saved API key from cookies for this provider
+    const savedKeys = getApiKeysFromCookies();
+    const savedKey = savedKeys[provider.name] || '';
+
+    setTempKey(savedKey);
+    setApiKey(savedKey);
+    setIsEditing(false);
+  }, [provider.name]);
+
+  const checkEnvApiKey = useCallback(async () => {
+    // Check cache first
+    if (providerEnvKeyStatusCache[provider.name] !== undefined) {
+      setIsEnvKeySet(providerEnvKeyStatusCache[provider.name]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/check-env-key?provider=${encodeURIComponent(provider.name)}`);
+      const data = await response.json();
+      const isSet = (data as { isSet: boolean }).isSet;
+
+      // Cache the result
+      providerEnvKeyStatusCache[provider.name] = isSet;
+      setIsEnvKeySet(isSet);
+    } catch (error) {
+      console.error('Failed to check environment API key:', error);
+      setIsEnvKeySet(false);
+    }
+  }, [provider.name]);
+
+  useEffect(() => {
+    checkEnvApiKey();
+  }, [checkEnvApiKey]);
+
   const handleSave = () => {
+    // Save to parent state
     setApiKey(tempKey);
+
+    // Save to cookies
+    const currentKeys = getApiKeysFromCookies();
+    const newKeys = { ...currentKeys, [provider.name]: tempKey };
+    Cookies.set('apiKeys', JSON.stringify(newKeys));
+
     setIsEditing(false);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start sm:items-center mt-2 mb-2 flex-col sm:flex-row">
-        <div>
-          <span className="text-sm text-bolt-elements-textSecondary">{provider?.name} API Key:</span>
+    <div className="flex items-center justify-between py-3 px-1">
+      <div className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-bolt-elements-textSecondary">{provider?.name} API Key:</span>
           {!isEditing && (
-            <div className="flex items-center">
-              <span className="flex-1 text-xs text-bolt-elements-textPrimary mr-2">
-                {apiKey ? '••••••••' : 'Not set (will still work if set in .env file)'}
-              </span>
-              <IconButton onClick={() => setIsEditing(true)} title="Edit API Key">
-                <div className="i-ph:pencil-simple" />
-              </IconButton>
+            <div className="flex items-center gap-2">
+              {isEnvKeySet ? (
+                <>
+                  <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
+                  <span className="text-xs text-green-500">
+                    Set via {providerBaseUrlEnvKeys[provider.name].apiTokenKey} environment variable
+                  </span>
+                </>
+              ) : apiKey ? (
+                <>
+                  <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
+                  <span className="text-xs text-green-500">Set via UI</span>
+                </>
+              ) : (
+                <>
+                  <div className="i-ph:x-circle-fill text-red-500 w-4 h-4" />
+                  <span className="text-xs text-red-500">Not Set (Please set via UI or ENV_VAR)</span>
+                </>
+              )}
             </div>
           )}
         </div>
+      </div>
 
-        {isEditing ? (
-          <div className="flex items-center gap-3 mt-2">
+      <div className="flex items-center gap-2 shrink-0">
+        {isEditing && !isEnvKeySet ? (
+          <div className="flex items-center gap-2">
             <input
               type="password"
               value={tempKey}
-              placeholder="Your API Key"
+              placeholder="Enter API Key"
               onChange={(e) => setTempKey(e.target.value)}
-              className="flex-1 px-2 py-1 text-xs lg:text-sm rounded border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
+              className="w-[300px] px-3 py-1.5 text-sm rounded border border-bolt-elements-borderColor 
+                        bg-bolt-elements-prompt-background text-bolt-elements-textPrimary 
+                        focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
             />
-            <IconButton onClick={handleSave} title="Save API Key">
-              <div className="i-ph:check" />
+            <IconButton
+              onClick={handleSave}
+              title="Save API Key"
+              className="bg-green-500/10 hover:bg-green-500/20 text-green-500"
+            >
+              <div className="i-ph:check w-4 h-4" />
             </IconButton>
-            <IconButton onClick={() => setIsEditing(false)} title="Cancel">
-              <div className="i-ph:x" />
+            <IconButton
+              onClick={() => setIsEditing(false)}
+              title="Cancel"
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-500"
+            >
+              <div className="i-ph:x w-4 h-4" />
             </IconButton>
           </div>
         ) : (
           <>
-            {provider?.getApiKeyLink && (
-              <IconButton className="ml-auto" onClick={() => window.open(provider?.getApiKeyLink)} title="Edit API Key">
-                <span className="mr-2 text-xs lg:text-sm">{provider?.labelForGetApiKey || 'Get API Key'}</span>
-                <div className={provider?.icon || 'i-ph:key'} />
+            {!isEnvKeySet && (
+              <IconButton
+                onClick={() => setIsEditing(true)}
+                title="Edit API Key"
+                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-500"
+              >
+                <div className="i-ph:pencil-simple w-4 h-4" />
+              </IconButton>
+            )}
+            {provider?.getApiKeyLink && !isEnvKeySet && (
+              <IconButton
+                onClick={() => window.open(provider?.getApiKeyLink)}
+                title="Get API Key"
+                className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 flex items-center gap-2"
+              >
+                <span className="text-xs whitespace-nowrap">{provider?.labelForGetApiKey || 'Get API Key'}</span>
+                <div className={`${provider?.icon || 'i-ph:key'} w-4 h-4`} />
               </IconButton>
             )}
           </>
@@ -103,7 +188,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
             </label>
           </div>
           <p className="text-xs text-bolt-elements-textTertiary mt-2">
-            When enabled, allows caching of prompts for 10x cheaper responses. Recommended for Claude models.
+            When enabled, generates 10x cheaper responses when re-prompted within 5 mins (Recommended)
           </p>
         </div>
       )}
