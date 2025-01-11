@@ -2,67 +2,109 @@
 
 ## Overview
 
-The sync functionality allows users to synchronize their project files with a local directory. It includes features like persistent project folders, configurable auto-sync, and detailed sync history tracking.
+The sync functionality allows users to synchronize their project files with a local directory. The implementation includes features like persistent project folders, configurable auto-sync, and detailed sync statistics.
 
 ## Key Features
 
-### 1. Persistent Project Folders
+### 1. Project Folder Management
 
-- Each project gets its own dedicated folder named after the project
-- Folders are reused across sessions for consistency
-- Missing folders are automatically created
-- Folder mappings are stored in settings for persistence
+- **Persistent Project Folders**: Each project has a dedicated folder that persists across sessions
+- **Smart Folder Matching**: Uses project name normalization to match existing folders
+- **Singleton Manager**: Centralized `ProjectFolderManager` for consistent folder handling
+- **Local Storage**: Project folder mappings are stored in localStorage for persistence
 
-### 2. Configurable Auto-Sync
+### 2. Sync Settings
 
-- Users can set auto-sync intervals from 1 minute to 1 hour
-- System checks every 30 seconds to determine if sync is needed
-- Syncs only occur if sufficient time has passed since last sync
-- Auto-sync settings are persisted across sessions
+- **Auto Sync**: Enable/disable automatic syncing at configurable intervals
+- **Sync Interval**: Configurable from 1 minute to 1 hour
+- **Sync on Save**: Option to automatically sync when files are saved
+- **Sync Mode**: Three modes available:
+  - Ask before overwriting
+  - Always overwrite
+  - Skip existing files
+- **Exclude Patterns**: Configurable patterns for files/folders to exclude from sync
 
-### 3. Sync Settings
+### 3. Sync Statistics & History
 
-- **Auto Sync**: Enable/disable automatic synchronization
-- **Sync Interval**: Configure sync frequency (1min - 1hr)
-- **Sync on Save**: Option to sync when files are saved
-- **Sync Mode**: Choose between:
-  - Ask: Prompt for action on conflicts
-  - Overwrite: Always overwrite existing files
-  - Skip: Skip conflicting files
-- **Exclude Patterns**: Specify patterns for files to exclude from sync
-
-### 4. Sync Statistics & History
-
-- Tracks detailed statistics for each sync operation:
+- **Real-time Status**: Shows connection status and last sync time
+- **Sync History**: Maintains detailed history of sync operations
+- **Time-based Filtering**: Filter history by 24h, 7d, 30d, or all time
+- **Detailed Stats**:
+  - Total syncs performed
   - Total files synced
-  - Total size transferred
-  - Duration of sync
-  - Timestamp
-- Maintains sync history with:
+  - Total data transferred
+  - Average sync duration
+- **Per-sync Details**:
   - Project name
-  - Sync status (success/partial/failed)
+  - Number of files
+  - Size of data
+  - Duration
+  - Status (success/partial/failed)
   - List of synced files
-  - Sync statistics
-- History is persisted in localStorage (last 100 entries)
 
 ## Technical Implementation
 
-### Data Structures
-
-#### Sync Statistics
+### Project Folder Manager
 
 ```typescript
+class ProjectFolderManager {
+  private static _instance: ProjectFolderManager;
+  private _projectFolders: Map<string, ProjectSyncInfo>;
+
+  // Singleton instance management
+  static getInstance(): ProjectFolderManager;
+
+  // Core functionality
+  private _loadFromStorage(): void;
+  private _saveToStorage(): void;
+  private _normalizeProjectName(name: string): string;
+  findExistingProject(projectName: string): ProjectSyncInfo | null;
+  verifyProjectFolder(handle: FileSystemDirectoryHandle, folderName: string): Promise<boolean>;
+  registerProject(projectName: string, folderName: string): Promise<ProjectSyncInfo>;
+  getOrCreateProjectFolder(
+    rootHandle: FileSystemDirectoryHandle,
+    projectName: string,
+    createIfNotExists: boolean,
+  ): Promise<{ folderHandle: FileSystemDirectoryHandle; projectInfo: ProjectSyncInfo }>;
+}
+```
+
+### Data Structures
+
+```typescript
+interface ProjectSyncInfo {
+  projectName: string;
+  folderName: string;
+  lastSync: number;
+}
+
+interface SyncSettings {
+  autoSync: boolean;
+  autoSyncInterval: number;
+  syncOnSave: boolean;
+  excludePatterns: string[];
+  syncMode: 'ask' | 'overwrite' | 'skip';
+  projectFolders: Record<string, ProjectSyncInfo>;
+}
+
+interface SyncSession {
+  id: string;
+  timestamp: number;
+  lastSync: number;
+  files: Set<string>;
+  history: SyncHistoryEntry[];
+  statistics: SyncStatistics[];
+  projectFolder?: string;
+  projectName?: string;
+}
+
 interface SyncStatistics {
   totalFiles: number;
   totalSize: number;
   duration: number;
   timestamp: number;
 }
-```
 
-#### Sync History Entry
-
-```typescript
 interface SyncHistoryEntry {
   id: string;
   projectName: string;
@@ -73,106 +115,103 @@ interface SyncHistoryEntry {
 }
 ```
 
-#### Project Sync Info
+### UI Components
 
-```typescript
-interface ProjectSyncInfo {
-  projectName: string;
-  folderName: string;
-  lastSync: number;
-}
-```
+1. **SyncTab Component**:
 
-#### Sync Settings
+   - Main sync configuration interface
+   - Status bar with connection state and last sync time
+   - Folder selection and management
+   - Settings configuration
+   - Exclude patterns management
 
-```typescript
-interface SyncSettings {
-  autoSync: boolean;
-  autoSyncInterval: number;
-  syncOnSave: boolean;
-  excludePatterns: string[];
-  syncMode: 'ask' | 'overwrite' | 'skip';
-  projectFolders: Record<string, ProjectSyncInfo>;
-}
-```
+2. **SyncStats Component**:
+   - Time-range filtering for history
+   - Statistics grid with key metrics
+   - Latest sync summary
+   - Detailed sync history with expandable entries
 
-### Key Components
+## Sync Process
 
-1. **WorkbenchStore**
+1. **Initialization**:
 
-   - Manages sync state and operations
-   - Handles folder selection and verification
-   - Implements sync logic and conflict resolution
-   - Maintains sync settings and history
-
-2. **SyncTab Component**
-
-   - Provides UI for sync settings configuration
-   - Displays current sync folder and status
-   - Allows management of exclude patterns
-   - Shows sync statistics
-
-3. **SyncStats Component**
-   - Displays latest sync information
-   - Shows historical sync data
-   - Updates in real-time as new syncs occur
-
-### Sync Process
-
-1. **Initialization**
-
-   - Load saved sync settings
-   - Restore project folder mapping
-   - Initialize sync session
+   - Load saved settings from localStorage
+   - Initialize ProjectFolderManager
    - Set up auto-sync interval checker
 
-2. **Folder Selection**
+2. **Folder Selection**:
 
-   - User selects sync folder via system dialog
-   - System verifies write permissions
-   - Creates test directory to confirm access
-   - Updates sync folder reference
+   - User selects root sync folder
+   - Verify write permissions with test directory
+   - Store folder handle
 
-3. **Sync Operation**
+3. **Project Folder Handling**:
+
+   - Normalize project name
+   - Check for existing project folder
+   - Create new folder only for new projects
+   - Update project folder mappings
+
+4. **Sync Operation**:
 
    - Check exclude patterns
-   - Create/verify project folder
-   - Process each file:
-     - Check for conflicts based on sync mode
-     - Create necessary subdirectories
-     - Write file contents
+   - Create directory structure
+   - Handle file conflicts based on sync mode
+   - Track progress with toast notifications
    - Update statistics and history
-   - Show progress notifications
+   - Save sync history to localStorage
 
-4. **Conflict Resolution**
-   - Based on sync mode:
-     - Ask: Prompt user for each conflict
-     - Overwrite: Replace existing files
-     - Skip: Preserve existing files
+5. **Auto-sync**:
+   - Check every 30 seconds
+   - Compare time since last sync with interval
+   - Trigger sync if needed
 
-## Usage
+## Usage Instructions
 
-### Setting Up Sync
+1. **Initial Setup**:
 
-1. Open Settings > Sync tab
-2. Select sync folder
-3. Configure sync settings:
-   - Enable/disable auto-sync
-   - Set sync interval
-   - Choose sync mode
-   - Add exclude patterns
+   - Select sync folder via UI
+   - Configure auto-sync settings if desired
+   - Set up exclude patterns
 
-### Manual Sync
+2. **Manual Sync**:
 
-- Click sync button to start manual sync
-- Monitor progress in notifications
-- View sync results in statistics panel
+   - Click "Sync Now" button
+   - Monitor progress in status bar
+   - View results in sync history
 
-### Viewing History
+3. **Auto Sync**:
 
-- Check latest sync details in statistics panel
-- Review historical syncs in scrollable list
-- Monitor sync status indicators:
-  - ✓ Success
-  - ⚠ Partial (some files skipped)
-  - ✗ Failed
+   - Enable auto sync
+   - Select desired interval
+   - System will automatically sync at specified intervals
+
+4. **Conflict Resolution**:
+
+   - Choose preferred sync mode
+   - Handle conflicts via UI prompts if in "ask" mode
+   - View skipped files in sync history
+
+5. **Monitoring**:
+   - View real-time sync status
+   - Check sync history for details
+   - Monitor statistics for performance
+
+## Best Practices
+
+1. **Folder Organization**:
+
+   - Use descriptive project names
+   - Keep folder structure consistent
+   - Regularly clean up unused folders
+
+2. **Sync Settings**:
+
+   - Configure appropriate exclude patterns
+   - Choose suitable sync interval
+   - Select appropriate sync mode
+
+3. **Performance**:
+   - Monitor sync statistics
+   - Adjust settings based on usage patterns
+   - Clean up old sync history periodically
