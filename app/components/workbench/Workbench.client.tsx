@@ -57,8 +57,6 @@ const workbenchVariants = {
 export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => {
   renderLogger.trace('Workbench');
 
-  const [isSyncing, setIsSyncing] = useState(false);
-
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
   const selectedFile = useStore(workbenchStore.selectedFile);
@@ -66,6 +64,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
   const files = useStore(workbenchStore.files);
   const selectedView = useStore(workbenchStore.currentView);
+  const syncSettings = useStore(workbenchStore.syncSettings);
+  const syncFolder = useStore(workbenchStore.syncFolder);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const isSmallViewport = useViewport(1024);
 
@@ -95,29 +96,39 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     workbenchStore.setSelectedFile(filePath);
   }, []);
 
-  const onFileSave = useCallback(() => {
-    workbenchStore.saveCurrentDocument().catch(() => {
-      toast.error('Failed to update file content');
-    });
-  }, []);
-
-  const onFileReset = useCallback(() => {
-    workbenchStore.resetCurrentDocument();
-  }, []);
-
-  const handleSyncFiles = useCallback(async () => {
-    setIsSyncing(true);
+  const handleSync = async () => {
+    if (!syncFolder) {
+      toast.error('No sync folder selected');
+      return;
+    }
 
     try {
-      const directoryHandle = await window.showDirectoryPicker();
-      await workbenchStore.syncFiles(directoryHandle);
+      setIsSyncing(true);
+      await workbenchStore.syncFiles();
       toast.success('Files synced successfully');
     } catch (error) {
-      console.error('Error syncing files:', error);
       toast.error('Failed to sync files');
+      console.error('Sync error:', error);
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const onFileSave = useCallback(async () => {
+    try {
+      await workbenchStore.saveCurrentDocument();
+
+      if (syncSettings.syncOnSave && syncFolder) {
+        await handleSync();
+      }
+    } catch (error) {
+      toast.error('Failed to update file content');
+      console.error('Save error:', error);
+    }
+  }, [syncSettings.syncOnSave, syncFolder]);
+
+  const onFileReset = useCallback(() => {
+    workbenchStore.resetCurrentDocument();
   }, []);
 
   return (
@@ -155,10 +166,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:code" />
                       Download Code
                     </PanelHeaderButton>
-                    <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
-                      {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
-                      {isSyncing ? 'Syncing...' : 'Sync Files'}
-                    </PanelHeaderButton>
+                    {syncFolder && (
+                      <PanelHeaderButton className="mr-1 text-sm" onClick={handleSync} disabled={isSyncing}>
+                        {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
+                        {isSyncing ? 'Syncing...' : 'Sync Files'}
+                      </PanelHeaderButton>
+                    )}
                     <PanelHeaderButton
                       className="mr-1 text-sm"
                       onClick={() => {
@@ -245,6 +258,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     )
   );
 });
+
 interface ViewProps extends HTMLMotionProps<'div'> {
   children: JSX.Element;
 }
