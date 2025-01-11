@@ -1,11 +1,11 @@
 {
-  "name": "@stackblitz-labs/bolt.diy",
+  "name": "bolt.diy",
   "description": "Welcome to bolt.diy, An open source tool that lets you use multiple AI language models in one place. Supports OpenAI, Anthropic, Gemini, Mistral, and others, with easy integration for additional models via the Vercel AI SDK.",
   "private": false,
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
-  "version": "0.0.5",
+  "version": "0.0.5-test-2",
   "bin": {
     "bolt.diy": "bin/bolt.js"
   },
@@ -13,6 +13,7 @@
     "bin/",
     "public/",
     "build/",
+    "scripts/",
     "functions/",
     "wrangler.toml",
     "worker-configuration.d.ts",
@@ -44,7 +45,8 @@
     "dockerbuild": "docker build -t bolt-ai:development -t bolt-ai:latest --target bolt-ai-development .",
     "typecheck": "tsc",
     "typegen": "wrangler types",
-    "preview": "pnpm run build && pnpm run start"
+    "preview": "pnpm run build && pnpm run start",
+    "postinstall": "node ./scripts/postinstall.js"
   },
   "engines": {
     "node": ">=18.18.0"

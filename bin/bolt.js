@@ -7,10 +7,10 @@ import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const isWindows = process.platform === 'win32';
 
 // Find the root directory where the package is installed
 const rootDir = join(__dirname, '..');
-
 
 const BUILT_APP_PATH = join(rootDir, 'build');
 const FUNCTIONS_PATH = join(rootDir, 'functions');
@@ -102,15 +102,6 @@ ${commitHash ? `Commit:  ${commitHash}\n` : ''}`);
 
 async function displayBanner() {
   const version = await getVersion();
-  let commitHash;
-  try {
-    commitHash = execSync('git rev-parse --short HEAD', { stdio: ['pipe', 'pipe', 'ignore'] })
-      .toString()
-      .trim();
-  } catch (e) {
-    commitHash = 'unknown';
-  }
-
   console.log('★═══════════════════════════════════════★');
   console.log('          B O L T . D I Y');
   console.log('         ⚡️  Welcome  ⚡️');
@@ -122,6 +113,7 @@ async function displayBanner() {
 }
 
 async function startApp() {
+
   if (options.help) {
     showHelp();
     process.exit(0);
@@ -135,24 +127,22 @@ async function startApp() {
   await displayBanner();
 
   try {
-    // First build the app
-    // await buildApp();
-
-    
-    // Use wrangler from node_modules
-    const wranglerBinPath = join(rootDir, 'node_modules', '.bin', 'wrangler');
+    // Use the appropriate wrangler path for the platform
+    const wranglerBinPath = join(rootDir, 'node_modules', '.bin', isWindows ? 'wrangler.cmd' : 'wrangler');
 
     let buildPath = join(rootDir, 'build/client');
 
-    // Start wrangler pages dev with the build directory
+    // Prepare PATH environment variable based on platform
+    const pathSeparator = isWindows ? ';' : ':';
+    const nodeBinPath = join(rootDir, 'node_modules', '.bin');
+    const newPath = `${nodeBinPath}${pathSeparator}${process.env.PATH}`;
+
     const devProcess = spawn(
       wranglerBinPath,
       [
         'pages',
         'dev',
-        // '--build-output-dir',
         buildPath,
-        // './build', // assuming this is your build output directory
         '--port',
         options.port.toString(),
         '--compatibility-flag',
@@ -171,10 +161,9 @@ async function startApp() {
         env: {
           ...process.env,
           PORT: options.port.toString(),
-          PATH: `${join(rootDir, 'node_modules', '.bin')}:${process.env.PATH}`,
+          PATH: newPath,
           WRANGLER_FUNCTIONS_DIR: FUNCTIONS_PATH,
           WRANGLER_PUBLIC_DIR: BUILT_APP_PATH,
-          PORT: options.port.toString(),
           NODE_ENV: 'production',
         },
       },
