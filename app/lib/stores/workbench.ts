@@ -18,6 +18,9 @@ import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
+import type { SyncSettings, SyncSession, SyncStatistics, SyncHistoryEntry } from '~/types/sync';
+import ignore from 'ignore';
+import { toast } from 'react-toastify';
 
 export interface ArtifactState {
   id: string;
@@ -51,6 +54,17 @@ export class WorkbenchStore {
   modifiedFiles = new Set<string>();
   artifactIdList: string[] = [];
   #globalExecutionQueue = Promise.resolve();
+  syncFolder: WritableAtom<FileSystemDirectoryHandle | null> = import.meta.hot?.data.syncFolder ?? atom(null);
+  syncSettings: WritableAtom<SyncSettings> =
+    import.meta.hot?.data.syncSettings ??
+    atom({
+      autoSync: false,
+      syncOnSave: false,
+      excludePatterns: ['node_modules/**', '*.log', '.DS_Store'],
+      syncMode: 'ask',
+    });
+  currentSession: WritableAtom<SyncSession | null> = import.meta.hot?.data.currentSession ?? atom(null);
+
   constructor() {
     if (import.meta.hot) {
       import.meta.hot.data.artifacts = this.artifacts;
@@ -58,7 +72,35 @@ export class WorkbenchStore {
       import.meta.hot.data.showWorkbench = this.showWorkbench;
       import.meta.hot.data.currentView = this.currentView;
       import.meta.hot.data.actionAlert = this.actionAlert;
+      import.meta.hot.data.syncSettings = this.syncSettings;
+      import.meta.hot.data.syncFolder = this.syncFolder;
+      import.meta.hot.data.currentSession = this.currentSession;
     }
+
+    // Load saved sync settings
+    this.loadSyncSettings();
+
+    // Subscribe to sync settings changes to persist them
+    this.syncSettings.subscribe((settings) => {
+      localStorage.setItem('syncSettings', JSON.stringify(settings));
+    });
+
+    // Set up auto-sync interval
+    setInterval(() => {
+      const settings = this.syncSettings.get();
+      const session = this.currentSession.get();
+      const folder = this.syncFolder.get();
+
+      if (settings.autoSync && folder && session) {
+        const now = Date.now();
+        const timeSinceLastSync = now - session.lastSync;
+        const intervalMs = settings.autoSyncInterval * 60 * 1000;
+
+        if (timeSinceLastSync >= intervalMs) {
+          this.syncFiles().catch(console.error);
+        }
+      }
+    }, 30000); // Check every 30 seconds
   }
 
   addToExecutionQueue(callback: () => Promise<void>) {
@@ -403,35 +445,219 @@ export class WorkbenchStore {
     saveAs(content, `${uniqueProjectName}.zip`);
   }
 
-  async syncFiles(targetHandle: FileSystemDirectoryHandle) {
-    const files = this.files.get();
-    const syncedFiles = [];
+  async syncFiles() {
+    const folder = this.syncFolder.get();
 
-    for (const [filePath, dirent] of Object.entries(files)) {
-      if (dirent?.type === 'file' && !dirent.isBinary) {
-        const relativePath = extractRelativePath(filePath);
-        const pathSegments = relativePath.split('/');
-        let currentHandle = targetHandle;
-
-        for (let i = 0; i < pathSegments.length - 1; i++) {
-          currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
-        }
-
-        // create or get the file
-        const fileHandle = await currentHandle.getFileHandle(pathSegments[pathSegments.length - 1], {
-          create: true,
-        });
-
-        // write the file content
-        const writable = await fileHandle.createWritable();
-        await writable.write(dirent.content);
-        await writable.close();
-
-        syncedFiles.push(relativePath);
-      }
+    if (!folder) {
+      throw new Error('No sync folder selected');
     }
 
-    return syncedFiles;
+    const settings = this.syncSettings.get();
+    const ig = ignore().add(settings.excludePatterns);
+    const session = this.currentSession.get();
+
+    if (!session) {
+      throw new Error('No active session');
+    }
+
+    const startTime = Date.now();
+    let totalSize = 0;
+
+    try {
+      const files = this.files.get();
+      const syncedFiles = [];
+      const conflictedFiles = [];
+
+      // Get or create project folder
+      const projectName = (description.value ?? 'project').toLowerCase().split(' ').join('_');
+      let projectFolder: FileSystemDirectoryHandle;
+
+      // Check if we have an existing folder for this project
+      const projectInfo = settings.projectFolders[projectName];
+
+      if (projectInfo) {
+        try {
+          projectFolder = await folder.getDirectoryHandle(projectInfo.folderName);
+          console.log(`Using existing project folder: ${projectInfo.folderName}`);
+        } catch {
+          // If folder doesn't exist, create a new one
+          const timestampHash = Date.now().toString(36).slice(-6);
+          const folderName = `${projectName}_${timestampHash}`;
+          projectFolder = await folder.getDirectoryHandle(folderName, { create: true });
+
+          // Update project info
+          settings.projectFolders[projectName] = {
+            projectName,
+            folderName,
+            lastSync: Date.now(),
+          };
+          await this.saveSyncSettings(settings);
+          console.log(`Created new project folder: ${folderName}`);
+        }
+      } else {
+        // First time syncing this project
+        const timestampHash = Date.now().toString(36).slice(-6);
+        const folderName = `${projectName}_${timestampHash}`;
+        projectFolder = await folder.getDirectoryHandle(folderName, { create: true });
+
+        // Save project info
+        settings.projectFolders[projectName] = {
+          projectName,
+          folderName,
+          lastSync: Date.now(),
+        };
+        await this.saveSyncSettings(settings);
+        console.log(`Created new project folder: ${folderName}`);
+      }
+
+      // Update session with current project folder
+      session.projectFolder = projectFolder.name;
+      this.currentSession.set(session);
+
+      // Show progress toast
+      const progressToastId = toast.loading('Starting sync...', { autoClose: false });
+      let processedFiles = 0;
+      const totalFiles = Object.entries(files).filter(
+        ([_, dirent]) => dirent?.type === 'file' && !dirent.isBinary,
+      ).length;
+
+      for (const [filePath, dirent] of Object.entries(files)) {
+        if (dirent?.type === 'file' && !dirent.isBinary) {
+          processedFiles++;
+          toast.update(progressToastId, {
+            render: `Syncing files... ${processedFiles}/${totalFiles}`,
+          });
+
+          const relativePath = extractRelativePath(filePath);
+          totalSize += new Blob([dirent.content]).size;
+
+          // Skip files that match exclude patterns
+          if (ig.ignores(relativePath)) {
+            console.log(`Skipping excluded file: ${relativePath}`);
+            continue;
+          }
+
+          const pathSegments = relativePath.split('/');
+          let currentHandle = projectFolder;
+
+          // Create directories if they don't exist
+          for (let i = 0; i < pathSegments.length - 1; i++) {
+            currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
+          }
+
+          const fileName = pathSegments[pathSegments.length - 1];
+          let shouldWrite = true;
+
+          // Handle existing files based on sync mode
+          if (settings.syncMode !== 'overwrite') {
+            try {
+              const existingFile = await currentHandle.getFileHandle(fileName);
+              const existingContent = await existingFile.getFile().then((file) => file.text());
+
+              if (existingContent !== dirent.content) {
+                if (settings.syncMode === 'ask') {
+                  const userChoice = confirm(
+                    `File "${relativePath}" already exists and has different content.\n\n` +
+                      'Do you want to overwrite it?\n\n' +
+                      'Click OK to overwrite, Cancel to skip.',
+                  );
+
+                  if (!userChoice) {
+                    shouldWrite = false;
+                    conflictedFiles.push(relativePath);
+                    console.log(`User chose to skip file: ${relativePath}`);
+                  } else {
+                    console.log(`User chose to overwrite file: ${relativePath}`);
+                  }
+                } else if (settings.syncMode === 'skip') {
+                  shouldWrite = false;
+                  console.log(`Skipping existing file: ${relativePath}`);
+                }
+              }
+            } catch {
+              // File doesn't exist, we can create it
+              console.log(`Creating new file: ${relativePath}`);
+              shouldWrite = true;
+            }
+          } else {
+            console.log(`Overwriting file: ${relativePath}`);
+          }
+
+          if (shouldWrite) {
+            const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(dirent.content);
+            await writable.close();
+            syncedFiles.push(relativePath);
+            session.files.add(relativePath);
+          }
+        }
+      }
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Create statistics entry
+      const statistics: SyncStatistics = {
+        totalFiles: syncedFiles.length,
+        totalSize,
+        duration,
+        timestamp: endTime,
+      };
+
+      // Create history entry
+      const historyEntry: SyncHistoryEntry = {
+        id: crypto.randomUUID(),
+        projectName,
+        timestamp: endTime,
+        statistics,
+        files: syncedFiles,
+        status: conflictedFiles.length > 0 ? 'partial' : 'success',
+      };
+
+      // Update session
+      session.lastSync = endTime;
+      session.statistics = [...(session.statistics || []), statistics];
+      session.history = [...(session.history || []), historyEntry];
+      this.currentSession.set(session);
+
+      // Save sync history to localStorage
+      const syncHistory = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+      syncHistory.push(historyEntry);
+      localStorage.setItem('syncHistory', JSON.stringify(syncHistory.slice(-100))); // Keep last 100 entries
+
+      // Close progress toast
+      toast.dismiss(progressToastId);
+
+      // Provide summary feedback
+      if (syncedFiles.length > 0) {
+        const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+        const durationSec = (duration / 1000).toFixed(1);
+        toast.success(
+          `Successfully synced ${syncedFiles.length} file${syncedFiles.length !== 1 ? 's' : ''} ` +
+            `(${sizeMB} MB) to ${projectName} in ${durationSec}s`,
+        );
+      }
+
+      if (conflictedFiles.length > 0) {
+        toast.info(`Skipped ${conflictedFiles.length} file${conflictedFiles.length !== 1 ? 's' : ''} due to conflicts`);
+      }
+
+      if (syncedFiles.length === 0 && conflictedFiles.length === 0) {
+        toast.info('No files needed syncing');
+      }
+
+      return {
+        synced: syncedFiles,
+        conflicts: conflictedFiles,
+        projectFolder: projectName,
+        statistics,
+      };
+    } catch (error) {
+      console.error('Sync failed:', error);
+      toast.dismiss();
+      throw error;
+    }
   }
 
   async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
@@ -540,6 +766,92 @@ export class WorkbenchStore {
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
       throw error; // Rethrow the error for further handling
+    }
+  }
+
+  async setSyncFolder(handle: FileSystemDirectoryHandle | null) {
+    this.syncFolder.set(handle);
+
+    if (handle) {
+      try {
+        const testDirName = '.bolt_test_' + Date.now();
+
+        // Verify we have write permission by attempting to create a test directory
+        await handle.getDirectoryHandle(testDirName, { create: true });
+
+        // Clean up test directory
+        await handle.removeEntry(testDirName);
+        console.log('Sync folder write permission verified');
+      } catch (error) {
+        console.error('Failed to verify sync folder permissions:', error);
+        toast.error('Unable to write to selected folder. Please choose a different folder.');
+        this.syncFolder.set(null);
+      }
+    }
+  }
+
+  async initializeSession() {
+    const session: SyncSession = {
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      lastSync: Date.now(),
+      files: new Set(),
+      history: [],
+      statistics: [],
+    };
+
+    // Try to restore project folder from settings
+    const settings = this.syncSettings.get();
+    const projectName = (description.value ?? 'project').toLowerCase().split(' ').join('_');
+    const projectInfo = settings.projectFolders[projectName];
+
+    if (projectInfo) {
+      session.projectFolder = projectInfo.folderName;
+    }
+
+    this.currentSession.set(session);
+
+    if (settings.autoSync && this.syncFolder.get()) {
+      await this.syncFiles();
+    }
+  }
+
+  async loadSyncSettings() {
+    try {
+      const savedSettings = localStorage.getItem('syncSettings');
+
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+
+        this.syncSettings.set({
+          ...this.syncSettings.get(),
+          ...settings,
+
+          // Ensure new fields have default values
+          autoSyncInterval: settings.autoSyncInterval ?? 5, // Default to 5 minutes
+          projectFolders: settings.projectFolders ?? {},
+        });
+      } else {
+        // Initialize with default values
+        this.syncSettings.set({
+          ...this.syncSettings.get(),
+          autoSyncInterval: 5,
+          projectFolders: {},
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load sync settings:', error);
+    }
+  }
+
+  async saveSyncSettings(settings: SyncSettings) {
+    try {
+      this.syncSettings.set(settings);
+
+      // The subscription in constructor will handle saving to localStorage
+    } catch (error) {
+      console.error('Failed to save sync settings:', error);
+      throw error;
     }
   }
 }
