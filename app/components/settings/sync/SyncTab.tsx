@@ -107,11 +107,11 @@ export default function SyncTab() {
   return (
     <div className="space-y-8">
       {/* Sync Status Bar */}
-      <div className="bg-bolt-elements-background-depth-2 p-3 rounded-lg flex items-center justify-between">
+      <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg flex items-center justify-between border border-bolt-elements-borderColor/20">
         <div className="flex items-center gap-4">
-          <div className={`w-2 h-2 rounded-full ${syncFolder ? 'bg-green-500' : 'bg-yellow-500'}`} />
+          <div className={`w-2.5 h-2.5 rounded-full ${syncFolder ? 'bg-green-400' : 'bg-amber-400'}`} />
           <div>
-            <div className="font-medium">Sync Status</div>
+            <div className="font-medium text-white">Sync Status</div>
             <div className="text-sm text-gray-400">
               {syncFolder ? 'Connected' : 'Not connected'} {lastSyncTime && `• Last sync: ${lastSyncTime}`}
             </div>
@@ -137,9 +137,9 @@ export default function SyncTab() {
       </div>
 
       {/* Sync Controls */}
-      <div className="bg-bolt-elements-background-depth-1 p-4 rounded-lg space-y-4">
+      <div className="bg-bolt-elements-background-depth-2 p-4 rounded-lg space-y-4 border border-bolt-elements-borderColor/10">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Sync Location</h3>
+          <h3 className="text-lg font-medium text-white">Sync Location</h3>
           <PanelHeaderButton onClick={handleSelectFolder} className="flex items-center gap-2">
             <div className="i-ph:folder-simple" />
             {syncFolder ? 'Change Folder' : 'Select Folder'}
@@ -148,10 +148,10 @@ export default function SyncTab() {
 
         <div className="flex flex-col gap-2">
           {syncFolder && (
-            <div className="text-sm bg-bolt-elements-background-depth-2 p-3 rounded flex items-center justify-between">
+            <div className="text-sm bg-bolt-elements-background-depth-3 p-3 rounded flex items-center justify-between border border-bolt-elements-borderColor/10">
               <div className="flex items-center gap-2">
                 <div className="i-ph:folder-open text-blue-400" />
-                <span>{syncFolder.name}</span>
+                <span className="text-white">{syncFolder.name}</span>
               </div>
               <IconButton
                 icon="i-ph:x"
@@ -165,64 +165,62 @@ export default function SyncTab() {
 
         {currentSession?.projectFolder && (
           <div className="text-sm mt-4">
-            <div className="font-medium mb-2">Current Project</div>
-            <div className="bg-bolt-elements-background-depth-2 p-3 rounded flex items-center gap-2">
+            <div className="font-medium text-white mb-2">Current Project</div>
+            <div className="bg-bolt-elements-background-depth-3 p-3 rounded flex items-center gap-2 border border-bolt-elements-borderColor/10">
               <div className="i-ph:folder-notch text-purple-400" />
-              <span>{currentSession.projectFolder}</span>
+              <span className="text-white">{currentSession.projectFolder}</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Sync Settings */}
-      <div className="bg-bolt-elements-background-depth-1 p-4 rounded-lg space-y-6">
-        <h3 className="text-lg font-medium">Sync Settings</h3>
+      <div className="bg-bolt-elements-background-depth-2 p-4 rounded-lg space-y-6 border border-bolt-elements-borderColor/10">
+        <h3 className="text-lg font-medium text-white">Sync Settings</h3>
 
         <div className="space-y-6">
           {/* Auto Sync Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium flex items-center gap-2">
-                  <div className="i-ph:clock text-blue-400" />
-                  Auto Sync
-                </div>
-                <div className="text-sm text-gray-400">Automatically sync files at regular intervals</div>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-white flex items-center gap-2">
+                <div className="i-ph:clock text-blue-400" />
+                Auto Sync
               </div>
-              <Switch
-                checked={syncSettings.autoSync}
-                onCheckedChange={(checked) => handleSaveSettings({ autoSync: checked })}
-              />
+              <div className="text-sm text-gray-400">Automatically sync files at regular intervals</div>
             </div>
-
-            {syncSettings.autoSync && (
-              <div className="pl-4 border-l-2 border-bolt-elements-borderColor">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">Sync Interval</div>
-                    <div className="text-sm text-gray-400">How often to automatically sync files</div>
-                  </div>
-                  <select
-                    value={syncSettings.autoSyncInterval}
-                    onChange={(e) => handleSaveSettings({ autoSyncInterval: parseInt(e.target.value, 10) })}
-                    className="w-32 px-3 py-1 border border-bolt-elements-borderColor rounded bg-bolt-elements-background-depth-2"
-                  >
-                    <option value="1">1 minute</option>
-                    <option value="5">5 minutes</option>
-                    <option value="10">10 minutes</option>
-                    <option value="15">15 minutes</option>
-                    <option value="30">30 minutes</option>
-                    <option value="60">1 hour</option>
-                  </select>
-                </div>
-              </div>
-            )}
+            <Switch
+              checked={syncSettings.autoSync}
+              onCheckedChange={(checked) => handleSaveSettings({ autoSync: checked })}
+            />
           </div>
+
+          {syncSettings.autoSync && (
+            <div className="pl-4 border-l-2 border-bolt-elements-borderColor/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-white">Sync Interval</div>
+                  <div className="text-sm text-gray-400">How often to automatically sync files</div>
+                </div>
+                <select
+                  value={syncSettings.autoSyncInterval}
+                  onChange={(e) => handleSaveSettings({ autoSyncInterval: parseInt(e.target.value, 10) })}
+                  className="w-32 px-3 py-1.5 border border-bolt-elements-borderColor/20 rounded bg-bolt-elements-background-depth-3 text-white hover:border-bolt-elements-borderColor/40 focus:border-bolt-elements-borderColor/60 transition-colors"
+                >
+                  <option value="1">1 minute</option>
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes</option>
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 hour</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Sync on Save Section */}
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium flex items-center gap-2">
+              <div className="font-medium text-white flex items-center gap-2">
                 <div className="i-ph:floppy-disk text-green-400" />
                 Sync on Save
               </div>
@@ -237,7 +235,7 @@ export default function SyncTab() {
           {/* Sync Mode Section */}
           <div className="space-y-2">
             <div>
-              <div className="font-medium flex items-center gap-2">
+              <div className="font-medium text-white flex items-center gap-2">
                 <div className="i-ph:gear text-yellow-400" />
                 Sync Mode
               </div>
@@ -246,7 +244,7 @@ export default function SyncTab() {
             <select
               value={syncSettings.syncMode}
               onChange={(e) => handleSaveSettings({ syncMode: e.target.value as 'ask' | 'overwrite' | 'skip' })}
-              className="w-full px-3 py-2 border border-bolt-elements-borderColor rounded bg-bolt-elements-background-depth-2"
+              className="w-full px-3 py-2 border border-bolt-elements-borderColor/20 rounded bg-bolt-elements-background-depth-3 text-white hover:border-bolt-elements-borderColor/40 focus:border-bolt-elements-borderColor/60 transition-colors"
             >
               <option value="ask">Ask before overwriting</option>
               <option value="overwrite">Always overwrite</option>
@@ -257,7 +255,7 @@ export default function SyncTab() {
           {/* Exclude Patterns Section */}
           <div className="space-y-3">
             <div>
-              <div className="font-medium flex items-center gap-2">
+              <div className="font-medium text-white flex items-center gap-2">
                 <div className="i-ph:prohibit text-red-400" />
                 Exclude Patterns
               </div>
@@ -269,7 +267,7 @@ export default function SyncTab() {
                 value={excludePattern}
                 onChange={(e) => setExcludePattern(e.target.value)}
                 placeholder="e.g., *.log, node_modules/**"
-                className="flex-1 px-3 py-2 border border-bolt-elements-borderColor rounded bg-bolt-elements-background-depth-2"
+                className="flex-1 px-3 py-2 border border-bolt-elements-borderColor/20 rounded bg-bolt-elements-background-depth-3 text-white placeholder:text-gray-500 hover:border-bolt-elements-borderColor/40 focus:border-bolt-elements-borderColor/60 transition-colors"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && excludePattern) {
                     handleAddExcludePattern();
@@ -289,9 +287,9 @@ export default function SyncTab() {
               {syncSettings.excludePatterns.map((pattern) => (
                 <div
                   key={pattern}
-                  className="flex items-center justify-between bg-bolt-elements-background-depth-2 px-3 py-2 rounded group hover:bg-bolt-elements-background-depth-3 transition-colors"
+                  className="flex items-center justify-between bg-bolt-elements-background-depth-3 px-3 py-2 rounded group hover:bg-bolt-elements-background-depth-4 transition-colors border border-bolt-elements-borderColor/10"
                 >
-                  <span className="text-sm font-mono">{pattern}</span>
+                  <span className="text-sm font-mono text-white">{pattern}</span>
                   <IconButton
                     icon="i-ph:x"
                     onClick={() => handleRemoveExcludePattern(pattern)}
@@ -306,7 +304,7 @@ export default function SyncTab() {
       </div>
 
       {/* Sync Statistics */}
-      <div className="border-t border-bolt-elements-borderColor pt-6">
+      <div className="border-t border-bolt-elements-borderColor/20 pt-6">
         <SyncStats />
       </div>
     </div>
