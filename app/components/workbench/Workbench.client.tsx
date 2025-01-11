@@ -17,7 +17,7 @@ import { renderLogger } from '~/utils/logger';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
-import Cookies from 'js-cookie';
+import Tooltip from '~/components/ui/Tooltip';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -67,6 +67,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const syncSettings = useStore(workbenchStore.syncSettings);
   const syncFolder = useStore(workbenchStore.syncFolder);
   const [isSyncing, setIsSyncing] = useState(false);
+  const currentSession = useStore(workbenchStore.currentSession);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [syncStats, setSyncStats] = useState<{ files: number; size: string } | null>(null);
 
   const isSmallViewport = useViewport(1024);
 
@@ -98,16 +101,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   const handleSync = async () => {
     if (!syncFolder) {
-      toast.error('No sync folder selected');
+      toast.error('Please select a sync folder first');
       return;
     }
 
     try {
       setIsSyncing(true);
       await workbenchStore.syncFiles();
-      toast.success('Files synced successfully');
     } catch (error) {
-      toast.error('Failed to sync files');
       console.error('Sync error:', error);
     } finally {
       setIsSyncing(false);
@@ -130,6 +131,71 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const onFileReset = useCallback(() => {
     workbenchStore.resetCurrentDocument();
   }, []);
+
+  useEffect(() => {
+    if (!currentSession?.lastSync) {
+      return undefined;
+    }
+
+    const updateLastSyncTime = () => {
+      const now = Date.now();
+      const diff = now - currentSession.lastSync;
+
+      if (diff < 60000) {
+        setLastSyncTime('just now');
+      } else if (diff < 3600000) {
+        setLastSyncTime(`${Math.floor(diff / 60000)}m ago`);
+      } else {
+        setLastSyncTime(`${Math.floor(diff / 3600000)}h ago`);
+      }
+    };
+
+    updateLastSyncTime();
+
+    const interval = setInterval(updateLastSyncTime, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentSession?.lastSync]);
+
+  const handleSelectFolder = async () => {
+    try {
+      const handle = await window.showDirectoryPicker();
+      await workbenchStore.setSyncFolder(handle);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+
+      console.error('Failed to select sync folder:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentSession?.statistics?.length) {
+      return;
+    }
+
+    const lastStats = currentSession.statistics[currentSession.statistics.length - 1];
+
+    if (lastStats) {
+      setSyncStats({
+        files: lastStats.totalFiles,
+        size: formatBytes(lastStats.totalSize),
+      });
+    }
+  }, [currentSession?.statistics]);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) {
+      return '0 B';
+    }
+
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
 
   return (
     chatStarted && (
@@ -166,12 +232,74 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:code" />
                       Download Code
                     </PanelHeaderButton>
-                    {syncFolder && (
-                      <PanelHeaderButton className="mr-1 text-sm" onClick={handleSync} disabled={isSyncing}>
-                        {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
-                        {isSyncing ? 'Syncing...' : 'Sync Files'}
-                      </PanelHeaderButton>
-                    )}
+                    <div className="flex items-center gap-2 border-l border-bolt-elements-borderColor pl-2">
+                      {syncFolder ? (
+                        <div className="flex items-center gap-2">
+                          <Tooltip
+                            content={
+                              <div className="space-y-1 p-1">
+                                <div className="font-medium">Sync Folder:</div>
+                                <div className="text-sm text-gray-400">{syncFolder.name}</div>
+                                {syncStats && (
+                                  <>
+                                    <div className="font-medium mt-2">Last Sync:</div>
+                                    <div className="text-sm text-gray-400">
+                                      {syncStats.files} files ({syncStats.size})
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            }
+                          >
+                            <div className="flex items-center text-sm text-gray-400">
+                              <div
+                                className={`w-2 h-2 rounded-full mr-2 ${isSyncing ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}
+                              />
+                              <span className="truncate max-w-[150px]">
+                                {isSyncing ? 'Syncing...' : `Synced ${lastSyncTime || 'never'}`}
+                              </span>
+                            </div>
+                          </Tooltip>
+
+                          <PanelHeaderButton
+                            onClick={handleSync}
+                            disabled={isSyncing}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <div className={`i-ph:arrows-clockwise ${isSyncing ? 'animate-spin' : ''}`} />
+                            Sync Now
+                          </PanelHeaderButton>
+
+                          <PanelHeaderButton onClick={handleSelectFolder} className="flex items-center gap-2 text-sm">
+                            <div className="i-ph:folder-simple" />
+                            Change Folder
+                          </PanelHeaderButton>
+
+                          <PanelHeaderButton
+                            onClick={() => {
+                              workbenchStore.saveSyncSettings({
+                                ...syncSettings,
+                                syncOnSave: !syncSettings.syncOnSave,
+                              });
+                            }}
+                            className={`flex items-center gap-2 text-sm ${syncSettings.syncOnSave ? 'text-green-400' : ''}`}
+                          >
+                            <div className={syncSettings.syncOnSave ? 'i-ph:check-square' : 'i-ph:square'} />
+                            Auto-sync
+                          </PanelHeaderButton>
+                        </div>
+                      ) : (
+                        <Tooltip content="Select a folder to enable file synchronization">
+                          <PanelHeaderButton
+                            onClick={handleSelectFolder}
+                            className="flex items-center gap-2 text-gray-400 hover:text-white"
+                          >
+                            <div className="i-ph:folder-simple-plus" />
+                            Set Sync Folder
+                          </PanelHeaderButton>
+                        </Tooltip>
+                      )}
+                    </div>
                     <PanelHeaderButton
                       className="mr-1 text-sm"
                       onClick={() => {
@@ -183,32 +311,30 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     </PanelHeaderButton>
                     <PanelHeaderButton
                       className="mr-1 text-sm"
-                      onClick={() => {
-                        const repoName = prompt(
-                          'Please enter a name for your new GitHub repository:',
-                          'bolt-generated-project',
-                        );
+                      onClick={async () => {
+                        try {
+                          const repoName = prompt(
+                            'Please enter a name for your new GitHub repository:',
+                            'bolt-generated-project',
+                          );
 
-                        if (!repoName) {
-                          alert('Repository name is required. Push to GitHub cancelled.');
-                          return;
-                        }
-
-                        const githubUsername = Cookies.get('githubUsername');
-                        const githubToken = Cookies.get('githubToken');
-
-                        if (!githubUsername || !githubToken) {
-                          const usernameInput = prompt('Please enter your GitHub username:');
-                          const tokenInput = prompt('Please enter your GitHub personal access token:');
-
-                          if (!usernameInput || !tokenInput) {
-                            alert('GitHub username and token are required. Push to GitHub cancelled.');
+                          if (!repoName) {
+                            toast.error('Repository name is required');
                             return;
                           }
 
-                          workbenchStore.pushToGitHub(repoName, usernameInput, tokenInput);
-                        } else {
-                          workbenchStore.pushToGitHub(repoName, githubUsername, githubToken);
+                          const githubToken = prompt('Please enter your GitHub personal access token:');
+
+                          if (!githubToken) {
+                            toast.error('GitHub token is required');
+                            return;
+                          }
+
+                          toast.info('Pushing to GitHub...');
+                          await workbenchStore.pushToGitHub(repoName, githubToken);
+                        } catch (error) {
+                          console.error('Failed to push to GitHub:', error);
+                          toast.error('Failed to push to GitHub. Please check your token and try again.');
                         }
                       }}
                     >
