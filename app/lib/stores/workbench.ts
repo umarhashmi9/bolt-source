@@ -18,9 +18,10 @@ import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
-import type { SyncSettings, SyncSession, SyncStatistics, SyncHistoryEntry } from '~/types/sync';
+import type { SyncSettings, SyncSession, SyncStatistics, SyncHistoryEntry, ProjectSyncInfo } from '~/types/sync';
 import ignore from 'ignore';
 import { toast } from 'react-toastify';
+import { ProjectFolderManager } from '~/lib/persistence/project-folders';
 
 export interface ArtifactState {
   id: string;
@@ -468,191 +469,169 @@ export class WorkbenchStore {
       const syncedFiles = [];
       const conflictedFiles = [];
 
-      // Get or create project folder
-      const projectName = (description.value ?? 'project').toLowerCase().split(' ').join('_');
-      let projectFolder: FileSystemDirectoryHandle;
+      // Get project name from description or session
+      const rawProjectName = description.value ?? 'project';
+      const folderManager = ProjectFolderManager.getInstance();
 
-      // Check if we have an existing folder for this project
-      const projectInfo = settings.projectFolders[projectName];
-
-      if (projectInfo) {
-        try {
-          projectFolder = await folder.getDirectoryHandle(projectInfo.folderName);
-          console.log(`Using existing project folder: ${projectInfo.folderName}`);
-        } catch {
-          // If folder doesn't exist, create a new one
-          const timestampHash = Date.now().toString(36).slice(-6);
-          const folderName = `${projectName}_${timestampHash}`;
-          projectFolder = await folder.getDirectoryHandle(folderName, { create: true });
-
-          // Update project info
-          settings.projectFolders[projectName] = {
-            projectName,
-            folderName,
-            lastSync: Date.now(),
-          };
-          await this.saveSyncSettings(settings);
-          console.log(`Created new project folder: ${folderName}`);
-        }
-      } else {
-        // First time syncing this project
-        const timestampHash = Date.now().toString(36).slice(-6);
-        const folderName = `${projectName}_${timestampHash}`;
-        projectFolder = await folder.getDirectoryHandle(folderName, { create: true });
-
-        // Save project info
-        settings.projectFolders[projectName] = {
-          projectName,
-          folderName,
-          lastSync: Date.now(),
-        };
-        await this.saveSyncSettings(settings);
-        console.log(`Created new project folder: ${folderName}`);
-      }
-
-      // Update session with current project folder
-      session.projectFolder = projectFolder.name;
-      this.currentSession.set(session);
-
-      // Show progress toast
-      const progressToastId = toast.loading('Starting sync...', { autoClose: false });
-      let processedFiles = 0;
-      const totalFiles = Object.entries(files).filter(
-        ([_, dirent]) => dirent?.type === 'file' && !dirent.isBinary,
-      ).length;
-
-      for (const [filePath, dirent] of Object.entries(files)) {
-        if (dirent?.type === 'file' && !dirent.isBinary) {
-          processedFiles++;
-          toast.update(progressToastId, {
-            render: `Syncing files... ${processedFiles}/${totalFiles}`,
-          });
-
-          const relativePath = extractRelativePath(filePath);
-          totalSize += new Blob([dirent.content]).size;
-
-          // Skip files that match exclude patterns
-          if (ig.ignores(relativePath)) {
-            console.log(`Skipping excluded file: ${relativePath}`);
-            continue;
-          }
-
-          const pathSegments = relativePath.split('/');
-          let currentHandle = projectFolder;
-
-          // Create directories if they don't exist
-          for (let i = 0; i < pathSegments.length - 1; i++) {
-            currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
-          }
-
-          const fileName = pathSegments[pathSegments.length - 1];
-          let shouldWrite = true;
-
-          // Handle existing files based on sync mode
-          if (settings.syncMode !== 'overwrite') {
-            try {
-              const existingFile = await currentHandle.getFileHandle(fileName);
-              const existingContent = await existingFile.getFile().then((file) => file.text());
-
-              if (existingContent !== dirent.content) {
-                if (settings.syncMode === 'ask') {
-                  const userChoice = confirm(
-                    `File "${relativePath}" already exists and has different content.\n\n` +
-                      'Do you want to overwrite it?\n\n' +
-                      'Click OK to overwrite, Cancel to skip.',
-                  );
-
-                  if (!userChoice) {
-                    shouldWrite = false;
-                    conflictedFiles.push(relativePath);
-                    console.log(`User chose to skip file: ${relativePath}`);
-                  } else {
-                    console.log(`User chose to overwrite file: ${relativePath}`);
-                  }
-                } else if (settings.syncMode === 'skip') {
-                  shouldWrite = false;
-                  console.log(`Skipping existing file: ${relativePath}`);
-                }
-              }
-            } catch {
-              // File doesn't exist, we can create it
-              console.log(`Creating new file: ${relativePath}`);
-              shouldWrite = true;
-            }
-          } else {
-            console.log(`Overwriting file: ${relativePath}`);
-          }
-
-          if (shouldWrite) {
-            const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(dirent.content);
-            await writable.close();
-            syncedFiles.push(relativePath);
-            session.files.add(relativePath);
-          }
-        }
-      }
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Create statistics entry
-      const statistics: SyncStatistics = {
-        totalFiles: syncedFiles.length,
-        totalSize,
-        duration,
-        timestamp: endTime,
-      };
-
-      // Create history entry
-      const historyEntry: SyncHistoryEntry = {
-        id: crypto.randomUUID(),
-        projectName,
-        timestamp: endTime,
-        statistics,
-        files: syncedFiles,
-        status: conflictedFiles.length > 0 ? 'partial' : 'success',
-      };
-
-      // Update session
-      session.lastSync = endTime;
-      session.statistics = [...(session.statistics || []), statistics];
-      session.history = [...(session.history || []), historyEntry];
-      this.currentSession.set(session);
-
-      // Save sync history to localStorage
-      const syncHistory = JSON.parse(localStorage.getItem('syncHistory') || '[]');
-      syncHistory.push(historyEntry);
-      localStorage.setItem('syncHistory', JSON.stringify(syncHistory.slice(-100))); // Keep last 100 entries
-
-      // Close progress toast
-      toast.dismiss(progressToastId);
-
-      // Provide summary feedback
-      if (syncedFiles.length > 0) {
-        const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-        const durationSec = (duration / 1000).toFixed(1);
-        toast.success(
-          `Successfully synced ${syncedFiles.length} file${syncedFiles.length !== 1 ? 's' : ''} ` +
-            `(${sizeMB} MB) to ${projectName} in ${durationSec}s`,
+      try {
+        // This will only create a new folder if the project is truly new
+        const { folderHandle: projectFolder, projectInfo } = await folderManager.getOrCreateProjectFolder(
+          folder,
+          rawProjectName,
+          true, // Allow creation only for new projects
         );
-      }
 
-      if (conflictedFiles.length > 0) {
-        toast.info(`Skipped ${conflictedFiles.length} file${conflictedFiles.length !== 1 ? 's' : ''} due to conflicts`);
-      }
+        // Update session with current project folder and name
+        session.projectFolder = projectFolder.name;
+        session.projectName = projectInfo.projectName;
+        this.currentSession.set(session);
 
-      if (syncedFiles.length === 0 && conflictedFiles.length === 0) {
-        toast.info('No files needed syncing');
-      }
+        // Show progress toast
+        const progressToastId = toast.loading('Starting sync...', { autoClose: false });
+        let processedFiles = 0;
+        const totalFiles = Object.entries(files).filter(
+          ([_, dirent]) => dirent?.type === 'file' && !dirent.isBinary,
+        ).length;
 
-      return {
-        synced: syncedFiles,
-        conflicts: conflictedFiles,
-        projectFolder: projectName,
-        statistics,
-      };
+        for (const [filePath, dirent] of Object.entries(files)) {
+          if (dirent?.type === 'file' && !dirent.isBinary) {
+            processedFiles++;
+            toast.update(progressToastId, {
+              render: `Syncing files... ${processedFiles}/${totalFiles}`,
+            });
+
+            const relativePath = extractRelativePath(filePath);
+            totalSize += new Blob([dirent.content]).size;
+
+            // Skip files that match exclude patterns
+            if (ig.ignores(relativePath)) {
+              console.log(`Skipping excluded file: ${relativePath}`);
+              continue;
+            }
+
+            const pathSegments = relativePath.split('/');
+            let currentHandle = projectFolder;
+
+            // Create directories if they don't exist
+            for (let i = 0; i < pathSegments.length - 1; i++) {
+              currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
+            }
+
+            const fileName = pathSegments[pathSegments.length - 1];
+            let shouldWrite = true;
+
+            // Handle existing files based on sync mode
+            if (settings.syncMode !== 'overwrite') {
+              try {
+                const existingFile = await currentHandle.getFileHandle(fileName);
+                const existingContent = await existingFile.getFile().then((file) => file.text());
+
+                if (existingContent !== dirent.content) {
+                  if (settings.syncMode === 'ask') {
+                    const userChoice = confirm(
+                      `File "${relativePath}" already exists and has different content.\n\n` +
+                        'Do you want to overwrite it?\n\n' +
+                        'Click OK to overwrite, Cancel to skip.',
+                    );
+
+                    if (!userChoice) {
+                      shouldWrite = false;
+                      conflictedFiles.push(relativePath);
+                      console.log(`User chose to skip file: ${relativePath}`);
+                    } else {
+                      console.log(`User chose to overwrite file: ${relativePath}`);
+                    }
+                  } else if (settings.syncMode === 'skip') {
+                    shouldWrite = false;
+                    console.log(`Skipping existing file: ${relativePath}`);
+                  }
+                }
+              } catch {
+                // File doesn't exist, we can create it
+                console.log(`Creating new file: ${relativePath}`);
+                shouldWrite = true;
+              }
+            } else {
+              console.log(`Overwriting file: ${relativePath}`);
+            }
+
+            if (shouldWrite) {
+              const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
+              const writable = await fileHandle.createWritable();
+              await writable.write(dirent.content);
+              await writable.close();
+              syncedFiles.push(relativePath);
+              session.files.add(relativePath);
+            }
+          }
+        }
+
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        // Create statistics entry
+        const statistics: SyncStatistics = {
+          totalFiles: syncedFiles.length,
+          totalSize,
+          duration,
+          timestamp: endTime,
+        };
+
+        // Create history entry
+        const historyEntry: SyncHistoryEntry = {
+          id: crypto.randomUUID(),
+          projectName: projectInfo.projectName,
+          timestamp: endTime,
+          statistics,
+          files: syncedFiles,
+          status: conflictedFiles.length > 0 ? 'partial' : 'success',
+        };
+
+        // Update session
+        session.lastSync = endTime;
+        session.statistics = [...(session.statistics || []), statistics];
+        session.history = [...(session.history || []), historyEntry];
+        this.currentSession.set(session);
+
+        // Save sync history to localStorage
+        const syncHistory = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+        syncHistory.push(historyEntry);
+        localStorage.setItem('syncHistory', JSON.stringify(syncHistory.slice(-100))); // Keep last 100 entries
+
+        // Close progress toast
+        toast.dismiss(progressToastId);
+
+        // Provide summary feedback
+        if (syncedFiles.length > 0) {
+          const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+          const durationSec = (duration / 1000).toFixed(1);
+          toast.success(
+            `Successfully synced ${syncedFiles.length} file${syncedFiles.length !== 1 ? 's' : ''} ` +
+              `(${sizeMB} MB) to ${projectInfo.projectName} in ${durationSec}s`,
+          );
+        }
+
+        if (conflictedFiles.length > 0) {
+          toast.info(
+            `Skipped ${conflictedFiles.length} file${conflictedFiles.length !== 1 ? 's' : ''} due to conflicts`,
+          );
+        }
+
+        if (syncedFiles.length === 0 && conflictedFiles.length === 0) {
+          toast.info('No files needed syncing');
+        }
+
+        return {
+          synced: syncedFiles,
+          conflicts: conflictedFiles,
+          projectFolder: projectInfo.projectName,
+          statistics,
+        };
+      } catch (error) {
+        console.error('Error syncing project:', error);
+        toast.dismiss();
+        throw error;
+      }
     } catch (error) {
       console.error('Sync failed:', error);
       toast.dismiss();
@@ -801,17 +780,17 @@ export class WorkbenchStore {
     };
 
     // Try to restore project folder from settings
-    const settings = this.syncSettings.get();
-    const projectName = (description.value ?? 'project').toLowerCase().split(' ').join('_');
-    const projectInfo = settings.projectFolders[projectName];
+    const rawProjectName = description.value ?? 'project';
+    const { projectInfo } = this._findExistingProject(rawProjectName);
 
     if (projectInfo) {
       session.projectFolder = projectInfo.folderName;
+      session.projectName = projectInfo.projectName; // Add this to track the project name
     }
 
     this.currentSession.set(session);
 
-    if (settings.autoSync && this.syncFolder.get()) {
+    if (this.syncSettings.get().autoSync && this.syncFolder.get()) {
       await this.syncFiles();
     }
   }
@@ -853,6 +832,34 @@ export class WorkbenchStore {
       console.error('Failed to save sync settings:', error);
       throw error;
     }
+  }
+
+  private _normalizeProjectName(name: string): string {
+    // First, remove any timestamp suffix if it exists
+    const baseNameWithoutTimestamp = name.replace(/_[a-z0-9]{6}$/, '');
+
+    // Then normalize the remaining string
+    return baseNameWithoutTimestamp
+      .toLowerCase()
+      .replace(/[^a-z0-9_\s-]/g, '')
+      .replace(/[\s-]+/g, '_')
+      .trim();
+  }
+
+  private _findExistingProject(projectName: string): { projectInfo: ProjectSyncInfo | null; baseProjectName: string } {
+    const settings = this.syncSettings.get();
+    const normalizedName = this._normalizeProjectName(projectName);
+
+    // First try exact match without timestamp
+    for (const [, info] of Object.entries(settings.projectFolders)) {
+      const normalizedInfoName = this._normalizeProjectName(info.projectName);
+
+      if (normalizedInfoName === normalizedName) {
+        return { projectInfo: info, baseProjectName: normalizedName };
+      }
+    }
+
+    return { projectInfo: null, baseProjectName: normalizedName };
   }
 }
 
