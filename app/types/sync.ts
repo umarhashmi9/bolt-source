@@ -22,11 +22,11 @@ export interface ProjectSyncInfo {
 
 export interface SyncSettings {
   autoSync: boolean;
-  autoSyncInterval: number; // in minutes
+  autoSyncInterval: number;
   syncOnSave: boolean;
   excludePatterns: string[];
   syncMode: 'ask' | 'overwrite' | 'skip';
-  projectFolders: Record<string, ProjectSyncInfo>; // key is project description
+  projectFolders: Record<string, ProjectSyncInfo>;
 }
 
 export interface SyncSession {
@@ -36,5 +36,6 @@ export interface SyncSession {
   files: Set<string>;
   history: SyncHistoryEntry[];
   statistics: SyncStatistics[];
-  projectFolder?: string; // Current project's sync folder name
+  projectFolder?: string;
+  projectName?: string;
 }
