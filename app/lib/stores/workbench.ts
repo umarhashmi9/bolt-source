@@ -65,6 +65,7 @@ export class WorkbenchStore {
       syncMode: 'ask',
     });
   currentSession: WritableAtom<SyncSession | null> = import.meta.hot?.data.currentSession ?? atom(null);
+  syncIntervalId?: NodeJS.Timeout;
 
   constructor() {
     if (import.meta.hot) {
@@ -81,27 +82,43 @@ export class WorkbenchStore {
     // Load saved sync settings
     this.loadSyncSettings();
 
-    // Subscribe to sync settings changes to persist them
+    // Subscribe to sync settings changes to persist them and update sync interval
     this.syncSettings.subscribe((settings) => {
       localStorage.setItem('syncSettings', JSON.stringify(settings));
+
+      // Clear existing interval if any
+      if (this.syncIntervalId) {
+        clearInterval(this.syncIntervalId);
+      }
+
+      // Set up new interval if auto-sync is enabled
+      if (settings.autoSync) {
+        const intervalMs = settings.autoSyncInterval * 60 * 1000;
+        this.syncIntervalId = setInterval(() => {
+          const session = this.currentSession.get();
+          const folder = this.syncFolder.get();
+
+          if (folder && session) {
+            this.syncFiles().catch(console.error);
+          }
+        }, intervalMs);
+      }
     });
 
     // Set up auto-sync interval
-    setInterval(() => {
-      const settings = this.syncSettings.get();
-      const session = this.currentSession.get();
-      const folder = this.syncFolder.get();
+    const settings = this.syncSettings.get();
+    const session = this.currentSession.get();
+    const folder = this.syncFolder.get();
 
-      if (settings.autoSync && folder && session) {
-        const now = Date.now();
-        const timeSinceLastSync = now - session.lastSync;
-        const intervalMs = settings.autoSyncInterval * 60 * 1000;
+    if (settings.autoSync && folder && session) {
+      const now = Date.now();
+      const timeSinceLastSync = now - session.lastSync;
+      const intervalMs = settings.autoSyncInterval * 60 * 1000;
 
-        if (timeSinceLastSync >= intervalMs) {
-          this.syncFiles().catch(console.error);
-        }
+      if (timeSinceLastSync >= intervalMs) {
+        this.syncFiles().catch(console.error);
       }
-    }, 30000); // Check every 30 seconds
+    }
   }
 
   addToExecutionQueue(callback: () => Promise<void>) {
@@ -589,14 +606,9 @@ export class WorkbenchStore {
 
         // Update session
         session.lastSync = endTime;
-        session.statistics = [...(session.statistics || []), statistics];
-        session.history = [...(session.history || []), historyEntry];
-        this.currentSession.set(session);
-
-        // Save sync history to localStorage
-        const syncHistory = JSON.parse(localStorage.getItem('syncHistory') || '[]');
-        syncHistory.push(historyEntry);
-        localStorage.setItem('syncHistory', JSON.stringify(syncHistory.slice(-100))); // Keep last 100 entries
+        session.history.push(historyEntry);
+        session.statistics.push(statistics);
+        this.currentSession.set({ ...session }); // Create new object to trigger update
 
         // Close progress toast
         toast.dismiss(progressToastId);
