@@ -220,138 +220,146 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             <div className="h-full flex flex-col bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-sm rounded-lg overflow-hidden">
               <div className="flex items-center px-3 py-2 border-b border-bolt-elements-borderColor">
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
-                <div className="ml-auto" />
-                {selectedView === 'code' && (
-                  <div className="flex overflow-y-auto">
-                    <PanelHeaderButton
-                      className="mr-1 text-sm"
-                      onClick={() => {
-                        workbenchStore.downloadZip();
-                      }}
-                    >
-                      <div className="i-ph:code" />
-                      Download Code
-                    </PanelHeaderButton>
-                    <div className="flex items-center gap-2 border-l border-bolt-elements-borderColor pl-2">
+                <div className="ml-auto flex items-center gap-3">
+                  {selectedView === 'code' && (
+                    <>
+                      <PanelHeaderButton
+                        onClick={() => workbenchStore.downloadZip()}
+                        className="text-sm flex items-center gap-1.5 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                      >
+                        <div className="i-ph:code" />
+                        Download
+                      </PanelHeaderButton>
+
+                      <div className="h-4 border-l border-bolt-elements-borderColor" />
+
                       {syncFolder ? (
                         <div className="flex items-center gap-2">
                           <Tooltip
                             content={
-                              <div className="space-y-1 p-1">
-                                <div className="font-medium">Sync Folder:</div>
-                                <div className="text-sm text-gray-400">{syncFolder.name}</div>
+                              <div className="space-y-2 p-2 min-w-[200px]">
+                                <div className="font-medium text-bolt-elements-textPrimary">Sync Folder:</div>
+                                <div className="text-sm text-bolt-elements-textSecondary truncate max-w-[250px]">
+                                  {syncFolder.name}
+                                </div>
                                 {syncStats && (
                                   <>
-                                    <div className="font-medium mt-2">Last Sync:</div>
-                                    <div className="text-sm text-gray-400">
+                                    <div className="font-medium text-bolt-elements-textPrimary mt-3">Last Sync:</div>
+                                    <div className="text-sm text-bolt-elements-textSecondary">
                                       {syncStats.files} files ({syncStats.size})
                                     </div>
                                   </>
                                 )}
+                                {syncSettings.syncOnSave && (
+                                  <div className="flex items-center gap-2 mt-3 text-sm text-green-400">
+                                    <div className="i-ph:check-circle" />
+                                    Auto-sync enabled
+                                  </div>
+                                )}
                               </div>
                             }
                           >
-                            <div className="flex items-center text-sm text-gray-400">
-                              <div
-                                className={`w-2 h-2 rounded-full mr-2 ${isSyncing ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}
-                              />
-                              <span className="truncate max-w-[150px]">
-                                {isSyncing ? 'Syncing...' : `Synced ${lastSyncTime || 'never'}`}
-                              </span>
+                            <div className="flex items-center gap-1.5 text-sm text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors">
+                              <div className="i-ph:folder" />
+                              <span className="truncate max-w-[120px]">{syncFolder.name}</span>
+                              {lastSyncTime && (
+                                <span className="text-xs text-bolt-elements-textTertiary">• {lastSyncTime}</span>
+                              )}
+                              {syncSettings.syncOnSave && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-sm shadow-green-400/20" />
+                              )}
                             </div>
                           </Tooltip>
 
-                          <PanelHeaderButton
-                            onClick={handleSync}
-                            disabled={isSyncing}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <div className={`i-ph:arrows-clockwise ${isSyncing ? 'animate-spin' : ''}`} />
-                            Sync Now
-                          </PanelHeaderButton>
+                          <div className="flex items-center gap-1">
+                            <IconButton
+                              onClick={handleSync}
+                              disabled={isSyncing}
+                              className={classNames(
+                                'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors',
+                                {
+                                  'animate-spin': isSyncing,
+                                },
+                              )}
+                            >
+                              <div className="i-ph:arrows-clockwise" />
+                            </IconButton>
 
-                          <PanelHeaderButton onClick={handleSelectFolder} className="flex items-center gap-2 text-sm">
-                            <div className="i-ph:folder-simple" />
-                            Change Folder
-                          </PanelHeaderButton>
-
-                          <PanelHeaderButton
-                            onClick={() => {
-                              workbenchStore.saveSyncSettings({
-                                ...syncSettings,
-                                syncOnSave: !syncSettings.syncOnSave,
-                              });
-                            }}
-                            className={`flex items-center gap-2 text-sm ${syncSettings.syncOnSave ? 'text-green-400' : ''}`}
-                          >
-                            <div className={syncSettings.syncOnSave ? 'i-ph:check-square' : 'i-ph:square'} />
-                            Auto-sync
-                          </PanelHeaderButton>
+                            <IconButton
+                              onClick={() => workbenchStore.setSyncFolder(null)}
+                              className="text-bolt-elements-textSecondary hover:text-red-400 transition-colors"
+                              title="Clear sync folder"
+                            >
+                              <div className="i-ph:x" />
+                            </IconButton>
+                          </div>
                         </div>
                       ) : (
-                        <Tooltip content="Select a folder to enable file synchronization">
-                          <PanelHeaderButton
-                            onClick={handleSelectFolder}
-                            className="flex items-center gap-2 text-gray-400 hover:text-white"
-                          >
-                            <div className="i-ph:folder-simple-plus" />
-                            Set Sync Folder
-                          </PanelHeaderButton>
-                        </Tooltip>
+                        <PanelHeaderButton
+                          onClick={handleSelectFolder}
+                          className="text-sm flex items-center gap-1.5 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                        >
+                          <div className="i-ph:folder-simple-plus" />
+                          Select Folder
+                        </PanelHeaderButton>
                       )}
-                    </div>
-                    <PanelHeaderButton
-                      className="mr-1 text-sm"
-                      onClick={() => {
-                        workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
-                      }}
-                    >
-                      <div className="i-ph:terminal" />
-                      Toggle Terminal
-                    </PanelHeaderButton>
-                    <PanelHeaderButton
-                      className="mr-1 text-sm"
-                      onClick={async () => {
-                        try {
-                          const repoName = prompt(
-                            'Please enter a name for your new GitHub repository:',
-                            'bolt-generated-project',
-                          );
 
-                          if (!repoName) {
-                            toast.error('Repository name is required');
-                            return;
+                      <div className="h-4 border-l border-bolt-elements-borderColor" />
+
+                      <PanelHeaderButton
+                        onClick={() => workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get())}
+                        className="text-sm flex items-center gap-1.5 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                      >
+                        <div className="i-ph:terminal" />
+                        Terminal
+                      </PanelHeaderButton>
+
+                      <div className="h-4 border-l border-bolt-elements-borderColor" />
+
+                      <PanelHeaderButton
+                        onClick={async () => {
+                          try {
+                            const repoName = prompt(
+                              'Please enter a name for your new GitHub repository:',
+                              'bolt-generated-project',
+                            );
+
+                            if (!repoName) {
+                              toast.error('Repository name is required');
+                              return;
+                            }
+
+                            const githubToken = prompt('Please enter your GitHub personal access token:');
+
+                            if (!githubToken) {
+                              toast.error('GitHub token is required');
+                              return;
+                            }
+
+                            toast.info('Pushing to GitHub...');
+                            await workbenchStore.pushToGitHub(repoName, githubToken);
+                          } catch (error) {
+                            console.error('Failed to push to GitHub:', error);
+                            toast.error('Failed to push to GitHub. Please check your token and try again.');
                           }
+                        }}
+                        className="text-sm flex items-center gap-1.5 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                      >
+                        <div className="i-ph:github-logo" />
+                        GitHub
+                      </PanelHeaderButton>
+                    </>
+                  )}
 
-                          const githubToken = prompt('Please enter your GitHub personal access token:');
-
-                          if (!githubToken) {
-                            toast.error('GitHub token is required');
-                            return;
-                          }
-
-                          toast.info('Pushing to GitHub...');
-                          await workbenchStore.pushToGitHub(repoName, githubToken);
-                        } catch (error) {
-                          console.error('Failed to push to GitHub:', error);
-                          toast.error('Failed to push to GitHub. Please check your token and try again.');
-                        }
-                      }}
-                    >
-                      <div className="i-ph:github-logo" />
-                      Push to GitHub
-                    </PanelHeaderButton>
-                  </div>
-                )}
-                <IconButton
-                  icon="i-ph:x-circle"
-                  className="-mr-1"
-                  size="xl"
-                  onClick={() => {
-                    workbenchStore.showWorkbench.set(false);
-                  }}
-                />
+                  <IconButton
+                    onClick={() => workbenchStore.showWorkbench.set(false)}
+                    className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                  >
+                    <div className="i-ph:x-circle" />
+                  </IconButton>
+                </div>
               </div>
+
               <div className="relative flex-1 overflow-hidden">
                 <View
                   initial={{ x: selectedView === 'code' ? 0 : '-100%' }}
