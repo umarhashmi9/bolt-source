@@ -56,9 +56,6 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   try {
     const options: StreamingOptions = {
       toolChoice: 'none',
-      onChunk: (chunk) => {
-        console.log('chunk', chunk);
-      },
       onFinish: async ({ text: content, finishReason, usage }) => {
         logger.debug('usage', JSON.stringify(usage));
 
@@ -126,7 +123,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       },
     };
     const totalMessageContent = messages.reduce((acc, message) => acc + message.content, '');
-    logger.debug(`Total message length: ${totalMessageContent.length}`);
+    logger.debug(`Total message length: ${totalMessageContent.split(' ').length}, words`);
 
     const result = await streamText({
       messages,
