@@ -37,6 +37,10 @@ export default function SyncTab() {
     try {
       setIsManualSyncing(true);
       await workbenchStore.syncFiles();
+
+      // Force immediate updates
+      updateLastSyncTime();
+      updateSyncStats();
     } catch (error) {
       console.error('Manual sync error:', error);
     } finally {
@@ -55,42 +59,57 @@ export default function SyncTab() {
     const lastSync = currentSession?.lastSync;
 
     if (!lastSync) {
+      setLastSyncTime('');
       return;
     }
 
     const now = Date.now();
     const diff = now - lastSync;
+    const date = new Date(lastSync);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
 
     if (diff < 60000) {
-      setLastSyncTime('just now');
+      // less than 1 minute
+      setLastSyncTime(timeString);
     } else if (diff < 3600000) {
-      setLastSyncTime(`${Math.floor(diff / 60000)}m ago`);
+      // less than 1 hour
+      const mins = Math.floor(diff / 60000);
+      setLastSyncTime(`${timeString} (${mins}m ago)`);
     } else {
-      setLastSyncTime(`${Math.floor(diff / 3600000)}h ago`);
+      // more than 1 hour
+      const hours = Math.floor(diff / 3600000);
+      setLastSyncTime(`${timeString} (${hours}h ago)`);
     }
   }, [currentSession?.lastSync]);
 
-  // Update last sync time
-  useEffect(() => {
-    if (!currentSession?.lastSync) {
-      return undefined;
-    }
-
-    updateLastSyncTime();
-
-    const interval = setInterval(updateLastSyncTime, 10000);
-
-    return () => clearInterval(interval);
-  }, [currentSession?.lastSync, updateLastSyncTime]);
-
-  // Update total files and size
-  useEffect(() => {
+  const updateSyncStats = useCallback(() => {
     if (currentSession?.statistics?.length) {
       const latest = currentSession.statistics[currentSession.statistics.length - 1];
       setTotalFiles(latest.totalFiles);
       setTotalSize(latest.totalSize);
     }
   }, [currentSession?.statistics]);
+
+  // Update stats whenever session changes
+  useEffect(() => {
+    updateSyncStats();
+    updateLastSyncTime();
+  }, [currentSession, updateSyncStats, updateLastSyncTime]);
+
+  // Update last sync time periodically
+  useEffect(() => {
+    if (!currentSession?.lastSync) {
+      setLastSyncTime('');
+      return undefined;
+    }
+
+    const interval = setInterval(updateLastSyncTime, 10000);
+
+    return () => clearInterval(interval);
+  }, [currentSession?.lastSync, updateLastSyncTime]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) {
@@ -170,44 +189,58 @@ export default function SyncTab() {
       <div className="bg-bolt-elements-background-depth-3 p-4 rounded-lg border border-bolt-elements-borderColor/10">
         <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Sync Settings</h3>
         <div className="space-y-4">
-          {/* Auto Sync */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-bolt-elements-background-depth-4">
-            <div>
-              <div className="text-sm font-medium text-bolt-elements-textPrimary">Auto Sync</div>
-              <div className="text-xs text-bolt-elements-textSecondary mt-0.5">Automatically sync files when saved</div>
-            </div>
-            <IconButton
-              onClick={() => handleSaveSettings({ syncOnSave: !syncSettings.syncOnSave })}
-              className={classNames(
-                'text-xl transition-colors',
-                syncSettings.syncOnSave
-                  ? 'text-green-400 hover:text-green-500'
-                  : 'text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary',
+          <div className="space-y-2">
+            <div className="text-sm text-bolt-elements-textPrimary">Auto-sync</div>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={syncSettings.autoSync}
+                  onChange={(e) => handleSaveSettings({ autoSync: e.target.checked })}
+                  className="checkbox"
+                />
+                <div className="text-sm text-bolt-elements-textSecondary">Enable automatic sync</div>
+              </div>
+              {syncSettings.autoSync && (
+                <div className="flex items-center gap-2 pl-6">
+                  <div className="text-sm text-bolt-elements-textSecondary">Sync every</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={syncSettings.autoSyncInterval}
+                    onChange={(e) =>
+                      handleSaveSettings({ autoSyncInterval: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) })
+                    }
+                    className="w-16 px-2 py-1 text-sm rounded-md bg-bolt-elements-background-depth-3 text-bolt-elements-textPrimary border border-bolt-elements-borderColor/10"
+                  />
+                  <div className="text-sm text-bolt-elements-textSecondary">minutes</div>
+                </div>
               )}
-            >
-              <div className={syncSettings.syncOnSave ? 'i-ph:check-square-fill' : 'i-ph:square'} />
-            </IconButton>
+            </div>
           </div>
 
-          {/* Sync Interval */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-bolt-elements-background-depth-4">
-            <div>
-              <div className="text-sm font-medium text-bolt-elements-textPrimary">Sync Interval</div>
-              <div className="text-xs text-bolt-elements-textSecondary mt-0.5">
-                How often to check for changes (in seconds)
+          <div className="space-y-2">
+            <div className="text-sm text-bolt-elements-textPrimary">Sync on save</div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-bolt-elements-background-depth-4">
+              <div>
+                <div className="text-sm font-medium text-bolt-elements-textPrimary">Sync on save</div>
+                <div className="text-xs text-bolt-elements-textSecondary mt-0.5">
+                  Automatically sync files when saved
+                </div>
               </div>
+              <IconButton
+                onClick={() => handleSaveSettings({ syncOnSave: !syncSettings.syncOnSave })}
+                className={classNames(
+                  'text-xl transition-colors',
+                  syncSettings.syncOnSave
+                    ? 'text-green-400 hover:text-green-500'
+                    : 'text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary',
+                )}
+              >
+                <div className={syncSettings.syncOnSave ? 'i-ph:check-square-fill' : 'i-ph:square'} />
+              </IconButton>
             </div>
-            <input
-              type="number"
-              min="1"
-              max="3600"
-              value={syncSettings.autoSyncInterval}
-              onChange={(e) => {
-                const value = Math.max(1, Math.min(3600, parseInt(e.target.value) || 1));
-                handleSaveSettings({ autoSyncInterval: value });
-              }}
-              className="w-24 text-sm px-3 py-1.5 bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor/20 rounded-md text-bolt-elements-textPrimary focus:border-bolt-elements-borderColor/60 transition-colors"
-            />
           </div>
         </div>
       </div>

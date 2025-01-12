@@ -30,7 +30,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
     { id: 'providers', label: 'Providers', icon: 'i-ph:key', component: <ProvidersTab /> },
     { id: 'connection', label: 'Connection', icon: 'i-ph:link', component: <ConnectionsTab /> },
     { id: 'features', label: 'Features', icon: 'i-ph:star', component: <FeaturesTab /> },
-    { id: 'sync', label: 'Sync', icon: 'i-ph:arrows-clockwise', component: <SyncTab /> },
+    { id: 'sync', label: 'Sync Settings', icon: 'i-ph:arrows-clockwise', component: <SyncTab /> },
     ...(debug
       ? [
           {

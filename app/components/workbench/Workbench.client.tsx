@@ -54,6 +54,51 @@ const workbenchVariants = {
   },
 } satisfies Variants;
 
+const SyncTooltipContent = memo(
+  ({
+    syncFolder,
+    lastSyncTime,
+    syncStats,
+    syncSettings,
+  }: {
+    syncFolder: FileSystemDirectoryHandle;
+    lastSyncTime: string;
+    syncStats: { files: number; size: string } | null;
+    syncSettings: NonNullable<(typeof workbenchStore)['syncSettings']['value']>;
+  }) => (
+    <div className="space-y-2 p-2 min-w-[200px]">
+      <div className="font-medium text-bolt-elements-textPrimary">Sync Folder:</div>
+      <div className="text-sm text-bolt-elements-textSecondary truncate max-w-[250px]">{syncFolder.name}</div>
+      {lastSyncTime && (
+        <>
+          <div className="font-medium text-bolt-elements-textPrimary mt-3">Last Sync:</div>
+          <div className="text-sm text-bolt-elements-textSecondary">{lastSyncTime}</div>
+        </>
+      )}
+      {syncStats && (
+        <>
+          <div className="font-medium text-bolt-elements-textPrimary mt-3">Files:</div>
+          <div className="text-sm text-bolt-elements-textSecondary">
+            {syncStats.files} files ({syncStats.size})
+          </div>
+        </>
+      )}
+      {syncSettings.autoSync && (
+        <div className="flex items-center gap-2 mt-3 text-sm text-green-400">
+          <div className="i-ph:check-circle" />
+          Auto-sync every {syncSettings.autoSyncInterval} minutes
+        </div>
+      )}
+      {syncSettings.syncOnSave && (
+        <div className="flex items-center gap-2 mt-3 text-sm text-green-400">
+          <div className="i-ph:check-circle" />
+          Sync on save enabled
+        </div>
+      )}
+    </div>
+  ),
+);
+
 export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => {
   renderLogger.trace('Workbench');
 
@@ -108,12 +153,30 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     try {
       setIsSyncing(true);
       await workbenchStore.syncFiles();
+      updateLastSyncTime();
+      updateSyncStats();
     } catch (error) {
       console.error('Sync error:', error);
     } finally {
       setIsSyncing(false);
     }
   };
+
+  const updateSyncStats = useCallback(() => {
+    if (!currentSession?.statistics?.length) {
+      setSyncStats(null);
+      return;
+    }
+
+    const lastStats = currentSession.statistics[currentSession.statistics.length - 1];
+
+    if (lastStats) {
+      setSyncStats({
+        files: lastStats.totalFiles,
+        size: formatBytes(lastStats.totalSize),
+      });
+    }
+  }, [currentSession?.statistics]);
 
   const onFileSave = useCallback(async () => {
     try {
@@ -132,30 +195,60 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     workbenchStore.resetCurrentDocument();
   }, []);
 
+  const updateLastSyncTime = useCallback(() => {
+    if (!currentSession?.lastSync) {
+      setLastSyncTime('');
+      return;
+    }
+
+    const now = Date.now();
+    const diff = now - currentSession.lastSync;
+    const date = new Date(currentSession.lastSync);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
+
+    if (diff < 60000) {
+      // less than 1 minute
+      setLastSyncTime(`${timeString}`);
+    } else if (diff < 3600000) {
+      // less than 1 hour
+      const mins = Math.floor(diff / 60000);
+      setLastSyncTime(`${timeString} (${mins}m ago)`);
+    } else {
+      // more than 1 hour
+      const hours = Math.floor(diff / 3600000);
+      setLastSyncTime(`${timeString} (${hours}h ago)`);
+    }
+  }, [currentSession?.lastSync]);
+
+  useEffect(() => {
+    updateSyncStats();
+    updateLastSyncTime();
+  }, [currentSession, updateSyncStats, updateLastSyncTime]);
+
   useEffect(() => {
     if (!currentSession?.lastSync) {
       return undefined;
     }
 
-    const updateLastSyncTime = () => {
-      const now = Date.now();
-      const diff = now - currentSession.lastSync;
-
-      if (diff < 60000) {
-        setLastSyncTime('just now');
-      } else if (diff < 3600000) {
-        setLastSyncTime(`${Math.floor(diff / 60000)}m ago`);
-      } else {
-        setLastSyncTime(`${Math.floor(diff / 3600000)}h ago`);
-      }
-    };
-
-    updateLastSyncTime();
-
     const interval = setInterval(updateLastSyncTime, 60000);
 
     return () => clearInterval(interval);
-  }, [currentSession?.lastSync]);
+  }, [currentSession?.lastSync, updateLastSyncTime]);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) {
+      return '0 B';
+    }
+
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
 
   const handleSelectFolder = async () => {
     try {
@@ -168,33 +261,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
       console.error('Failed to select sync folder:', error);
     }
-  };
-
-  useEffect(() => {
-    if (!currentSession?.statistics?.length) {
-      return;
-    }
-
-    const lastStats = currentSession.statistics[currentSession.statistics.length - 1];
-
-    if (lastStats) {
-      setSyncStats({
-        files: lastStats.totalFiles,
-        size: formatBytes(lastStats.totalSize),
-      });
-    }
-  }, [currentSession?.statistics]);
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) {
-      return '0 B';
-    }
-
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
   return (
@@ -237,26 +303,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                         <div className="flex items-center gap-2">
                           <Tooltip
                             content={
-                              <div className="space-y-2 p-2 min-w-[200px]">
-                                <div className="font-medium text-bolt-elements-textPrimary">Sync Folder:</div>
-                                <div className="text-sm text-bolt-elements-textSecondary truncate max-w-[250px]">
-                                  {syncFolder.name}
-                                </div>
-                                {syncStats && (
-                                  <>
-                                    <div className="font-medium text-bolt-elements-textPrimary mt-3">Last Sync:</div>
-                                    <div className="text-sm text-bolt-elements-textSecondary">
-                                      {syncStats.files} files ({syncStats.size})
-                                    </div>
-                                  </>
-                                )}
-                                {syncSettings.syncOnSave && (
-                                  <div className="flex items-center gap-2 mt-3 text-sm text-green-400">
-                                    <div className="i-ph:check-circle" />
-                                    Auto-sync enabled
-                                  </div>
-                                )}
-                              </div>
+                              <SyncTooltipContent
+                                syncFolder={syncFolder}
+                                lastSyncTime={lastSyncTime}
+                                syncStats={syncStats}
+                                syncSettings={syncSettings}
+                              />
                             }
                           >
                             <div className="flex items-center gap-1.5 text-sm text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors">
