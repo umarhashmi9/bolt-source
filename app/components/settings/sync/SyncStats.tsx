@@ -6,6 +6,20 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-toastify';
 import { IconButton } from '~/components/ui/IconButton';
 import { classNames } from '~/utils/classNames';
+import { StatsCard } from './components/StatsCard';
+import { TimeRangeSelector } from './components/TimeRangeSelector';
+import { HistoryEntry } from './components/HistoryEntry';
+
+const timeRangeOptions = [
+  { value: '24h', label: 'Last 24h' },
+  { value: '7d', label: 'Last 7d' },
+  { value: '30d', label: 'Last 30d' },
+  { value: 'all', label: 'All time' },
+];
+
+const SYNC_HISTORY_KEY = 'syncHistory';
+const ITEMS_PER_PAGE = 10;
+const UPDATE_INTERVAL = 10000; // 10 seconds
 
 export default function SyncStats() {
   const currentSession = useStore(workbenchStore.currentSession);
@@ -13,24 +27,35 @@ export default function SyncStats() {
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [selectedTimeRange, setSelectedTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('all');
   const [isClearing, setIsClearing] = useState(false);
+  const [page, setPage] = useState(1);
 
-  // Load initial history from localStorage
+  // Load initial history from localStorage and set up real-time updates
   useEffect(() => {
-    try {
-      const history = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+    const loadHistory = () => {
+      try {
+        const history = JSON.parse(localStorage.getItem(SYNC_HISTORY_KEY) || '[]');
 
-      if (Array.isArray(history)) {
-        setSyncHistory(history);
-      } else {
-        console.error('Invalid sync history format in localStorage');
-        localStorage.setItem('syncHistory', '[]');
+        if (Array.isArray(history)) {
+          setSyncHistory(history);
+        } else {
+          console.error('Invalid sync history format in localStorage');
+          localStorage.setItem(SYNC_HISTORY_KEY, '[]');
+          setSyncHistory([]);
+        }
+      } catch (error) {
+        console.error('Failed to load sync history:', error);
+        localStorage.setItem(SYNC_HISTORY_KEY, '[]');
         setSyncHistory([]);
       }
-    } catch (error) {
-      console.error('Failed to load sync history:', error);
-      localStorage.setItem('syncHistory', '[]');
-      setSyncHistory([]);
-    }
+    };
+
+    // Initial load
+    loadHistory();
+
+    // Set up polling interval for real-time updates
+    const interval = setInterval(loadHistory, UPDATE_INTERVAL);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Update history when new syncs happen
@@ -40,26 +65,20 @@ export default function SyncStats() {
         try {
           const newHistory = [...prev];
 
-          // Add new entries from current session
           for (const entry of currentSession.history) {
             const existingIndex = newHistory.findIndex((h) => h.id === entry.id);
 
             if (existingIndex === -1) {
               newHistory.push(entry);
             } else {
-              // Update existing entry if it has changed
               newHistory[existingIndex] = entry;
             }
           }
 
-          // Sort by timestamp in descending order
           newHistory.sort((a, b) => b.timestamp - a.timestamp);
 
-          // Keep last 100 entries
           const latestHistory = newHistory.slice(0, 100);
-
-          // Save to localStorage
-          localStorage.setItem('syncHistory', JSON.stringify(latestHistory));
+          localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(latestHistory));
 
           return latestHistory;
         } catch (error) {
@@ -70,6 +89,11 @@ export default function SyncStats() {
     }
   }, [currentSession?.history]);
 
+  // Reset page when time range changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTimeRange]);
+
   const handleClearHistory = useCallback(async () => {
     if (isClearing) {
       return;
@@ -78,12 +102,10 @@ export default function SyncStats() {
     if (confirm('Are you sure you want to clear all sync history? This cannot be undone.')) {
       try {
         setIsClearing(true);
-
-        localStorage.setItem('syncHistory', '[]');
+        localStorage.setItem(SYNC_HISTORY_KEY, '[]');
         setSyncHistory([]);
         setExpandedEntries(new Set());
 
-        // Clear current session history
         if (currentSession) {
           const clearedSession: SyncSession = {
             ...currentSession,
@@ -118,19 +140,6 @@ export default function SyncStats() {
 
       return next;
     });
-  }, []);
-
-  const getStatusIcon = useCallback((status: 'success' | 'partial' | 'failed') => {
-    switch (status) {
-      case 'success':
-        return <div className="i-ph:check-circle text-green-500" />;
-      case 'partial':
-        return <div className="i-ph:warning-circle text-yellow-500" />;
-      case 'failed':
-        return <div className="i-ph:x-circle text-red-500" />;
-      default:
-        return null;
-    }
   }, []);
 
   const formatFileSize = useCallback((bytes: number) => {
@@ -169,6 +178,42 @@ export default function SyncStats() {
   const averageDuration =
     totalSyncs > 0 ? filteredHistory.reduce((sum, entry) => sum + entry.statistics.duration, 0) / totalSyncs / 1000 : 0;
 
+  const getTrends = useCallback(() => {
+    const currentPeriod = filteredHistory.slice(0, Math.floor(filteredHistory.length / 2));
+    const previousPeriod = filteredHistory.slice(Math.floor(filteredHistory.length / 2));
+
+    const calculateTrend = (current: number, previous: number) => {
+      if (previous === 0) {
+        return null;
+      }
+
+      const change = ((current - previous) / previous) * 100;
+
+      return {
+        value: Math.abs(Math.round(change)),
+        isPositive: change >= 0,
+      };
+    };
+
+    return {
+      syncs: calculateTrend(currentPeriod.length, previousPeriod.length),
+      files: calculateTrend(
+        currentPeriod.reduce((sum, entry) => sum + entry.statistics.totalFiles, 0),
+        previousPeriod.reduce((sum, entry) => sum + entry.statistics.totalFiles, 0),
+      ),
+      data: calculateTrend(
+        currentPeriod.reduce((sum, entry) => sum + entry.statistics.totalSize, 0),
+        previousPeriod.reduce((sum, entry) => sum + entry.statistics.totalSize, 0),
+      ),
+      duration: calculateTrend(
+        currentPeriod.reduce((sum, entry) => sum + entry.statistics.duration, 0) / currentPeriod.length,
+        previousPeriod.reduce((sum, entry) => sum + entry.statistics.duration, 0) / previousPeriod.length,
+      ),
+    };
+  }, [filteredHistory]);
+
+  const trends = getTrends();
+
   if (!syncHistory.length) {
     return (
       <div className="bg-bolt-elements-background-depth-1 p-6 rounded-lg text-center">
@@ -179,21 +224,19 @@ export default function SyncStats() {
     );
   }
 
+  const paginatedHistory = filteredHistory.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-medium text-bolt-elements-textPrimary">Sync History</h3>
-          <select
+          <TimeRangeSelector
             value={selectedTimeRange}
-            onChange={(e) => setSelectedTimeRange(e.target.value as typeof selectedTimeRange)}
-            className="px-2 py-1 text-sm border border-bolt-elements-borderColor/20 rounded-md bg-bolt-elements-background-depth-4 text-bolt-elements-textPrimary hover:border-bolt-elements-borderColor/40 focus:border-bolt-elements-borderColor/60 transition-colors"
-          >
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
-            <option value="all">All time</option>
-          </select>
+            onChange={(value) => setSelectedTimeRange(value as typeof selectedTimeRange)}
+            options={timeRangeOptions}
+          />
         </div>
         <IconButton
           onClick={handleClearHistory}
@@ -207,39 +250,31 @@ export default function SyncStats() {
         </IconButton>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg border border-bolt-elements-borderColor/10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="i-ph:list-numbers text-blue-400" />
-            <div className="text-sm text-bolt-elements-textSecondary">Total Syncs</div>
-          </div>
-          <div className="text-2xl font-medium text-bolt-elements-textPrimary">{totalSyncs}</div>
-        </div>
-        <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg border border-bolt-elements-borderColor/10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="i-ph:files text-purple-400" />
-            <div className="text-sm text-bolt-elements-textSecondary">Files Synced</div>
-          </div>
-          <div className="text-2xl font-medium text-bolt-elements-textPrimary">{totalFilesSynced}</div>
-        </div>
-        <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg border border-bolt-elements-borderColor/10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="i-ph:database text-green-400" />
-            <div className="text-sm text-bolt-elements-textSecondary">Data Synced</div>
-          </div>
-          <div className="text-2xl font-medium text-bolt-elements-textPrimary">{formatFileSize(totalDataSynced)}</div>
-        </div>
-        <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg border border-bolt-elements-borderColor/10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="i-ph:timer text-yellow-400" />
-            <div className="text-sm text-bolt-elements-textSecondary">Avg Duration</div>
-          </div>
-          <div className="text-2xl font-medium text-bolt-elements-textPrimary">{averageDuration.toFixed(1)}s</div>
-        </div>
+        <StatsCard icon="i-ph:list-numbers" label="Total Syncs" value={totalSyncs} color="blue" trend={trends.syncs} />
+        <StatsCard
+          icon="i-ph:files"
+          label="Files Synced"
+          value={totalFilesSynced}
+          color="purple"
+          trend={trends.files}
+        />
+        <StatsCard
+          icon="i-ph:database"
+          label="Data Synced"
+          value={formatFileSize(totalDataSynced)}
+          color="green"
+          trend={trends.data}
+        />
+        <StatsCard
+          icon="i-ph:timer"
+          label="Avg Duration"
+          value={`${averageDuration.toFixed(1)}s`}
+          color="yellow"
+          trend={trends.duration}
+        />
       </div>
 
-      {/* Latest Sync Summary */}
       {filteredHistory.length > 0 && (
         <div className="bg-bolt-elements-background-depth-3 p-3 rounded-lg border border-bolt-elements-borderColor/10">
           <h4 className="text-sm font-medium mb-3 flex items-center gap-2 text-bolt-elements-textPrimary">
@@ -280,72 +315,44 @@ export default function SyncStats() {
                   {(filteredHistory[0].statistics.duration / 1000).toFixed(1)}s
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                {getStatusIcon(filteredHistory[0].status)}
-                <span
-                  className={
-                    filteredHistory[0].status === 'success'
-                      ? 'text-green-500'
-                      : filteredHistory[0].status === 'partial'
-                        ? 'text-yellow-500'
-                        : 'text-red-500'
-                  }
-                >
-                  {filteredHistory[0].status.charAt(0).toUpperCase() + filteredHistory[0].status.slice(1)}
-                </span>
-              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Sync History */}
       <div className="space-y-2 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-bolt-elements-borderColor scrollbar-track-transparent">
-        {filteredHistory.map((entry) => (
-          <div
+        {paginatedHistory.map((entry) => (
+          <HistoryEntry
             key={entry.id}
-            className="bg-bolt-elements-background-depth-3 p-3 rounded-lg text-sm hover:bg-bolt-elements-background-depth-4 transition-colors border border-bolt-elements-borderColor/10"
-          >
-            <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(entry.id)}>
-              <div className="flex items-center gap-3 flex-1">
-                {getStatusIcon(entry.status)}
-                <div>
-                  <div className="font-medium text-bolt-elements-textPrimary">{entry.projectName}</div>
-                  <div className="text-xs text-bolt-elements-textSecondary flex items-center gap-2">
-                    <span>{formatDistanceToNow(entry.timestamp)} ago</span>
-                    <span>•</span>
-                    <span>{entry.statistics.totalFiles} files</span>
-                    <span>•</span>
-                    <span>{formatFileSize(entry.statistics.totalSize)}</span>
-                    <span>•</span>
-                    <span>{(entry.statistics.duration / 1000).toFixed(1)}s</span>
-                  </div>
-                </div>
-              </div>
-              <div
-                className={`i-ph:caret-down transition-transform ${expandedEntries.has(entry.id) ? 'rotate-180' : ''}`}
-              />
-            </div>
-
-            {/* Expanded Details */}
-            {expandedEntries.has(entry.id) && (
-              <div className="mt-3 border-t border-bolt-elements-borderColor/10 pt-3">
-                <div className="text-xs space-y-1">
-                  {entry.files.map((file) => (
-                    <div
-                      key={file}
-                      className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors flex items-center gap-2"
-                    >
-                      <div className="i-ph:file-text text-xs" />
-                      {file}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            entry={entry}
+            expanded={expandedEntries.has(entry.id)}
+            onToggle={() => toggleExpand(entry.id)}
+            formatters={{ size: formatFileSize, time: formatDistanceToNow }}
+          />
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <IconButton
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="text-bolt-elements-textSecondary disabled:opacity-50"
+          >
+            <div className="i-ph:caret-left" />
+          </IconButton>
+          <span className="text-sm text-bolt-elements-textSecondary">
+            Page {page} of {totalPages}
+          </span>
+          <IconButton
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="text-bolt-elements-textSecondary disabled:opacity-50"
+          >
+            <div className="i-ph:caret-right" />
+          </IconButton>
+        </div>
+      )}
     </div>
   );
 }
