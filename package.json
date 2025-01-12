@@ -5,7 +5,7 @@
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
-  "version": "0.0.5-test-2",
+  "version": "0.0.5-test-3",
   "bin": {
     "bolt.diy": "bin/bolt.js"
   },
@@ -13,7 +13,6 @@
     "bin/",
     "public/",
     "build/",
-    "scripts/",
     "functions/",
     "wrangler.toml",
     "worker-configuration.d.ts",
@@ -46,7 +45,7 @@
     "typecheck": "tsc",
     "typegen": "wrangler types",
     "preview": "pnpm run build && pnpm run start",
-    "postinstall": "node ./scripts/postinstall.js"
+    "prepare": "chmod +x ./bin/bolt.js"
   },
   "engines": {
     "node": ">=18.18.0"
