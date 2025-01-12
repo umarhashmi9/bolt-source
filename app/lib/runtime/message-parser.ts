@@ -65,7 +65,7 @@ function cleanoutMarkdownSyntax(content: string) {
   }
 }
 
-function cleanExcapedTags(content: string) {
+function cleanEscapedTags(content: string) {
   return content.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
 export class StreamingMessageParser {
@@ -114,7 +114,7 @@ export class StreamingMessageParser {
               // Remove markdown code block syntax if present and file is not markdown
               if (!currentAction.filePath.endsWith('.md')) {
                 content = cleanoutMarkdownSyntax(content);
-                content = cleanExcapedTags(content);
+                content = cleanEscapedTags(content);
               }
 
               content += '\n';
@@ -146,7 +146,7 @@ export class StreamingMessageParser {
 
               if (!currentAction.filePath.endsWith('.md')) {
                 content = cleanoutMarkdownSyntax(content);
-                content = cleanExcapedTags(content);
+                content = cleanEscapedTags(content);
               }
 
               this._options.callbacks?.onActionStream?.({
