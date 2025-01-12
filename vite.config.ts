@@ -4,6 +4,7 @@ import { defineConfig, type ViteDevServer } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
+
 import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 
@@ -22,6 +23,8 @@ const getGitHash = () => {
 
 
 export default defineConfig((config) => {
+  const isServer = process.env.NODE_ENV === 'production'&& process.env.BUILDING_SERVER === 'true';
+  
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
@@ -30,11 +33,38 @@ export default defineConfig((config) => {
     },
     build: {
       target: 'esnext',
+      rollupOptions: {
+        // Mark problematic modules as external for server build
+        external: isServer ? ['buffer', 'path'] : [],
+        output: {
+          // Ensure correct format for server build
+          format: 'esm',
+        },
+      },
     },
     plugins: [
       nodePolyfills({
-        include: ['path', 'buffer', 'process'],
+        include: ['path', 'buffer','process'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+        // Ensure polyfills are inlined during build
+        protocolImports: true,
       }),
+      // {
+      //   name: 'inject-process-shim',
+      //   transform(code, id) {
+      //     // Inject process shim only for server build entry point
+      //     if (isServer && id.includes('entry.server')) {
+      //       return {
+      //         code: processShim + '\n' + code,
+      //         map: null
+      //       };
+      //     }
+      //   },
+      // },
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {
@@ -47,8 +77,10 @@ export default defineConfig((config) => {
       UnoCSS(),
       tsconfigPaths(),
       chrome129IssuePlugin(),
+      
       config.mode === 'production' && optimizeCssModules({ apply: 'build' }),
     ],
+    
     envPrefix: ["VITE_","OPENAI_LIKE_API_BASE_URL", "OLLAMA_API_BASE_URL", "LMSTUDIO_API_BASE_URL","TOGETHER_API_BASE_URL"],
     css: {
       preprocessorOptions: {
@@ -56,6 +88,11 @@ export default defineConfig((config) => {
           api: 'modern-compiler',
         },
       },
+    },
+    optimizeDeps: {
+      // Include polyfills in the optimization
+      include: ['buffer', 'process'],
+      needsInterop: ['buffer']
     },
   };
 });

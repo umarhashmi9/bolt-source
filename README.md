@@ -94,20 +94,35 @@ bolt.diy was originally started by [Cole Medin](https://www.youtube.com/@ColeMed
 
 ## Setup 
 
-If you're new to installing software from GitHub, don't worry! If you encounter any issues, feel free to submit an "issue" using the provided links or improve this documentation by forking the repository, editing the instructions, and submitting a pull request. The following instruction will help you get the stable branch up and running on your local machine in no time.  
+## Running the Application
 
-Let's get you up and running with the stable version of Bolt.DIY!
+You have three options for running Bolt.DIY: using npm (recommended), direct installation, or using Docker.
 
-## Quick Download
+### Option 1: CLI Installation (Recommended)
+The easiest way to get started with bolt.diy is using npm:
 
-[![Download Latest Release](https://img.shields.io/github/v/release/stackblitz-labs/bolt.diy?label=Download%20Bolt&sort=semver)](https://github.com/stackblitz-labs/bolt.diy/releases/latest) ← Click here to go the the latest release version! 
+```bash
+# Install globally using npm
+npm install -g bolt-diy
 
-- Next **click source.zip**
+# Start bolt
+bolt.diy
+```
 
+Available commands:
+```bash
+bolt.diy              # Start with default settings (port 5173)
+bolt.diy --port 3000  # Start on custom port
+bolt.diy --help       # Show help message
+bolt.diy --version    # Show version info
+```
 
+The CLI will automatically handle all dependencies and setup, making it the simplest way to get started.
 
+### Option 2: Direct Installation
+If you prefer to run from source or contribute to development:
 
-## Prerequisites
+### Prerequisites
 
 Before you begin, you'll need to install two important pieces of software:
 
@@ -132,30 +147,26 @@ Node.js is required to run the application.
         ```
      3. Look for `/usr/local/bin` in the output
 
-## Running the Application
 
-You have two options for running Bolt.DIY: directly on your machine or using Docker.
 
-### Option 1: Direct Installation (Recommended for Beginners)
-
-1. **Install Package Manager (pnpm)**:
+5. **Install Package Manager (pnpm)**:
    ```bash
    npm install -g pnpm
    ```
 
-2. **Install Project Dependencies**:
+6. **Install Project Dependencies**:
    ```bash
    pnpm install
    ```
 
-3. **Start the Application**:
+7. **Start the Application**:
    ```bash
    pnpm run dev
    ```
 
    **Important Note**: If you're using Google Chrome, you'll need Chrome Canary for local development. [Download it here](https://www.google.com/chrome/canary/)
 
-### Option 2: Using Docker
+### Option 3: Using Docker
 
 This option requires some familiarity with Docker but provides a more isolated environment.
 
@@ -177,8 +188,6 @@ This option requires some familiarity with Docker but provides a more isolated e
    ```bash
    docker-compose --profile development up
    ```
-
-
 
 
 ## Configuring API Keys and Providers
