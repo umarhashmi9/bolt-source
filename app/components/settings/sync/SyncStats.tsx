@@ -1,66 +1,112 @@
 import { useStore } from '@nanostores/react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import type { SyncHistoryEntry, SyncSession } from '~/types/sync';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'react-toastify';
 import { IconButton } from '~/components/ui/IconButton';
+import { classNames } from '~/utils/classNames';
 
 export default function SyncStats() {
   const currentSession = useStore(workbenchStore.currentSession);
   const [syncHistory, setSyncHistory] = useState<SyncHistoryEntry[]>([]);
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [selectedTimeRange, setSelectedTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('all');
+  const [isClearing, setIsClearing] = useState(false);
 
+  // Load initial history from localStorage
   useEffect(() => {
-    // Load sync history from localStorage
-    const history = JSON.parse(localStorage.getItem('syncHistory') || '[]');
-    setSyncHistory(history);
+    try {
+      const history = JSON.parse(localStorage.getItem('syncHistory') || '[]');
+
+      if (Array.isArray(history)) {
+        setSyncHistory(history);
+      } else {
+        console.error('Invalid sync history format in localStorage');
+        localStorage.setItem('syncHistory', '[]');
+        setSyncHistory([]);
+      }
+    } catch (error) {
+      console.error('Failed to load sync history:', error);
+      localStorage.setItem('syncHistory', '[]');
+      setSyncHistory([]);
+    }
   }, []);
 
   // Update history when new syncs happen
   useEffect(() => {
     if (currentSession?.history) {
       setSyncHistory((prev) => {
-        const newHistory = [...prev];
+        try {
+          const newHistory = [...prev];
 
-        for (const entry of currentSession.history) {
-          if (!newHistory.some((h) => h.id === entry.id)) {
-            newHistory.push(entry);
+          // Add new entries from current session
+          for (const entry of currentSession.history) {
+            const existingIndex = newHistory.findIndex((h) => h.id === entry.id);
+
+            if (existingIndex === -1) {
+              newHistory.push(entry);
+            } else {
+              // Update existing entry if it has changed
+              newHistory[existingIndex] = entry;
+            }
           }
+
+          // Sort by timestamp in descending order
+          newHistory.sort((a, b) => b.timestamp - a.timestamp);
+
+          // Keep last 100 entries
+          const latestHistory = newHistory.slice(0, 100);
+
+          // Save to localStorage
+          localStorage.setItem('syncHistory', JSON.stringify(latestHistory));
+
+          return latestHistory;
+        } catch (error) {
+          console.error('Failed to update sync history:', error);
+          return prev;
         }
-
-        // Save to localStorage
-        localStorage.setItem('syncHistory', JSON.stringify(newHistory.slice(-100)));
-
-        return newHistory.slice(-100); // Keep last 100 entries
       });
     }
   }, [currentSession?.history]);
 
-  const handleClearHistory = () => {
-    if (confirm('Are you sure you want to clear all sync history? This cannot be undone.')) {
-      localStorage.setItem('syncHistory', '[]');
-      setSyncHistory([]);
-
-      // Clear current session history
-      if (currentSession) {
-        const clearedSession: SyncSession = {
-          ...currentSession,
-          id: currentSession.id,
-          timestamp: currentSession.timestamp,
-          history: [],
-          statistics: [],
-          files: new Set(),
-        };
-        workbenchStore.currentSession.set(clearedSession);
-      }
-
-      toast.success('Sync history cleared');
+  const handleClearHistory = useCallback(async () => {
+    if (isClearing) {
+      return;
     }
-  };
 
-  const toggleExpand = (id: string) => {
+    if (confirm('Are you sure you want to clear all sync history? This cannot be undone.')) {
+      try {
+        setIsClearing(true);
+
+        localStorage.setItem('syncHistory', '[]');
+        setSyncHistory([]);
+        setExpandedEntries(new Set());
+
+        // Clear current session history
+        if (currentSession) {
+          const clearedSession: SyncSession = {
+            ...currentSession,
+            id: currentSession.id,
+            timestamp: currentSession.timestamp,
+            history: [],
+            statistics: [],
+            files: new Set(),
+          };
+          await workbenchStore.currentSession.set(clearedSession);
+        }
+
+        toast.success('Sync history cleared');
+      } catch (error) {
+        console.error('Failed to clear sync history:', error);
+        toast.error('Failed to clear sync history');
+      } finally {
+        setIsClearing(false);
+      }
+    }
+  }, [currentSession, isClearing]);
+
+  const toggleExpand = useCallback((id: string) => {
     setExpandedEntries((prev) => {
       const next = new Set(prev);
 
@@ -72,9 +118,9 @@ export default function SyncStats() {
 
       return next;
     });
-  };
+  }, []);
 
-  const getStatusIcon = (status: 'success' | 'partial' | 'failed') => {
+  const getStatusIcon = useCallback((status: 'success' | 'partial' | 'failed') => {
     switch (status) {
       case 'success':
         return <div className="i-ph:check-circle text-green-500" />;
@@ -85,21 +131,21 @@ export default function SyncStats() {
       default:
         return null;
     }
-  };
+  }, []);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) {
-      return bytes + ' B';
+  const formatFileSize = useCallback((bytes: number) => {
+    if (bytes === 0) {
+      return '0 B';
     }
 
-    if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toFixed(1) + ' KB';
-    }
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-  };
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  }, []);
 
-  const getFilteredHistory = () => {
+  const getFilteredHistory = useCallback(() => {
     const now = Date.now();
 
     return syncHistory.filter((entry) => {
@@ -114,7 +160,7 @@ export default function SyncStats() {
           return true;
       }
     });
-  };
+  }, [syncHistory, selectedTimeRange]);
 
   const filteredHistory = getFilteredHistory();
   const totalSyncs = filteredHistory.length;
@@ -151,10 +197,13 @@ export default function SyncStats() {
         </div>
         <IconButton
           onClick={handleClearHistory}
-          className="text-bolt-elements-textSecondary hover:text-red-400 transition-colors"
+          disabled={isClearing}
+          className={classNames('text-bolt-elements-textSecondary hover:text-red-400 transition-colors', {
+            'opacity-50 cursor-not-allowed': isClearing,
+          })}
           title="Clear History"
         >
-          <div className="i-ph:trash" />
+          <div className={classNames('i-ph:trash', { 'animate-pulse': isClearing })} />
         </IconButton>
       </div>
 
@@ -252,53 +301,50 @@ export default function SyncStats() {
 
       {/* Sync History */}
       <div className="space-y-2 max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-bolt-elements-borderColor scrollbar-track-transparent">
-        {filteredHistory
-          .slice()
-          .reverse()
-          .map((entry) => (
-            <div
-              key={entry.id}
-              className="bg-bolt-elements-background-depth-3 p-3 rounded-lg text-sm hover:bg-bolt-elements-background-depth-4 transition-colors border border-bolt-elements-borderColor/10"
-            >
-              <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(entry.id)}>
-                <div className="flex items-center gap-3 flex-1">
-                  {getStatusIcon(entry.status)}
-                  <div>
-                    <div className="font-medium text-bolt-elements-textPrimary">{entry.projectName}</div>
-                    <div className="text-xs text-bolt-elements-textSecondary flex items-center gap-2">
-                      <span>{formatDistanceToNow(entry.timestamp)} ago</span>
-                      <span>•</span>
-                      <span>{entry.statistics.totalFiles} files</span>
-                      <span>•</span>
-                      <span>{formatFileSize(entry.statistics.totalSize)}</span>
-                      <span>•</span>
-                      <span>{(entry.statistics.duration / 1000).toFixed(1)}s</span>
-                    </div>
+        {filteredHistory.map((entry) => (
+          <div
+            key={entry.id}
+            className="bg-bolt-elements-background-depth-3 p-3 rounded-lg text-sm hover:bg-bolt-elements-background-depth-4 transition-colors border border-bolt-elements-borderColor/10"
+          >
+            <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(entry.id)}>
+              <div className="flex items-center gap-3 flex-1">
+                {getStatusIcon(entry.status)}
+                <div>
+                  <div className="font-medium text-bolt-elements-textPrimary">{entry.projectName}</div>
+                  <div className="text-xs text-bolt-elements-textSecondary flex items-center gap-2">
+                    <span>{formatDistanceToNow(entry.timestamp)} ago</span>
+                    <span>•</span>
+                    <span>{entry.statistics.totalFiles} files</span>
+                    <span>•</span>
+                    <span>{formatFileSize(entry.statistics.totalSize)}</span>
+                    <span>•</span>
+                    <span>{(entry.statistics.duration / 1000).toFixed(1)}s</span>
                   </div>
                 </div>
-                <div
-                  className={`i-ph:caret-down transition-transform ${expandedEntries.has(entry.id) ? 'rotate-180' : ''}`}
-                />
               </div>
-
-              {/* Expanded Details */}
-              {expandedEntries.has(entry.id) && (
-                <div className="mt-3 border-t border-bolt-elements-borderColor/10 pt-3">
-                  <div className="text-xs space-y-1">
-                    {entry.files.map((file) => (
-                      <div
-                        key={file}
-                        className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors flex items-center gap-2"
-                      >
-                        <div className="i-ph:file-text text-xs" />
-                        {file}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div
+                className={`i-ph:caret-down transition-transform ${expandedEntries.has(entry.id) ? 'rotate-180' : ''}`}
+              />
             </div>
-          ))}
+
+            {/* Expanded Details */}
+            {expandedEntries.has(entry.id) && (
+              <div className="mt-3 border-t border-bolt-elements-borderColor/10 pt-3">
+                <div className="text-xs space-y-1">
+                  {entry.files.map((file) => (
+                    <div
+                      key={file}
+                      className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors flex items-center gap-2"
+                    >
+                      <div className="i-ph:file-text text-xs" />
+                      {file}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
