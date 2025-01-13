@@ -96,7 +96,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   };
 
   return (
-    <div className="flex flex-col items-center justify-between py-3 px-1">
+    <div className="flex flex-col items-left justify-between py-3 px-1">
       <div className="flex">
         <div className="flex items-center gap-2 flex-1">
           <div className="flex items-center gap-2">
