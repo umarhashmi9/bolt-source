@@ -4,6 +4,9 @@ import { type ActionFunctionArgs } from '@remix-run/cloudflare';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import { stripIndents } from '~/utils/stripIndent';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
+import { createScopedLogger } from '~/utils/logger';
+
+const logger = createScopedLogger('api.chat');
 
 export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
@@ -104,19 +107,51 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       providerSettings,
     });
 
-    return new Response(result.textStream, {
+    // Create a ReadableStream with an encoder
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of result.fullStream) {
+            if (chunk.type === 'error') {
+              logger.error(`Stream error: ${chunk.error}`);
+              controller.error(chunk.error);
+
+              return;
+            }
+
+            if (chunk.type === 'text-delta') {
+              const text = `${chunk.textDelta}`;
+              controller.enqueue(encoder.encode(text));
+            }
+
+            if (chunk.type === 'finish') {
+              controller.close();
+            }
+          }
+
+          // Send the final [DONE] message
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (error) {
+          logger.error('Stream processing error:', error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
       status: 200,
       headers: {
         'Content-Type': 'text/event-stream',
-        Connection: 'keep-alive',
         'Cache-Control': 'no-cache',
-        'Text-Encoding': 'chunked',
+        Connection: 'keep-alive',
       },
     });
-  } catch (error: unknown) {
-    console.log(error);
+  } catch (error: any) {
+    logger.error(error);
 
-    if (error instanceof Error && error.message?.includes('API key')) {
+    if (error.message?.includes('API key')) {
       throw new Response('Invalid or missing API key', {
         status: 401,
         statusText: 'Unauthorized',
