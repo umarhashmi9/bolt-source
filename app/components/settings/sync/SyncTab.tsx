@@ -11,6 +11,7 @@ export default function SyncTab() {
   const syncFolder = useStore(workbenchStore.syncFolder);
   const syncSettings = useStore(workbenchStore.syncSettings);
   const currentSession = useStore(workbenchStore.currentSession);
+  const syncStatus = useStore(workbenchStore.syncStatus);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
   const [totalFiles, setTotalFiles] = useState(0);
@@ -136,7 +137,7 @@ export default function SyncTab() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <SyncStatusIndicator status={isManualSyncing ? 'syncing' : 'idle'} />
+              <SyncStatusIndicator status={isManualSyncing ? 'syncing' : !syncStatus.isReady ? 'error' : 'idle'} />
               <PanelHeaderButton
                 onClick={handleSelectFolder}
                 className="text-sm px-3 py-1.5 bg-bolt-elements-button-primary-background hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text transition-all rounded-md flex items-center gap-1.5"

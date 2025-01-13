@@ -1,4 +1,4 @@
-import { atom, map, type MapStore, type ReadableAtom, type WritableAtom } from 'nanostores';
+import { atom, map, type MapStore, type ReadableAtom, type WritableAtom, computed } from 'nanostores';
 import type { EditorDocument, ScrollPosition } from '~/components/editor/codemirror/CodeMirrorEditor';
 import { ActionRunner } from '~/lib/runtime/action-runner';
 import type { ActionCallbackData, ArtifactCallbackData } from '~/lib/runtime/message-parser';
@@ -18,9 +18,9 @@ import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
-import type { SyncSettings, SyncSession, SyncStatistics, SyncHistoryEntry, ProjectSyncInfo } from '~/types/sync';
-import ignore from 'ignore';
+import type { SyncSettings, SyncSession, ProjectSyncInfo } from '~/types/sync';
 import { toast } from 'react-toastify';
+import ignore from 'ignore';
 import { ProjectFolderManager } from '~/lib/persistence/project-folders';
 
 export interface ArtifactState {
@@ -44,6 +44,7 @@ export class WorkbenchStore {
   #terminalStore = new TerminalStore(webcontainer);
 
   #reloadedMessages = new Set<string>();
+  #knownFileStates = new Map<string, { content: string; timestamp: number }>();
 
   artifacts: Artifacts = import.meta.hot?.data.artifacts ?? map({});
 
@@ -66,6 +67,29 @@ export class WorkbenchStore {
     });
   currentSession: WritableAtom<SyncSession | null> = import.meta.hot?.data.currentSession ?? atom(null);
   syncIntervalId?: NodeJS.Timeout;
+
+  syncStatus = computed(
+    [this.currentSession, this.syncFolder, this.syncSettings, this.unsavedFiles],
+    (session, folder, settings, unsavedFiles) => ({
+      isReady: !!folder && !!session && unsavedFiles.size === 0,
+      lastSync: session?.lastSync ? new Date(session.lastSync).toLocaleTimeString() : undefined,
+      projectName: session?.projectName,
+      folderName: folder?.name,
+      totalFiles: session?.files?.size || 0,
+      totalSize: this._calculateTotalSize(session),
+      autoSync: settings.autoSync,
+      syncOnSave: settings.syncOnSave,
+      hasUnsavedChanges: unsavedFiles.size > 0,
+    }),
+  );
+
+  syncHistory = computed([this.currentSession], (session) => {
+    if (!session?.history) {
+      return [];
+    }
+
+    return [...session.history].sort((a, b) => b.timestamp - a.timestamp);
+  });
 
   constructor() {
     if (import.meta.hot) {
@@ -463,28 +487,38 @@ export class WorkbenchStore {
     saveAs(content, `${uniqueProjectName}.zip`);
   }
 
-  async syncFiles() {
-    const folder = this.syncFolder.get();
+  async syncFiles(): Promise<void> {
+    const status = this.syncStatus.get();
 
-    if (!folder) {
-      throw new Error('No sync folder selected');
+    if (!status.isReady) {
+      if (!this.syncFolder.get()) {
+        // Don't show error if we're in initial setup
+        if (this.currentSession.get()) {
+          toast.error('No sync folder selected. Please select a folder first.');
+        }
+
+        return;
+      }
+
+      if (status.hasUnsavedChanges) {
+        toast.info('Saving unsaved changes before sync...');
+        await this.saveAllFiles();
+      }
     }
 
-    const settings = this.syncSettings.get();
-    const ig = ignore().add(settings.excludePatterns);
+    const folder = this.syncFolder.get();
     const session = this.currentSession.get();
 
-    if (!session) {
-      throw new Error('No active session');
+    if (!folder || !session) {
+      return;
     }
 
-    const startTime = Date.now();
-    let totalSize = 0;
-
     try {
-      const files = this.files.get();
-      const syncedFiles = [];
-      const conflictedFiles = [];
+      const syncedFiles = new Set<string>();
+      const changedFiles = new Set<string>();
+      const newFiles = new Set<string>();
+      let totalSize = 0;
+      const startTime = Date.now();
 
       // Get project name from description or session
       const rawProjectName = description.value ?? 'project';
@@ -499,87 +533,125 @@ export class WorkbenchStore {
         );
 
         // Update session with current project folder and name
-        session.projectFolder = projectFolder.name;
-        session.projectName = projectInfo.projectName;
-        this.currentSession.set(session);
+        const updatedSession = { ...session };
+        updatedSession.projectFolder = projectFolder.name;
+        updatedSession.projectName = projectInfo.projectName;
+        this.currentSession.set(updatedSession);
+
+        // Create ignore instance with exclude patterns
+        const ig = ignore().add(this.syncSettings.get().excludePatterns);
 
         // Show progress toast
         const progressToastId = toast.loading('Starting sync...', { autoClose: false });
         let processedFiles = 0;
-        const totalFiles = Object.entries(files).filter(
-          ([_, dirent]) => dirent?.type === 'file' && !dirent.isBinary,
-        ).length;
 
-        for (const [filePath, dirent] of Object.entries(files)) {
-          if (dirent?.type === 'file' && !dirent.isBinary) {
-            processedFiles++;
-            toast.update(progressToastId, {
-              render: `Syncing files... ${processedFiles}/${totalFiles}`,
-            });
+        const filesToProcess = Object.entries(this.files.get()).filter(([_, dirent]) => {
+          if (!dirent || dirent.type !== 'file' || dirent.isBinary) {
+            return false;
+          }
 
-            const relativePath = extractRelativePath(filePath);
-            totalSize += new Blob([dirent.content]).size;
+          return true;
+        });
 
-            // Skip files that match exclude patterns
-            if (ig.ignores(relativePath)) {
-              console.log(`Skipping excluded file: ${relativePath}`);
-              continue;
-            }
+        const totalFiles = filesToProcess.length;
 
-            const pathSegments = relativePath.split('/');
-            let currentHandle = projectFolder;
+        for (const [filePath, dirent] of filesToProcess) {
+          if (!dirent || dirent.type !== 'file' || typeof dirent.content !== 'string') {
+            console.log(`Skipping invalid file: ${filePath}`);
+            continue;
+          }
 
-            // Create directories if they don't exist
-            for (let i = 0; i < pathSegments.length - 1; i++) {
-              currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
-            }
+          processedFiles++;
+          toast.update(progressToastId, {
+            render: `Analyzing files... ${processedFiles}/${totalFiles}`,
+          });
 
-            const fileName = pathSegments[pathSegments.length - 1];
-            let shouldWrite = true;
+          const relativePath = extractRelativePath(filePath);
 
-            // Handle existing files based on sync mode
-            if (settings.syncMode !== 'overwrite') {
-              try {
-                const existingFile = await currentHandle.getFileHandle(fileName);
-                const existingContent = await existingFile.getFile().then((file) => file.text());
+          // Skip files that match exclude patterns
+          if (ig.ignores(relativePath)) {
+            console.log(`Skipping excluded file: ${relativePath}`);
+            continue;
+          }
 
-                if (existingContent !== dirent.content) {
-                  if (settings.syncMode === 'ask') {
-                    const userChoice = confirm(
-                      `File "${relativePath}" already exists and has different content.\n\n` +
-                        'Do you want to overwrite it?\n\n' +
-                        'Click OK to overwrite, Cancel to skip.',
-                    );
+          const pathSegments = relativePath.split('/');
+          let currentHandle = projectFolder;
 
-                    if (!userChoice) {
-                      shouldWrite = false;
-                      conflictedFiles.push(relativePath);
-                      console.log(`User chose to skip file: ${relativePath}`);
-                    } else {
-                      console.log(`User chose to overwrite file: ${relativePath}`);
-                    }
-                  } else if (settings.syncMode === 'skip') {
+          // Navigate to the correct directory
+          for (let i = 0; i < pathSegments.length - 1; i++) {
+            currentHandle = await currentHandle.getDirectoryHandle(pathSegments[i], { create: true });
+          }
+
+          const fileName = pathSegments[pathSegments.length - 1];
+          let shouldWrite = true;
+
+          // Check if file exists and compare content
+          try {
+            const existingFile = await currentHandle.getFileHandle(fileName);
+            const existingContent = await existingFile.getFile().then((file) => file.text());
+            const knownState = this.#knownFileStates.get(relativePath);
+
+            if (existingContent !== dirent.content) {
+              // Check if this is a new file or if we've seen it before
+              const isInitialSync = !updatedSession.lastSync;
+              const isKnownFile = knownState !== undefined;
+              const hasLocalChanges = knownState?.content !== dirent.content;
+              const hasRemoteChanges = knownState?.content !== existingContent;
+
+              // Only prompt if we have a genuine conflict
+              if (!isInitialSync && isKnownFile && hasLocalChanges && hasRemoteChanges) {
+                if (this.syncSettings.get().syncMode === 'ask') {
+                  const userChoice = confirm(
+                    `File "${relativePath}" has changed both locally and in the sync folder.\n\n` +
+                      'Do you want to update it with your local changes?\n\n' +
+                      'Click OK to update, Cancel to keep the sync folder version.',
+                  );
+
+                  if (!userChoice) {
                     shouldWrite = false;
-                    console.log(`Skipping existing file: ${relativePath}`);
+                    console.log(`User chose to keep sync folder version: ${relativePath}`);
+                  } else {
+                    changedFiles.add(relativePath);
+                    console.log(`User chose to update with local changes: ${relativePath}`);
                   }
+                } else if (this.syncSettings.get().syncMode === 'skip') {
+                  shouldWrite = false;
+                  console.log(`Skipping changed file: ${relativePath}`);
+                } else {
+                  changedFiles.add(relativePath);
                 }
-              } catch {
-                // File doesn't exist, we can create it
-                console.log(`Creating new file: ${relativePath}`);
-                shouldWrite = true;
+              } else {
+                // For initial sync or non-conflicting changes, just update
+                changedFiles.add(relativePath);
               }
-            } else {
-              console.log(`Overwriting file: ${relativePath}`);
             }
 
-            if (shouldWrite) {
-              const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
-              const writable = await fileHandle.createWritable();
-              await writable.write(dirent.content);
-              await writable.close();
-              syncedFiles.push(relativePath);
-              session.files.add(relativePath);
-            }
+            // Update known state after handling the file
+            this.#knownFileStates.set(relativePath, {
+              content: shouldWrite ? dirent.content : existingContent,
+              timestamp: Date.now(),
+            });
+          } catch {
+            // File doesn't exist
+            newFiles.add(relativePath);
+            console.log(`New file to sync: ${relativePath}`);
+
+            // Track new file state
+            this.#knownFileStates.set(relativePath, {
+              content: dirent.content,
+              timestamp: Date.now(),
+            });
+          }
+
+          if (shouldWrite) {
+            const fileHandle = await currentHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            const fileContent = new Blob([dirent.content]);
+            totalSize += fileContent.size;
+            await writable.write(fileContent);
+            await writable.close();
+            syncedFiles.add(relativePath);
+            updatedSession.files.add(relativePath);
           }
         }
 
@@ -587,58 +659,57 @@ export class WorkbenchStore {
         const duration = endTime - startTime;
 
         // Create statistics entry
-        const statistics: SyncStatistics = {
-          totalFiles: syncedFiles.length,
+        const statistics = {
+          totalFiles: syncedFiles.size,
           totalSize,
           duration,
           timestamp: endTime,
         };
 
         // Create history entry
-        const historyEntry: SyncHistoryEntry = {
+        const historyEntry = {
           id: crypto.randomUUID(),
-          projectName: projectInfo.projectName,
+          projectName: updatedSession.projectName || description.value || 'Untitled Project',
           timestamp: endTime,
           statistics,
-          files: syncedFiles,
-          status: conflictedFiles.length > 0 ? 'partial' : 'success',
+          files: Array.from(syncedFiles),
+          status: 'success' as const,
         };
 
-        // Update session
-        session.lastSync = endTime;
-        session.history.push(historyEntry);
-        session.statistics.push(statistics);
-        this.currentSession.set({ ...session }); // Create new object to trigger update
+        // Update session with new history and statistics
+        updatedSession.lastSync = endTime;
+        updatedSession.history = [...(updatedSession.history || []), historyEntry];
+        updatedSession.statistics = [...(updatedSession.statistics || []), statistics];
+
+        // Force a store update to trigger UI reactivity
+        this.currentSession.set({ ...updatedSession });
 
         // Close progress toast
         toast.dismiss(progressToastId);
 
-        // Provide summary feedback
-        if (syncedFiles.length > 0) {
+        // Provide detailed summary feedback
+        if (syncedFiles.size > 0) {
           const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
           const durationSec = (duration / 1000).toFixed(1);
-          toast.success(
-            `Successfully synced ${syncedFiles.length} file${syncedFiles.length !== 1 ? 's' : ''} ` +
-              `(${sizeMB} MB) to ${projectInfo.projectName} in ${durationSec}s`,
-          );
-        }
+          const newCount = newFiles.size;
+          const changedCount = changedFiles.size;
 
-        if (conflictedFiles.length > 0) {
-          toast.info(
-            `Skipped ${conflictedFiles.length} file${conflictedFiles.length !== 1 ? 's' : ''} due to conflicts`,
-          );
-        }
+          let message =
+            `Synced ${syncedFiles.size} file${syncedFiles.size !== 1 ? 's' : ''} ` +
+            `(${sizeMB} MB) in ${durationSec}s\n`;
 
-        if (syncedFiles.length === 0 && conflictedFiles.length === 0) {
-          toast.info('No files needed syncing');
-        }
+          if (newCount > 0) {
+            message += `\n• ${newCount} new file${newCount !== 1 ? 's' : ''}`;
+          }
 
-        return {
-          synced: syncedFiles,
-          conflicts: conflictedFiles,
-          projectFolder: projectInfo.projectName,
-          statistics,
-        };
+          if (changedCount > 0) {
+            message += `\n• ${changedCount} changed file${changedCount !== 1 ? 's' : ''}`;
+          }
+
+          toast.success(message);
+        } else {
+          toast.info('All files are up to date');
+        }
       } catch (error) {
         console.error('Error syncing project:', error);
         toast.dismiss();
@@ -646,7 +717,7 @@ export class WorkbenchStore {
       }
     } catch (error) {
       console.error('Sync failed:', error);
-      toast.dismiss();
+      toast.error('Failed to sync files');
       throw error;
     }
   }
@@ -772,6 +843,13 @@ export class WorkbenchStore {
 
         // Clean up test directory
         await handle.removeEntry(testDirName);
+
+        // Dismiss any existing sync folder notifications
+        toast.dismiss('sync-folder-not-set');
+
+        // Show success message
+        toast.success(`Sync folder set to: ${handle.name}`);
+
         console.log('Sync folder write permission verified');
       } catch (error) {
         console.error('Failed to verify sync folder permissions:', error);
@@ -797,12 +875,25 @@ export class WorkbenchStore {
 
     if (projectInfo) {
       session.projectFolder = projectInfo.folderName;
-      session.projectName = projectInfo.projectName; // Add this to track the project name
+      session.projectName = projectInfo.projectName;
+    }
+
+    // Check if sync folder is set
+    const folder = this.syncFolder.get();
+
+    // Only show the notification if we don't have a folder and haven't shown it before
+    if (!folder) {
+      const toastId = 'sync-folder-not-set';
+      toast.info('Sync folder not set. Click "Select Folder" to enable file syncing.', {
+        toastId,
+        autoClose: false,
+        closeOnClick: true,
+      });
     }
 
     this.currentSession.set(session);
 
-    if (this.syncSettings.get().autoSync && this.syncFolder.get()) {
+    if (this.syncSettings.get().autoSync && folder) {
       await this.syncFiles();
     }
   }
@@ -872,6 +963,25 @@ export class WorkbenchStore {
     }
 
     return { projectInfo: null, baseProjectName: normalizedName };
+  }
+
+  private _calculateTotalSize(session: SyncSession | null): string {
+    if (!session?.statistics?.length) {
+      return '0 B';
+    }
+
+    const lastStats = session.statistics[session.statistics.length - 1];
+    const bytes = lastStats.totalSize;
+
+    if (bytes === 0) {
+      return '0 B';
+    }
+
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
 }
 
