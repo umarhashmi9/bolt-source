@@ -3,8 +3,6 @@ import { IconButton } from '~/components/ui/IconButton';
 import { Switch } from '~/components/ui/Switch';
 import type { ProviderInfo } from '~/types/model';
 import Cookies from 'js-cookie';
-import { providerBaseUrlEnvKeys } from '~/utils/constants';
-
 interface APIKeyManagerProps {
   provider: ProviderInfo;
   apiKey: string;
@@ -98,24 +96,22 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   };
 
   return (
-    <div className="flex flex-col items-left justify-between py-3 px-1">
+    <div className="flex flex-col items-center justify-between py-3 px-1">
       <div className="flex">
         <div className="flex items-center gap-2 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-bolt-elements-textSecondary">{provider?.name} API Key:</span>
             {!isEditing && (
               <div className="flex items-center gap-2">
-                {isEnvKeySet ? (
-                  <>
-                    <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
-                    <span className="text-xs text-green-500">
-                      Set via {providerBaseUrlEnvKeys[provider.name].apiTokenKey} environment variable
-                    </span>
-                  </>
-                ) : apiKey ? (
+                {apiKey ? (
                   <>
                     <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
                     <span className="text-xs text-green-500">Set via UI</span>
+                  </>
+                ) : isEnvKeySet ? (
+                  <>
+                    <div className="i-ph:check-circle-fill text-green-500 w-4 h-4" />
+                    <span className="text-xs text-green-500">Set via environment variable</span>
                   </>
                 ) : (
                   <>
@@ -129,7 +125,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {isEditing && !isEnvKeySet ? (
+          {isEditing ? (
             <div className="flex items-center gap-2">
               <input
                 type="password"
@@ -157,7 +153,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
             </div>
           ) : (
             <>
-              {!isEnvKeySet && (
+              {
                 <IconButton
                   onClick={() => setIsEditing(true)}
                   title="Edit API Key"
@@ -165,8 +161,8 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
                 >
                   <div className="i-ph:pencil-simple w-4 h-4" />
                 </IconButton>
-              )}
-              {provider?.getApiKeyLink && !isEnvKeySet && (
+              }
+              {provider?.getApiKeyLink && !apiKey && (
                 <IconButton
                   onClick={() => window.open(provider?.getApiKeyLink)}
                   title="Get API Key"
@@ -190,7 +186,7 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
             </label>
           </div>
           <p className="text-xs text-bolt-elements-textTertiary mt-2">
-            When enabled, generates 10x cheaper responses when re-prompted within 5 mins (Recommended)
+            When enabled, generates 10x cheaper responses if re-prompted within 5 mins (Recommended)
           </p>
         </div>
       )}
