@@ -497,7 +497,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       }}
                     >
                       <div className="i-ph:github-logo" />
-                      Push to GitHub
+                      Upload Website
                     </PanelHeaderButton>
                   </div>
                 )}
