@@ -120,18 +120,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
- const modalUploadFiles = () => {
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
-
-
   return (
     chatStarted && (
       <motion.div
@@ -167,42 +155,10 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:code" />
                       Download Code
                     </PanelHeaderButton>
-                    {/* <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
+                    <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
                       {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
                       {isSyncing ? 'Syncing...' : 'Sync Files'}
-                    </PanelHeaderButton> */}
-
-                    <PanelHeaderButton className="mr-1 text-sm" onClick={modalUploadFiles}>
-                    Upload Files
                     </PanelHeaderButton>
-
-
-{isModalOpen && (
-        <div
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-          aria-labelledby="modal-title"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="relative bg-white rounded shadow-lg w-4/5 max-w-3xl">
-            <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-lg font-medium text-gray-900">Upload Files</h3>
-              <button
-                className="text-gray-500 hover:text-gray-800"
-                onClick={() => setIsModalOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <iframe
-              src="https://templatecreative.com/index.php"
-              className="w-full h-[400px] border-none"
-              title="Upload Files"
-            ></iframe>
-          </div>
-        </div>
-      )}
                     <PanelHeaderButton
                       className="mr-1 text-sm"
                       onClick={() => {
