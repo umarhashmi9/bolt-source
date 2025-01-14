@@ -323,13 +323,27 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[16vh] max-w-chat mx-auto text-center px-4 lg:px-0">
                 <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                  Where ideas begin
+                Mau Bikin Apa ?
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Bring ideas to life in seconds or get help on existing projects.
+                Bikin Website Kilat atau masukan prompt, jalankan, edit, dan deploy full-stack web apps pakai AI
                 </p>
               </div>
             )}
+
+            
+{!chatStarted &&
+                ExamplePrompts((event, messageInput) => {
+                  if (isStreaming) {
+                    handleStop?.();
+                    return;
+                  }
+
+                  handleSendMessage?.(event, messageInput);
+                })}
+
+
+            
             <div
               className={classNames('pt-6 px-2 sm:px-6', {
                 'h-full flex flex-col': chatStarted,
@@ -597,12 +611,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
               </div>
             </div>
             <div className="flex flex-col justify-center gap-5">
-              {!chatStarted && (
-                <div className="flex justify-center gap-2">
-                  {ImportButtons(importChat)}
-                  <GitCloneButton importChat={importChat} />
-                </div>
-              )}
+            
               {!chatStarted &&
                 ExamplePrompts((event, messageInput) => {
                   if (isStreaming) {
@@ -613,6 +622,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   handleSendMessage?.(event, messageInput);
                 })}
               {!chatStarted && <StarterTemplates />}
+                <div id="intro" className=" max-w-chat mx-auto text-center px-4 lg:px-0">
+              <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
+              Made with ❤️ by <a href="https://www.tiktok.com/@premancode" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">@PremanCode</a></p>
+              </div>
             </div>
           </div>
           <ClientOnly>{() => <Workbench chatStarted={chatStarted} isStreaming={isStreaming} />}</ClientOnly>
