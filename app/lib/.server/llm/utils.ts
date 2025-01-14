@@ -2,6 +2,7 @@ import { type Message } from 'ai';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
 import { IGNORE_PATTERNS, type FileMap } from './constants';
 import ignore from 'ignore';
+import type { ContextAnnotation } from '~/types/context';
 
 export function extractPropertiesFromMessage(message: Message): { model: string; provider: string; content: string } {
   const textContent = Array.isArray(message.content)
@@ -49,7 +50,7 @@ export function simplifyBoltActions(input: string): string {
   });
 }
 
-export function createFilesContext(files: FileMap) {
+export function createFilesContext(files: FileMap, useRelativePath?: boolean) {
   const ig = ignore().add(IGNORE_PATTERNS);
   let filePaths = Object.keys(files);
   filePaths = filePaths.filter((x) => {
@@ -68,14 +69,58 @@ export function createFilesContext(files: FileMap) {
 
       const codeWithLinesNumbers = dirent.content
         .split('\n')
-        .map((v, i) => `${i + 1}|${v}`)
+        // .map((v, i) => `${i + 1}|${v}`)
         .join('\n');
 
-      return `<file path="${path}">\n${codeWithLinesNumbers}\n</file>`;
+      let filePath = path;
+
+      if (useRelativePath) {
+        filePath = path.replace('/home/project/', '');
+      }
+
+      return `<file path="${filePath}">\n${codeWithLinesNumbers}\n</file>`;
     });
 
   return `file content format:
-<line number>|<line content>
 <codebase>${fileContexts.join('\n\n')}\n\n</codebase>
 `;
+}
+
+export function extractCurrentContext(messages: Message[]) {
+  const lastAssistantMessage = messages.filter((x) => x.role == 'assistant').slice(-1)[0];
+
+  if (!lastAssistantMessage) {
+    return { summary: undefined, codeContext: undefined };
+  }
+
+  let summary: ContextAnnotation | undefined;
+  let codeContext: ContextAnnotation | undefined;
+
+  if (!lastAssistantMessage.annotations?.length) {
+    return { summary: undefined, codeContext: undefined };
+  }
+
+  for (let i = 0; i < lastAssistantMessage.annotations.length; i++) {
+    const annotation = lastAssistantMessage.annotations[i];
+
+    if (!annotation || typeof annotation !== 'object') {
+      continue;
+    }
+
+    if (!(annotation as any).type) {
+      continue;
+    }
+
+    const annotationObject = annotation as any;
+
+    if (annotationObject.type === 'codeContext') {
+      codeContext = annotationObject;
+      break;
+    } else if (annotationObject.type === 'chatSummary') {
+      summary = annotationObject;
+      break;
+    }
+  }
+
+  return { summary, codeContext };
 }

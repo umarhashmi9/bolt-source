@@ -3,54 +3,14 @@ import ignore from 'ignore';
 import type { IProviderSetting } from '~/types/model';
 import { IGNORE_PATTERNS, type FileMap } from './constants';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from '~/utils/constants';
-import { createFilesContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
+import { createFilesContext, extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
 import { createScopedLogger } from '~/utils/logger';
 import { LLMManager } from '~/lib/modules/llm/manager';
-import type { ContextAnnotation } from '~/types/context';
 
 // Common patterns to ignore, similar to .gitignore
 
 const ig = ignore().add(IGNORE_PATTERNS);
 const logger = createScopedLogger('select-context');
-
-function extractCurrentContext(messages: Message[]) {
-  const lastAssistantMessage = messages.filter((x) => x.role == 'assistant').pop();
-
-  if (!lastAssistantMessage) {
-    return { summary: undefined, codeContext: undefined };
-  }
-
-  let summary: ContextAnnotation | undefined;
-  let codeContext: ContextAnnotation | undefined;
-
-  if (!lastAssistantMessage.annotations?.length) {
-    return { summary: undefined, codeContext: undefined };
-  }
-
-  for (let i = 0; i < lastAssistantMessage.annotations.length; i++) {
-    const annotation = lastAssistantMessage.annotations[i];
-
-    if (!annotation || typeof annotation !== 'object') {
-      continue;
-    }
-
-    if (!(annotation as any).type) {
-      continue;
-    }
-
-    const annotationObject = annotation as any;
-
-    if (annotationObject.type === 'codeContext') {
-      codeContext = annotationObject;
-      break;
-    } else if (annotationObject.type === 'chatSummary') {
-      summary = annotationObject;
-      break;
-    }
-  }
-
-  return { summary, codeContext };
-}
 
 export async function selectContext(props: {
   messages: Message[];

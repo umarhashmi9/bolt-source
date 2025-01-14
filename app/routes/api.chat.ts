@@ -9,6 +9,7 @@ import { createScopedLogger } from '~/utils/logger';
 import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
 import type { ContextAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
+import { createSummary } from '~/lib/.server/llm/create-summary';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -72,8 +73,34 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       async execute(dataStream) {
         const filePaths = getFilePaths(files || {});
         let filteredFiles: FileMap | undefined = undefined;
+        let summary: string | undefined = undefined;
 
         if (filePaths.length > 0 && contextOptimization) {
+          logger.debug('Generating Chat Summary');
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Generating Chat Summary',
+          } as ProgressAnnotation);
+
+          // Create a summary of the chat
+          console.log(`Messages count: ${messages.length}`);
+
+          summary = await createSummary({
+            messages: [...messages],
+            env: context.cloudflare.env,
+            apiKeys,
+            providerSettings,
+            promptId,
+            contextOptimization,
+          });
+
+          dataStream.writeMessageAnnotation({
+            type: 'chatSummary',
+            summary,
+            chatId: messages.slice(-1)?.[0]?.id,
+          } as ContextAnnotation);
+
           // Update context buffer
           logger.debug('Updating Context Buffer');
           dataStream.writeMessageAnnotation({
@@ -81,15 +108,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             value: progressCounter++,
             message: 'Updating Context Buffer',
           } as ProgressAnnotation);
+
+          // Select context files
+          console.log(`Messages count: ${messages.length}`);
           filteredFiles = await selectContext({
-            messages,
+            messages: [...messages],
             env: context.cloudflare.env,
             apiKeys,
             files,
             providerSettings,
             promptId,
             contextOptimization,
-            summary: '',
+            summary,
           });
 
           if (filteredFiles) {
@@ -116,6 +146,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           } as ProgressAnnotation);
           logger.debug('Context Buffer Updated');
         }
+
+        // Stream the text
+        console.log(`Messages count: ${messages.length}`);
 
         const options: StreamingOptions = {
           toolChoice: 'none',
@@ -192,6 +225,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           promptId,
           contextOptimization,
           contextFiles: filteredFiles,
+          summary,
         });
 
         (async () => {

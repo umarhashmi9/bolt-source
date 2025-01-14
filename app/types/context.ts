@@ -6,4 +6,5 @@ export type ContextAnnotation =
   | {
       type: 'chatSummary';
       summary: string;
+      chatId: string;
     };

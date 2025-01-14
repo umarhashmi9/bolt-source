@@ -121,6 +121,8 @@ export default class OpenRouterProvider extends BaseProvider {
       throw new Error(`Missing API key for ${this.name} provider`);
     }
 
+    // console.log(`OpenRouter API KEy:[${apiKey}]`);
+
     const openRouter = createOpenRouter({
       apiKey,
     });

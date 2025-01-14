@@ -26,6 +26,7 @@ export async function streamText(props: {
   promptId?: string;
   contextOptimization?: boolean;
   contextFiles?: FileMap;
+  summary?: string;
 }) {
   const {
     messages,
@@ -37,13 +38,11 @@ export async function streamText(props: {
     promptId,
     contextOptimization,
     contextFiles,
+    summary,
   } = props;
-
-  // console.log({serverEnv});
-
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  const processedMessages = messages.map((message) => {
+  let processedMessages = messages.map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
       currentModel = model;
@@ -94,6 +93,8 @@ export async function streamText(props: {
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
+  console.log(processedMessages);
+
   let systemPrompt =
     PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
       cwd: WORK_DIR,
@@ -102,7 +103,7 @@ export async function streamText(props: {
     }) ?? getSystemPrompt();
 
   if (files && contextFiles && contextOptimization) {
-    const codeContext = createFilesContext(contextFiles);
+    const codeContext = createFilesContext(contextFiles, true);
     const filePaths = getFilePaths(files);
 
     systemPrompt = `${systemPrompt}
@@ -116,10 +117,28 @@ CONTEXT BUFFER:
 ---
 ${codeContext}
 ---
-    `;
+`;
+
+    if (summary) {
+      systemPrompt = `${systemPrompt}
+      below is the chat history till now
+CHAT SUMMARY:
+---
+${props.summary}
+---
+`;
+
+      const lastMessage = processedMessages.pop();
+
+      if (lastMessage) {
+        processedMessages = [lastMessage];
+      }
+    }
   }
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
+
+  // console.log(systemPrompt,processedMessages);
 
   return await _streamText({
     model: provider.getModelInstance({
