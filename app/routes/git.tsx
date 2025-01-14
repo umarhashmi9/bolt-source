@@ -7,7 +7,8 @@ import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
 
 export const meta: MetaFunction = () => {
-  return [{ title: 'Bolt' }, { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' }];
+  return [{ title: 'Bikinkode' }, { name: 'description', content: 'Platform AI untuk membuat website dengan cepat dan mudah. Tanpa coding, cukup masukkan kebutuhan Anda, dan website profesional siap dalam hitungan menit. Coba sekarang!' }];
+
 };
 
 export async function loader(args: LoaderFunctionArgs) {
