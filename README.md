@@ -166,6 +166,8 @@ You have two options for running Bolt.DIY: directly on your machine or using Doc
 
 This option requires some familiarity with Docker but provides a more isolated environment.
 
+Please be aware that this is pre-alpha and you'd take your Docker env into non healthy state
+
 #### Additional Prerequisite
 - Install Docker: [Download Docker](https://www.docker.com/)
 
