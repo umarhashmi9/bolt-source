@@ -1,11 +1,14 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { createDataStream } from 'ai';
-import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
+import { createDataStream, generateId } from 'ai';
+import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS, type FileMap } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
 import type { IProviderSetting } from '~/types/model';
 import { createScopedLogger } from '~/utils/logger';
+import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
+import type { ContextAnnotation } from '~/types/context';
+import { WORK_DIR } from '~/utils/constants';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -31,6 +34,12 @@ function parseCookies(cookieHeader: string): Record<string, string> {
   return cookies;
 }
 
+type ProgressAnnotation = {
+  type: 'progress';
+  value: number;
+  message: string;
+};
+
 async function chatAction({ context, request }: ActionFunctionArgs) {
   const { messages, files, promptId, contextOptimization } = await request.json<{
     messages: Messages;
@@ -52,23 +61,71 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     promptTokens: 0,
     totalTokens: 0,
   };
+  const encoder: TextEncoder = new TextEncoder();
+  let progressCounter: number = 1;
 
   try {
-    const options: StreamingOptions = {
-      toolChoice: 'none',
-      onFinish: async ({ text: content, finishReason, usage }) => {
-        logger.debug('usage', JSON.stringify(usage));
+    const dataStream = createDataStream({
+      async execute(dataStream) {
+        const filePaths = getFilePaths(files || {});
+        let filteredFiles: FileMap | undefined = undefined;
 
-        if (usage) {
-          cumulativeUsage.completionTokens += usage.completionTokens || 0;
-          cumulativeUsage.promptTokens += usage.promptTokens || 0;
-          cumulativeUsage.totalTokens += usage.totalTokens || 0;
+        if (filePaths.length > 0 && contextOptimization) {
+          // Update context buffer
+          logger.debug('Updating Context Buffer');
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Updating Context Buffer',
+          } as ProgressAnnotation);
+          filteredFiles = await selectContext({
+            messages,
+            env: context.cloudflare.env,
+            apiKeys,
+            files,
+            providerSettings,
+            promptId,
+            contextOptimization,
+            summary: '',
+          });
+
+          if (filteredFiles) {
+            logger.debug(`files in context : ${JSON.stringify(Object.keys(filteredFiles))}`);
+          }
+
+          dataStream.writeMessageAnnotation({
+            type: 'codeContext',
+            files: Object.keys(filteredFiles).map((key) => {
+              let path = key;
+
+              if (path.startsWith(WORK_DIR)) {
+                path = path.replace(WORK_DIR, '');
+              }
+
+              return path;
+            }),
+          } as ContextAnnotation);
+
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Context Buffer Updated',
+          } as ProgressAnnotation);
+          logger.debug('Context Buffer Updated');
         }
 
-        if (finishReason !== 'length') {
-          const encoder = new TextEncoder();
-          const usageStream = createDataStream({
-            async execute(dataStream) {
+        const options: StreamingOptions = {
+          toolChoice: 'none',
+          onFinish: async ({ text: content, finishReason, usage }) => {
+            logger.debug('usage', JSON.stringify(usage));
+
+            if (usage) {
+              cumulativeUsage.completionTokens += usage.completionTokens || 0;
+              cumulativeUsage.promptTokens += usage.promptTokens || 0;
+              cumulativeUsage.totalTokens += usage.totalTokens || 0;
+            }
+
+            if (finishReason !== 'length') {
               dataStream.writeMessageAnnotation({
                 type: 'usage',
                 value: {
@@ -77,34 +134,39 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
                   totalTokens: cumulativeUsage.totalTokens,
                 },
               });
-            },
-            onError: (error: any) => `Custom error: ${error.message}`,
-          }).pipeThrough(
-            new TransformStream({
-              transform: (chunk, controller) => {
-                // Convert the string stream to a byte stream
-                const str = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
-                controller.enqueue(encoder.encode(str));
-              },
-            }),
-          );
-          await stream.switchSource(usageStream);
-          await new Promise((resolve) => setTimeout(resolve, 0));
-          stream.close();
+              await new Promise((resolve) => setTimeout(resolve, 0));
 
-          return;
-        }
+              // stream.close();
+              return;
+            }
 
-        if (stream.switches >= MAX_RESPONSE_SEGMENTS) {
-          throw Error('Cannot continue message: Maximum segments reached');
-        }
+            if (stream.switches >= MAX_RESPONSE_SEGMENTS) {
+              throw Error('Cannot continue message: Maximum segments reached');
+            }
 
-        const switchesLeft = MAX_RESPONSE_SEGMENTS - stream.switches;
+            const switchesLeft = MAX_RESPONSE_SEGMENTS - stream.switches;
 
-        logger.info(`Reached max token limit (${MAX_TOKENS}): Continuing message (${switchesLeft} switches left)`);
+            logger.info(`Reached max token limit (${MAX_TOKENS}): Continuing message (${switchesLeft} switches left)`);
 
-        messages.push({ role: 'assistant', content });
-        messages.push({ role: 'user', content: CONTINUE_PROMPT });
+            messages.push({ id: generateId(), role: 'assistant', content });
+            messages.push({ id: generateId(), role: 'user', content: CONTINUE_PROMPT });
+
+            const result = await streamText({
+              messages,
+              env: context.cloudflare.env,
+              options,
+              apiKeys,
+              files,
+              providerSettings,
+              promptId,
+              contextOptimization,
+            });
+
+            result.mergeIntoDataStream(dataStream);
+
+            return;
+          },
+        };
 
         const result = await streamText({
           messages,
@@ -115,28 +177,21 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           providerSettings,
           promptId,
           contextOptimization,
+          contextFiles: filteredFiles,
         });
-
-        stream.switchSource(result.toDataStream());
-
-        return;
+        result.mergeIntoDataStream(dataStream);
       },
-    };
-
-    const result = await streamText({
-      messages,
-      env: context.cloudflare.env,
-      options,
-      apiKeys,
-      files,
-      providerSettings,
-      promptId,
-      contextOptimization,
-    });
-
-    stream.switchSource(result.toDataStream());
-
-    return new Response(stream.readable, {
+      onError: (error: any) => `Custom error: ${error.message}`,
+    }).pipeThrough(
+      new TransformStream({
+        transform: (chunk, controller) => {
+          // Convert the string stream to a byte stream
+          const str = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
+          controller.enqueue(encoder.encode(str));
+        },
+      }),
+    );
+    return new Response(dataStream, {
       status: 200,
       headers: {
         contentType: 'text/event-stream',
