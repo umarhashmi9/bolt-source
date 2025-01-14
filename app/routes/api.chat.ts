@@ -65,6 +65,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   let progressCounter: number = 1;
 
   try {
+    const totalMessageContent = messages.reduce((acc, message) => acc + message.content, '');
+    logger.debug(`Total message length: ${totalMessageContent.split(' ').length}, words`);
+
     const dataStream = createDataStream({
       async execute(dataStream) {
         const filePaths = getFilePaths(files || {});
@@ -164,6 +167,17 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
             result.mergeIntoDataStream(dataStream);
 
+            (async () => {
+              for await (const part of result.fullStream) {
+                if (part.type === 'error') {
+                  const error: any = part.error;
+                  logger.error(`${error}`);
+
+                  return;
+                }
+              }
+            })();
+
             return;
           },
         };
@@ -179,6 +193,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           contextOptimization,
           contextFiles: filteredFiles,
         });
+
+        (async () => {
+          for await (const part of result.fullStream) {
+            if (part.type === 'error') {
+              const error: any = part.error;
+              logger.error(`${error}`);
+
+              return;
+            }
+          }
+        })();
+
         result.mergeIntoDataStream(dataStream);
       },
       onError: (error: any) => `Custom error: ${error.message}`,
@@ -191,11 +217,14 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         },
       }),
     );
+
     return new Response(dataStream, {
       status: 200,
       headers: {
-        contentType: 'text/event-stream',
-        connection: 'keep-alive',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        Connection: 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'Text-Encoding': 'chunked',
       },
     });
   } catch (error: any) {
