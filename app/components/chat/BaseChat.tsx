@@ -21,6 +21,7 @@ import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportCh
 import { ImportButtons } from '~/components/chat/chatExportAndImport/ImportButtons';
 import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
+import ShortcutButton from './ShortcutButton';
 
 import FilePreview from './FilePreview';
 import { ModelSelector } from '~/components/chat/ModelSelector';
@@ -323,27 +324,39 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[16vh] max-w-chat mx-auto text-center px-4 lg:px-0">
                 <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                Mau Bikin Apa ?
+                 Mau Bikin Apa ?
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                Bikin Website Kilat atau masukan prompt, jalankan, edit, dan deploy full-stack web apps pakai AI
+                  Bikin Website Kilat atau masukan prompt, jalankan, edit, dan deploy full-stack web apps pakai AI
                 </p>
+              
+               
               </div>
             )}
 
-            
-{!chatStarted &&
-                ExamplePrompts((event, messageInput) => {
-                  if (isStreaming) {
-                    handleStop?.();
-                    return;
-                  }
-
-                  handleSendMessage?.(event, messageInput);
-                })}
 
 
-            
+        <div id="intro" className=" max-w-chat mx-auto text-center px-4 lg:px-0">
+          
+                  <div className="flex flex-col justify-center gap-5">
+                  <div id="examples" className="relative flex flex-col gap-9 w-full max-w-3xl mx-auto flex justify-center mt-6">
+                        <div
+                          className="flex flex-wrap justify-center gap-2"
+                          style={{
+                            animation: '.25s ease-out 0s 1 _fade-and-move-in_g2ptj_1 forwards',
+                          }}
+                        >
+                        <ShortcutButton importChat={importChat} title='Buatkan Website Rental Mobil' />
+                        <ShortcutButton importChat={importChat} title='Buatkan Website Undangan Nikah Online' />
+                        <ShortcutButton importChat={importChat}  title='Buatkan Website Company Profile'/>
+                        </div>
+                      </div>
+
+                        
+                  </div>
+
+        </div>
+
             <div
               className={classNames('pt-6 px-2 sm:px-6', {
                 'h-full flex flex-col': chatStarted,
@@ -610,13 +623,24 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 </div>
               </div>
             </div>
-                     <div className="flex flex-col justify-center gap-5">
+            <div className="flex flex-col justify-center gap-5">
               {!chatStarted && (
                 <div className="flex justify-center gap-2">
                   {ImportButtons(importChat)}
                   <GitCloneButton importChat={importChat} />
                 </div>
               )}            
+
+{!chatStarted &&
+                ExamplePrompts((event, messageInput) => {
+                  if (isStreaming) {
+                    handleStop?.();
+                    return;
+                  }
+
+                  handleSendMessage?.(event, messageInput);
+                })}
+
               {!chatStarted && <StarterTemplates />}
               <div id="intro" className=" max-w-chat mx-auto text-center px-4 lg:px-0">
               <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
