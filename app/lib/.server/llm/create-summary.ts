@@ -1,4 +1,4 @@
-import { generateText, type Message } from 'ai';
+import { generateText, type CoreTool, type GenerateTextResult, type Message } from 'ai';
 import type { IProviderSetting } from '~/types/model';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from '~/utils/constants';
 import { extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
@@ -14,8 +14,9 @@ export async function createSummary(props: {
   providerSettings?: Record<string, IProviderSetting>;
   promptId?: string;
   contextOptimization?: boolean;
+  onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
 }) {
-  const { messages, env: serverEnv, apiKeys, providerSettings, contextOptimization } = props;
+  const { messages, env: serverEnv, apiKeys, providerSettings, contextOptimization, onFinish } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   const processedMessages = messages.map((message) => {
@@ -128,6 +129,10 @@ ${slicedMessages
   });
 
   const response = resp.text;
+
+  if (onFinish) {
+    onFinish(resp);
+  }
 
   return response;
 }

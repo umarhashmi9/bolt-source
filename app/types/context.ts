@@ -8,3 +8,9 @@ export type ContextAnnotation =
       summary: string;
       chatId: string;
     };
+
+export type ProgressAnnotation = {
+  type: 'progress';
+  value: number;
+  message: string;
+};

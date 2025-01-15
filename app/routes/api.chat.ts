@@ -7,7 +7,7 @@ import SwitchableStream from '~/lib/.server/llm/switchable-stream';
 import type { IProviderSetting } from '~/types/model';
 import { createScopedLogger } from '~/utils/logger';
 import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
-import type { ContextAnnotation } from '~/types/context';
+import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
 import { createSummary } from '~/lib/.server/llm/create-summary';
 
@@ -34,12 +34,6 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 
   return cookies;
 }
-
-type ProgressAnnotation = {
-  type: 'progress';
-  value: number;
-  message: string;
-};
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
   const { messages, files, promptId, contextOptimization } = await request.json<{
@@ -76,6 +70,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         let summary: string | undefined = undefined;
 
         if (filePaths.length > 0 && contextOptimization) {
+          dataStream.writeData('HI ');
           logger.debug('Generating Chat Summary');
           dataStream.writeMessageAnnotation({
             type: 'progress',
@@ -93,6 +88,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             providerSettings,
             promptId,
             contextOptimization,
+            onFinish(resp) {
+              if (resp.usage) {
+                cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
+                cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
+                cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
+              }
+            },
           });
 
           dataStream.writeMessageAnnotation({
@@ -120,6 +122,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             promptId,
             contextOptimization,
             summary,
+            onFinish(resp) {
+              if (resp.usage) {
+                cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
+                cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
+                cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
+              }
+            },
           });
 
           if (filteredFiles) {

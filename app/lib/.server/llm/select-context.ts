@@ -1,4 +1,4 @@
-import { generateText, type Message } from 'ai';
+import { generateText, type CoreTool, type GenerateTextResult, type Message } from 'ai';
 import ignore from 'ignore';
 import type { IProviderSetting } from '~/types/model';
 import { IGNORE_PATTERNS, type FileMap } from './constants';
@@ -21,8 +21,9 @@ export async function selectContext(props: {
   promptId?: string;
   contextOptimization?: boolean;
   summary: string;
+  onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
 }) {
-  const { messages, env: serverEnv, apiKeys, files, providerSettings, contextOptimization, summary } = props;
+  const { messages, env: serverEnv, apiKeys, files, providerSettings, contextOptimization, summary, onFinish } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   const processedMessages = messages.map((message) => {
@@ -200,6 +201,10 @@ export async function selectContext(props: {
 
     filteredFiles[path] = files[fullPath];
   });
+
+  if (onFinish) {
+    onFinish(resp);
+  }
 
   return filteredFiles;
 
