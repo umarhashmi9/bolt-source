@@ -497,10 +497,21 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       }}
                     >
                       <div className="i-ph:github-logo" />
-                      Upload Website
+                      Push ke Github
                     </PanelHeaderButton>
                   </div>
                 )}
+
+                 <button
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-800 transition duration-300 font-medium"
+          onClick={() => {
+            const repoUrl = prompt('Enter the Git url');
+            window.open(`https://app.netlify.com/start/deploy?repository=${encodeURIComponent(repoUrl)}`, '_blank');
+          }}
+        >
+         Deploy
+        </button>
+                
                 <IconButton
                   icon="i-ph:x-circle"
                   className="-mr-1"
