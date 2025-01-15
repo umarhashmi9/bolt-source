@@ -149,8 +149,11 @@ export const ChatImpl = memo(
         sendExtraMessageFields: true,
         onError: (e) => {
           logger.error('Request failed\n\n', e, error);
-          toast.error(
-            'There was an error processing your request: ' + (e.message ? e.message : 'No details were returned'),
+          // toast.error(
+          //   'There was an error processing your request: ' + (e.message ? e.message : 'No details were returned'),
+          // );
+            toast(
+            (e.message ? e.message.toLowerCase().includes("an error occurred") ? "Token Ai sudah melebihi batas, Silahkan ganti Ai lain." :  'There was an error processing your request: ' + e.message : 'No details were returned'),
           );
         },
         onFinish: (message, response) => {
