@@ -62,14 +62,18 @@ export default function ShortcutButton({ importChat, title }: GitCloneButtonProp
     toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
    }
    else if (title?.toLowerCase().includes("company profile")) {
-    repoUrl  = " https://github.com/masmul/template-company-profile-1.git";
+    repoUrl  = "https://github.com/masmul/template-company-profile-1.git";
     toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
    }
     else if (title?.toLowerCase().includes("cv online")) {
-    repoUrl  = " https://github.com/masmul/template-cv-1.git";
+    repoUrl  = "https://github.com/masmul/template-cv-1.git";
     toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
    }
-  
+  else if (title?.toLowerCase().includes("personal website")) {
+    repoUrl  = "https://github.com/easetemplates/about-me-personal-portfolio-website-template.git";
+    toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
+   }
+ 
 
    
 
