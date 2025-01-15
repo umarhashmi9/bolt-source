@@ -350,6 +350,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         <ShortcutButton importChat={importChat} title='Buatkan Website Undangan Nikah Online' />
                         <ShortcutButton importChat={importChat}  title='Buatkan Website Company Profile'/>
                         <ShortcutButton importChat={importChat}  title='Buatkan CV Online'/>
+                           <ShortcutButton importChat={importChat}  title='Buatkan Website Personal'/>a
                         </div>
                       </div>
 
