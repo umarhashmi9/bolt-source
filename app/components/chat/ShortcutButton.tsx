@@ -65,6 +65,10 @@ export default function ShortcutButton({ importChat, title }: GitCloneButtonProp
     repoUrl  = " https://github.com/masmul/template-company-profile-1.git";
     toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
    }
+    else if (title?.toLowerCase().includes("cv online")) {
+    repoUrl  = " https://github.com/masmul/template-cv-1.git";
+    toast(`AI sedang membuatkan ${title}, tunggu bentar yaaa.`);
+   }
   
 
    
