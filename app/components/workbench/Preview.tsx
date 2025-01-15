@@ -274,6 +274,35 @@ export const Preview = memo(() => {
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
         />
+
+        {/* Open in new tab button */}
+        <IconButton
+          icon="i-ph:arrow-square-out"
+          onClick={() => {
+            if (activePreview?.baseUrl) {
+              // Extract the preview ID from the WebContainer URL
+              const match = activePreview.baseUrl.match(
+                /^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/,
+              );
+
+              if (match) {
+                const previewId = match[1];
+
+                // Open in new tab using our route
+                const previewUrl = `/webcontainer/preview/${previewId}`;
+                const newWindow = window.open(previewUrl, '_blank', 'noopener,noreferrer');
+
+                // Force focus on the new window
+                if (newWindow) {
+                  newWindow.focus();
+                }
+              } else {
+                console.warn('[Preview] Invalid WebContainer URL:', activePreview.baseUrl);
+              }
+            }
+          }}
+          title="Open Preview in New Tab"
+        />
       </div>
 
       <div className="flex-1 border-t border-bolt-elements-borderColor flex justify-center items-center overflow-auto">
@@ -294,7 +323,8 @@ export const Preview = memo(() => {
                 title="preview"
                 className="border-none w-full h-full bg-white"
                 src={iframeUrl}
-                allowFullScreen
+                sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
+                allow="cross-origin-isolated"
               />
               <ScreenshotSelector
                 isSelectionMode={isSelectionMode}
