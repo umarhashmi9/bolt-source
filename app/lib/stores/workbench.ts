@@ -537,7 +537,7 @@ export class WorkbenchStore {
       });
 
       alert(`Repository created and code pushed: ${repo.html_url}`);
-      window.open(`https://app.netlify.com/start/deploy?repository=${encodeURIComponent(repo.html_url)}`, '_blank');
+      //window.open(`https://app.netlify.com/start/deploy?repository=${encodeURIComponent(repo.html_url)}`, '_blank');
 
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
