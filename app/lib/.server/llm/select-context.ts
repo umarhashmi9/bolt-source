@@ -106,6 +106,17 @@ export async function selectContext(props: {
 
   const summaryText = `Here is the summary of the chat till now: ${summary}`;
 
+  const extractTextContent = (message: Message) =>
+    Array.isArray(message.content)
+      ? (message.content.find((item) => item.type === 'text')?.text as string) || ''
+      : message.content;
+
+  const lastUserMessage = processedMessages.filter((x) => x.role == 'user').pop();
+
+  if (!lastUserMessage) {
+    throw new Error('No user message found');
+  }
+
   // select files from the list of code file from the project that might be useful for the current request from the user
   const resp = await generateText({
     system: `
@@ -143,7 +154,7 @@ export async function selectContext(props: {
     prompt: `
         ${summaryText}
 
-        Users Question: ${processedMessages.filter((x) => x.role == 'user').pop()?.content}
+        Users Question: ${extractTextContent(lastUserMessage)}
 
         update the context buffer with the files that are relevant to the task from the list of files above.
 
