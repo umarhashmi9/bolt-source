@@ -274,7 +274,7 @@ export async function streamText(props: {
 
     return _streamText({
       model: provider.getModelInstance({
-        model: currentModel,
+        model: modelDetails.name,
         serverEnv,
         apiKeys,
         providerSettings,
