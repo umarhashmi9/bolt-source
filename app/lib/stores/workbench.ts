@@ -18,6 +18,9 @@ import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
+import { toast } from 'react-toastify';
+import { logStore } from '~/lib/stores/logs';
+import type { GitHubError } from '~/lib/github/GitHubClient';
 
 export interface ArtifactState {
   id: string;
@@ -32,6 +35,47 @@ export type ArtifactUpdateState = Pick<ArtifactState, 'title' | 'closed'>;
 type Artifacts = MapStore<Record<string, ArtifactState>>;
 
 export type WorkbenchViewType = 'code' | 'preview';
+
+interface GitHubPushProgress {
+  stage: 'preparing' | 'uploading' | 'committing';
+  progress: number;
+  details: string;
+}
+
+interface GitHubPushOptions {
+  commitMessage?: string;
+  branch?: string;
+  onProgress?: (progress: GitHubPushProgress) => void;
+}
+
+const MAX_CHUNK_SIZE = 1024 * 1024; // 1MB chunk size
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+async function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  retries = MAX_RETRIES,
+  delayMs = RETRY_DELAY,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retries > 0) {
+      await delay(delayMs);
+      return retryOperation(operation, retries - 1, delayMs * 2);
+    }
+
+    throw error;
+  }
+}
+
+function isGitHubError(error: unknown): error is GitHubError {
+  return error instanceof Error && 'status' in error && typeof (error as GitHubError).status === 'number';
+}
 
 export class WorkbenchStore {
   #previewsStore = new PreviewsStore(webcontainer);
@@ -434,9 +478,12 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
+  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string, options: GitHubPushOptions = {}) {
+    const updateProgress = (progress: GitHubPushProgress) => {
+      options.onProgress?.(progress);
+    };
+
     try {
-      // Use cookies if username and token are not provided
       const githubToken = ghToken || Cookies.get('githubToken');
       const owner = githubUsername || Cookies.get('githubUsername');
 
@@ -444,18 +491,24 @@ export class WorkbenchStore {
         throw new Error('GitHub token or username is not set in cookies or provided.');
       }
 
-      // Initialize Octokit with the auth token
-      const octokit = new Octokit({ auth: githubToken });
+      updateProgress({ stage: 'preparing', progress: 0, details: 'Initializing GitHub connection...' });
 
-      // Check if the repository already exists before creating it
+      const octokit = new Octokit({
+        auth: githubToken,
+        retry: {
+          enabled: true,
+          retries: 3,
+        },
+      });
+
+      // Check repository existence and create if needed
       let repo: RestEndpointMethodTypes['repos']['get']['response']['data'];
 
       try {
-        const resp = await octokit.repos.get({ owner, repo: repoName });
+        const resp = await retryOperation(() => octokit.repos.get({ owner, repo: repoName }));
         repo = resp.data;
-      } catch (error) {
+      } catch (error: unknown) {
         if (error instanceof Error && 'status' in error && error.status === 404) {
-          // Repository doesn't exist, so create a new one
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
             private: false,
@@ -463,83 +516,146 @@ export class WorkbenchStore {
           });
           repo = newRepo;
         } else {
-          console.log('cannot create repo!');
-          throw error; // Some other error occurred
+          throw new Error(`Failed to access repository: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      // Get all files
+      updateProgress({ stage: 'preparing', progress: 20, details: 'Processing files...' });
+
+      // Get and validate files
       const files = this.files.get();
 
       if (!files || Object.keys(files).length === 0) {
         throw new Error('No files found to push');
       }
 
-      // Create blobs for each file
-      const blobs = await Promise.all(
-        Object.entries(files).map(async ([filePath, dirent]) => {
-          if (dirent?.type === 'file' && dirent.content) {
-            const { data: blob } = await octokit.git.createBlob({
-              owner: repo.owner.login,
-              repo: repo.name,
-              content: Buffer.from(dirent.content).toString('base64'),
-              encoding: 'base64',
-            });
-            return { path: extractRelativePath(filePath), sha: blob.sha };
+      // Create blobs in chunks
+      const fileEntries = Object.entries(files);
+      const totalFiles = fileEntries.length;
+      const blobs: { path: string; sha: string }[] = [];
+
+      for (let i = 0; i < fileEntries.length; i++) {
+        const [filePath, dirent] = fileEntries[i];
+
+        if (dirent?.type === 'file' && dirent.content) {
+          try {
+            // Split large files into chunks if needed
+            const content = dirent.content;
+
+            if (content.length > MAX_CHUNK_SIZE) {
+              const chunks = Math.ceil(content.length / MAX_CHUNK_SIZE);
+
+              for (let j = 0; j < chunks; j++) {
+                const chunk = content.slice(j * MAX_CHUNK_SIZE, (j + 1) * MAX_CHUNK_SIZE);
+                const { data: blob } = await retryOperation(() =>
+                  octokit.git.createBlob({
+                    owner: repo.owner.login,
+                    repo: repo.name,
+                    content: Buffer.from(chunk).toString('base64'),
+                    encoding: 'base64',
+                  }),
+                );
+                blobs.push({ path: extractRelativePath(filePath), sha: blob.sha });
+              }
+            } else {
+              const { data: blob } = await retryOperation(() =>
+                octokit.git.createBlob({
+                  owner: repo.owner.login,
+                  repo: repo.name,
+                  content: Buffer.from(content).toString('base64'),
+                  encoding: 'base64',
+                }),
+              );
+              blobs.push({ path: extractRelativePath(filePath), sha: blob.sha });
+            }
+          } catch (error: unknown) {
+            console.error(`Failed to create blob for ${filePath}:`, error);
+            throw new Error(
+              `Failed to upload file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+            );
           }
+        }
 
-          return null;
-        }),
-      );
+        updateProgress({
+          stage: 'uploading',
+          progress: 20 + 60 * (i / totalFiles),
+          details: `Uploading file ${i + 1} of ${totalFiles}...`,
+        });
+      }
 
-      const validBlobs = blobs.filter(Boolean); // Filter out any undefined blobs
-
-      if (validBlobs.length === 0) {
+      if (blobs.length === 0) {
         throw new Error('No valid files to push');
       }
 
-      // Get the latest commit SHA (assuming main branch, update dynamically if needed)
-      const { data: ref } = await octokit.git.getRef({
-        owner: repo.owner.login,
-        repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
-      });
-      const latestCommitSha = ref.object.sha;
+      updateProgress({ stage: 'committing', progress: 80, details: 'Creating commit...' });
+
+      // Get the latest commit SHA
+      const { data: ref } = await retryOperation(() =>
+        octokit.git.getRef({
+          owner: repo.owner.login,
+          repo: repo.name,
+          ref: `heads/${options.branch || repo.default_branch || 'main'}`,
+        }),
+      );
 
       // Create a new tree
-      const { data: newTree } = await octokit.git.createTree({
-        owner: repo.owner.login,
-        repo: repo.name,
-        base_tree: latestCommitSha,
-        tree: validBlobs.map((blob) => ({
-          path: blob!.path,
-          mode: '100644',
-          type: 'blob',
-          sha: blob!.sha,
-        })),
-      });
+      const { data: newTree } = await retryOperation(() =>
+        octokit.git.createTree({
+          owner: repo.owner.login,
+          repo: repo.name,
+          base_tree: ref.object.sha,
+          tree: blobs.map((blob) => ({
+            path: blob.path,
+            mode: '100644',
+            type: 'blob',
+            sha: blob.sha,
+          })),
+        }),
+      );
 
       // Create a new commit
-      const { data: newCommit } = await octokit.git.createCommit({
-        owner: repo.owner.login,
-        repo: repo.name,
-        message: 'Initial commit from your app',
-        tree: newTree.sha,
-        parents: [latestCommitSha],
-      });
+      const { data: newCommit } = await retryOperation(() =>
+        octokit.git.createCommit({
+          owner: repo.owner.login,
+          repo: repo.name,
+          message: options.commitMessage || 'Update from Bolt.diy',
+          tree: newTree.sha,
+          parents: [ref.object.sha],
+        }),
+      );
 
       // Update the reference
-      await octokit.git.updateRef({
-        owner: repo.owner.login,
-        repo: repo.name,
-        ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
-        sha: newCommit.sha,
+      await retryOperation(() =>
+        octokit.git.updateRef({
+          owner: repo.owner.login,
+          repo: repo.name,
+          ref: `heads/${options.branch || repo.default_branch || 'main'}`,
+          sha: newCommit.sha,
+        }),
+      );
+
+      updateProgress({ stage: 'committing', progress: 100, details: 'Push completed successfully!' });
+
+      return {
+        success: true,
+        repoUrl: repo.html_url,
+        commitSha: newCommit.sha,
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+
+      logStore.logError('Failed to push to GitHub', {
+        error: errorMessage,
+        statusCode,
       });
 
-      alert(`Repository created and code pushed: ${repo.html_url}`);
-    } catch (error) {
-      console.error('Error pushing to GitHub:', error);
-      throw error; // Rethrow the error for further handling
+      toast.error(
+        statusCode === 403
+          ? 'Failed to push to GitHub. Please check your permissions.'
+          : 'Failed to push to GitHub. Please try again.',
+      );
+      throw error;
     }
   }
 }
