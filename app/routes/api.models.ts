@@ -9,29 +9,42 @@ interface ModelsResponse {
   defaultProvider: ProviderInfo;
 }
 
+let cachedProviders: ProviderInfo[] | null = null;
+let cachedDefaultProvider: ProviderInfo | null = null;
+
+function getProviderInfo(llmManager: LLMManager) {
+  if (!cachedProviders) {
+    cachedProviders = llmManager.getAllProviders().map((provider) => ({
+      name: provider.name,
+      staticModels: provider.staticModels,
+      getApiKeyLink: provider.getApiKeyLink,
+      labelForGetApiKey: provider.labelForGetApiKey,
+      icon: provider.icon,
+    }));
+  }
+
+  if (!cachedDefaultProvider) {
+    const defaultProvider = llmManager.getDefaultProvider();
+    cachedDefaultProvider = {
+      name: defaultProvider.name,
+      staticModels: defaultProvider.staticModels,
+      getApiKeyLink: defaultProvider.getApiKeyLink,
+      labelForGetApiKey: defaultProvider.labelForGetApiKey,
+      icon: defaultProvider.icon,
+    };
+  }
+
+  return { providers: cachedProviders, defaultProvider: cachedDefaultProvider };
+}
+
 export async function loader({ request }: { request: Request }): Promise<Response> {
   const llmManager = LLMManager.getInstance(import.meta.env);
 
-  // Get API keys from header
-  const apiKeysHeader = request.headers.get('x-client-api-keys');
-  const apiKeys = apiKeysHeader ? JSON.parse(apiKeysHeader) : {};
+  // process client-side overwritten api keys
+  const clientsideApiKeys = request.headers.get('x-client-api-keys');
+  const apiKeys = clientsideApiKeys ? JSON.parse(clientsideApiKeys) : {};
 
-  // Get all providers and map to ProviderInfo interface
-  const providers = llmManager.getAllProviders().map((provider) => ({
-    name: provider.name,
-    staticModels: provider.staticModels,
-    getApiKeyLink: provider.getApiKeyLink,
-    labelForGetApiKey: provider.labelForGetApiKey,
-    icon: provider.icon,
-  }));
-
-  const defaultProvider = {
-    name: llmManager.getDefaultProvider().name,
-    staticModels: llmManager.getDefaultProvider().staticModels,
-    getApiKeyLink: llmManager.getDefaultProvider().getApiKeyLink,
-    labelForGetApiKey: llmManager.getDefaultProvider().labelForGetApiKey,
-    icon: llmManager.getDefaultProvider().icon,
-  };
+  const { providers, defaultProvider } = getProviderInfo(llmManager);
 
   const modelList = await llmManager.updateModelList({
     apiKeys,
