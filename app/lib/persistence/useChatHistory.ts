@@ -84,6 +84,21 @@ export function useChatHistory() {
   return {
     ready: !mixedId || ready,
     initialMessages,
+    updateChatMestaData: async (metadata: IChatMetadata) => {
+      const id = chatId.get();
+
+      if (!db || !id) {
+        return;
+      }
+
+      try {
+        await setMessages(db, id, initialMessages, urlId, description.get(), undefined, metadata);
+        chatMetadata.set(metadata);
+      } catch (error) {
+        toast.error('Failed to update chat metadata');
+        console.error(error);
+      }
+    },
     storeMessageHistory: async (messages: Message[]) => {
       if (!db || messages.length === 0) {
         return;
@@ -112,7 +127,7 @@ export function useChatHistory() {
         }
       }
 
-      await setMessages(db, chatId.get() as string, messages, urlId, description.get());
+      await setMessages(db, chatId.get() as string, messages, urlId, description.get(), undefined, chatMetadata.get());
     },
     duplicateCurrentChat: async (listItemId: string) => {
       if (!db || (!mixedId && !listItemId)) {

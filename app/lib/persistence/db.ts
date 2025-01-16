@@ -240,5 +240,19 @@ export async function updateChatDescription(db: IDBDatabase, id: string, descrip
     throw new Error('Description cannot be empty');
   }
 
-  await setMessages(db, id, chat.messages, chat.urlId, description, chat.timestamp);
+  await setMessages(db, id, chat.messages, chat.urlId, description, chat.timestamp, chat.metadata);
+}
+
+export async function updateChatMetadata(
+  db: IDBDatabase,
+  id: string,
+  metadata: IChatMetadata | undefined,
+): Promise<void> {
+  const chat = await getMessages(db, id);
+
+  if (!chat) {
+    throw new Error('Chat not found');
+  }
+
+  await setMessages(db, id, chat.messages, chat.urlId, chat.description, chat.timestamp, metadata);
 }

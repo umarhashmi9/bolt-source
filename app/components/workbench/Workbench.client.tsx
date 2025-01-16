@@ -18,7 +18,7 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import Cookies from 'js-cookie';
-import { chatMetadata } from '~/lib/persistence';
+import { chatMetadata, useChatHistory } from '~/lib/persistence';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -68,6 +68,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const files = useStore(workbenchStore.files);
   const selectedView = useStore(workbenchStore.currentView);
   const metadata = useStore(chatMetadata);
+  const { updateChatMestaData } = useChatHistory();
 
   const isSmallViewport = useViewport(1024);
 
@@ -219,6 +220,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                         const commitMessage =
                           prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
                         workbenchStore.pushToGitHub(repoName, commitMessage, githubUsername, githubToken);
+
+                        if (!metadata?.gitUrl) {
+                          updateChatMestaData({
+                            ...(metadata || {}),
+                            gitUrl: `https://github.com/${githubUsername}/${repoName}.git`,
+                          });
+                        }
                       }}
                     >
                       <div className="i-ph:github-logo" />
