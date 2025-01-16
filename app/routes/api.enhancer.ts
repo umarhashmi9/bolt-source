@@ -99,7 +99,7 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
           `,
         },
       ],
-      env: context.cloudflare.env,
+      env: context.cloudflare?.env,
       apiKeys,
       providerSettings,
     });
