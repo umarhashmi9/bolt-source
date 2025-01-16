@@ -212,7 +212,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       try {
         const providerSettings = getProviderSettings();
 
-        const response = await fetch('/api/models', {
+        const response = await fetch(`/api/models/${encodeURIComponent(providerName)}`, {
           headers: {
             'x-client-api-keys': JSON.stringify(newApiKeys),
             'x-client-provider-settings': JSON.stringify(providerSettings),
@@ -220,7 +220,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         });
         const data = await response.json();
         const typedData = data as { modelList: ModelInfo[] };
-        setModelList(typedData.modelList);
+
+        // Only update models for the specific provider
+        setModelList((prevModels) => {
+          const otherModels = prevModels.filter((model) => model.provider !== providerName);
+          return [...otherModels, ...typedData.modelList];
+        });
       } catch (error) {
         console.error('Error loading dynamic models:', error);
       }

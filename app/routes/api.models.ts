@@ -37,7 +37,13 @@ function getProviderInfo(llmManager: LLMManager) {
   return { providers: cachedProviders, defaultProvider: cachedDefaultProvider };
 }
 
-export async function loader({ request }: { request: Request }): Promise<Response> {
+export async function loader({
+  request,
+  params,
+}: {
+  request: Request;
+  params: { provider?: string };
+}): Promise<Response> {
   const llmManager = LLMManager.getInstance(import.meta.env);
 
   // process client-side overwritten api keys and provider settings
@@ -45,15 +51,31 @@ export async function loader({ request }: { request: Request }): Promise<Respons
   const cliensideProviderSettings = request.headers.get('x-client-provider-settings');
 
   const apiKeys = clientsideApiKeys ? JSON.parse(clientsideApiKeys) : {};
-  const providerSettings = cliensideProviderSettings ? JSON.parse(cliensideProviderSettings) : [];
+  const providerSettings = cliensideProviderSettings ? JSON.parse(cliensideProviderSettings) : {};
 
   const { providers, defaultProvider } = getProviderInfo(llmManager);
 
-  const modelList = await llmManager.updateModelList({
-    apiKeys,
-    providerSettings,
-    serverEnv: import.meta.env,
-  });
+  let modelList: ModelInfo[] = [];
+
+  if (params.provider) {
+    // Only update models for the specific provider
+    const provider = llmManager.getProvider(params.provider);
+
+    if (provider) {
+      const staticModels = provider.staticModels;
+      const dynamicModels = provider.getDynamicModels
+        ? await provider.getDynamicModels(apiKeys, providerSettings, import.meta.env)
+        : [];
+      modelList = [...staticModels, ...dynamicModels];
+    }
+  } else {
+    // Update all models
+    modelList = await llmManager.updateModelList({
+      apiKeys,
+      providerSettings,
+      serverEnv: import.meta.env,
+    });
+  }
 
   return json<ModelsResponse>({
     modelList,
