@@ -36,45 +36,70 @@ type Artifacts = MapStore<Record<string, ArtifactState>>;
 
 export type WorkbenchViewType = 'code' | 'preview';
 
-interface GitHubPushProgress {
+export interface GitHubPushProgress {
   stage: 'preparing' | 'uploading' | 'committing';
   progress: number;
   details: string;
+  uploadedFiles?: number;
+  totalFiles?: number;
+  currentFile?: string;
+  error?: string;
+  icon?: 'spinner' | 'check' | 'warning' | 'error' | 'github';
+  subText?: string;
+  color?: 'default' | 'success' | 'warning' | 'error';
 }
 
 interface GitHubPushOptions {
   commitMessage?: string;
   branch?: string;
+  description?: string;
   onProgress?: (progress: GitHubPushProgress) => void;
+  concurrentUploads?: number;
+  chunkSize?: number;
 }
 
 const MAX_CHUNK_SIZE = 1024 * 1024; // 1MB chunk size
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
+const DEFAULT_CONCURRENT_UPLOADS = 3;
 
 async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function retryOperation<T>(
-  operation: () => Promise<T>,
-  retries = MAX_RETRIES,
-  delayMs = RETRY_DELAY,
-): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (retries > 0) {
-      await delay(delayMs);
-      return retryOperation(operation, retries - 1, delayMs * 2);
-    }
+async function retryOperation<T>(operation: () => Promise<T>, maxRetries = MAX_RETRIES): Promise<T> {
+  let lastError: Error | null = null;
 
-    throw error;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < maxRetries) {
+        const delayMs = RETRY_DELAY * Math.pow(2, attempt - 1);
+        await delay(delayMs);
+      }
+    }
   }
+  throw lastError;
 }
 
 function isGitHubError(error: unknown): error is GitHubError {
-  return error instanceof Error && 'status' in error && typeof (error as GitHubError).status === 'number';
+  return error instanceof Error && 'status' in error && typeof (error as any).status === 'number';
+}
+
+function shouldCompressContent(content: string): boolean {
+  return content.length > 100 * 1024; // Compress if larger than 100KB
+}
+
+async function compressContent(content: string): Promise<string> {
+  const textEncoder = new TextEncoder();
+  const compressed = await new Response(
+    new Blob([textEncoder.encode(content)]).stream().pipeThrough(new CompressionStream('gzip')),
+  ).blob();
+
+  return Buffer.from(await compressed.arrayBuffer()).toString('base64');
 }
 
 export class WorkbenchStore {
@@ -479,8 +504,17 @@ export class WorkbenchStore {
   }
 
   async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string, options: GitHubPushOptions = {}) {
-    const updateProgress = (progress: GitHubPushProgress) => {
-      options.onProgress?.(progress);
+    const { concurrentUploads = DEFAULT_CONCURRENT_UPLOADS, chunkSize = MAX_CHUNK_SIZE } = options;
+
+    const updateProgress = (progress: Partial<GitHubPushProgress>) => {
+      options.onProgress?.({
+        stage: 'preparing',
+        progress: 0,
+        details: '',
+        icon: 'spinner',
+        color: 'default',
+        ...progress,
+      });
     };
 
     try {
@@ -491,7 +525,13 @@ export class WorkbenchStore {
         throw new Error('GitHub token or username is not set in cookies or provided.');
       }
 
-      updateProgress({ stage: 'preparing', progress: 0, details: 'Initializing GitHub connection...' });
+      updateProgress({
+        stage: 'preparing',
+        progress: 0,
+        details: 'Initializing GitHub connection...',
+        icon: 'github',
+        subText: `Connecting to GitHub as ${owner}`,
+      });
 
       const octokit = new Octokit({
         auth: githubToken,
@@ -507,20 +547,46 @@ export class WorkbenchStore {
       try {
         const resp = await retryOperation(() => octokit.repos.get({ owner, repo: repoName }));
         repo = resp.data;
+        updateProgress({
+          details: 'Repository found',
+          subText: `Using existing repository: ${owner}/${repoName}`,
+          icon: 'check',
+          color: 'success',
+        });
       } catch (error: unknown) {
         if (error instanceof Error && 'status' in error && error.status === 404) {
+          updateProgress({
+            details: 'Creating new repository...',
+            subText: `Creating ${owner}/${repoName}`,
+            icon: 'spinner',
+          });
+
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
             private: false,
             auto_init: true,
+            description: options.description || 'Created by Bolt.diy',
           });
           repo = newRepo;
+
+          updateProgress({
+            details: 'Repository created successfully',
+            subText: `Created ${owner}/${repoName}`,
+            icon: 'check',
+            color: 'success',
+          });
         } else {
           throw new Error(`Failed to access repository: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      updateProgress({ stage: 'preparing', progress: 20, details: 'Processing files...' });
+      updateProgress({
+        stage: 'preparing',
+        progress: 20,
+        details: 'Processing files...',
+        icon: 'spinner',
+        subText: 'Analyzing project structure',
+      });
 
       // Get and validate files
       const files = this.files.get();
@@ -529,81 +595,170 @@ export class WorkbenchStore {
         throw new Error('No files found to push');
       }
 
-      // Create blobs in chunks
+      // Create blobs in parallel batches
       const fileEntries = Object.entries(files);
       const totalFiles = fileEntries.length;
       const blobs: { path: string; sha: string }[] = [];
+      let uploadedFiles = 0;
+      let totalSize = 0;
+      let compressedSize = 0;
 
-      for (let i = 0; i < fileEntries.length; i++) {
-        const [filePath, dirent] = fileEntries[i];
+      // Process files in batches
+      for (let i = 0; i < fileEntries.length; i += concurrentUploads) {
+        const batch = fileEntries.slice(i, i + concurrentUploads);
+        const batchPromises = batch.map(async ([filePath, dirent]) => {
+          if (dirent?.type === 'file' && dirent.content) {
+            try {
+              const content = dirent.content;
+              const relativePath = extractRelativePath(filePath);
 
-        if (dirent?.type === 'file' && dirent.content) {
-          try {
-            // Split large files into chunks if needed
-            const content = dirent.content;
+              updateProgress({
+                stage: 'uploading',
+                progress: 20 + (60 * uploadedFiles) / totalFiles,
+                details: `Uploading files to GitHub...`,
+                subText: `${uploadedFiles + 1}/${totalFiles}: ${relativePath}`,
+                uploadedFiles,
+                totalFiles,
+                currentFile: relativePath,
+                icon: 'spinner',
+              });
 
-            if (content.length > MAX_CHUNK_SIZE) {
-              const chunks = Math.ceil(content.length / MAX_CHUNK_SIZE);
+              let encodedContent: string;
 
-              for (let j = 0; j < chunks; j++) {
-                const chunk = content.slice(j * MAX_CHUNK_SIZE, (j + 1) * MAX_CHUNK_SIZE);
+              if (shouldCompressContent(content)) {
+                totalSize += content.length;
+                encodedContent = await compressContent(content);
+                compressedSize += encodedContent.length;
+                logStore.logSystem('Compressed file', {
+                  path: relativePath,
+                  originalSize: content.length,
+                  compressedSize: encodedContent.length,
+                });
+              } else {
+                encodedContent = Buffer.from(content).toString('base64');
+              }
+
+              if (encodedContent.length > chunkSize) {
+                // Handle large files
+                const chunks = Math.ceil(encodedContent.length / chunkSize);
+                const chunkBlobs = await Promise.all(
+                  Array.from({ length: chunks }, async (_, j) => {
+                    const chunk = encodedContent.slice(j * chunkSize, (j + 1) * chunkSize);
+                    const { data: blob } = await retryOperation(() =>
+                      octokit.git.createBlob({
+                        owner: repo.owner.login,
+                        repo: repo.name,
+                        content: chunk,
+                        encoding: 'base64',
+                      }),
+                    );
+
+                    return blob.sha;
+                  }),
+                );
+
+                // Combine chunks if needed
+                blobs.push({ path: relativePath, sha: chunkBlobs[0] });
+              } else {
                 const { data: blob } = await retryOperation(() =>
                   octokit.git.createBlob({
                     owner: repo.owner.login,
                     repo: repo.name,
-                    content: Buffer.from(chunk).toString('base64'),
+                    content: encodedContent,
                     encoding: 'base64',
                   }),
                 );
-                blobs.push({ path: extractRelativePath(filePath), sha: blob.sha });
+                blobs.push({ path: relativePath, sha: blob.sha });
               }
-            } else {
-              const { data: blob } = await retryOperation(() =>
-                octokit.git.createBlob({
-                  owner: repo.owner.login,
-                  repo: repo.name,
-                  content: Buffer.from(content).toString('base64'),
-                  encoding: 'base64',
-                }),
+            } catch (error) {
+              logStore.logError('Failed to create blob', {
+                path: filePath,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+              updateProgress({
+                icon: 'warning',
+                color: 'warning',
+                subText: `Failed to upload: ${filePath}`,
+              });
+              throw new Error(
+                `Failed to upload file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
               );
-              blobs.push({ path: extractRelativePath(filePath), sha: blob.sha });
             }
-          } catch (error: unknown) {
-            console.error(`Failed to create blob for ${filePath}:`, error);
-            throw new Error(
-              `Failed to upload file ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-            );
           }
-        }
 
-        updateProgress({
-          stage: 'uploading',
-          progress: 20 + 60 * (i / totalFiles),
-          details: `Uploading file ${i + 1} of ${totalFiles}...`,
+          uploadedFiles++;
         });
+
+        await Promise.all(batchPromises);
       }
 
       if (blobs.length === 0) {
         throw new Error('No valid files to push');
       }
 
-      updateProgress({ stage: 'committing', progress: 80, details: 'Creating commit...' });
+      if (totalSize > 0) {
+        const compressionRatio = (((totalSize - compressedSize) / totalSize) * 100).toFixed(2);
+        updateProgress({
+          icon: 'check',
+          color: 'success',
+          subText: `Compressed ${totalFiles} files (saved ${compressionRatio}%)`,
+        });
+      }
 
-      // Get the latest commit SHA
-      const { data: ref } = await retryOperation(() =>
-        octokit.git.getRef({
+      updateProgress({
+        stage: 'committing',
+        progress: 80,
+        details: 'Creating commit...',
+        subText: `Preparing changes for ${options.branch || repo.default_branch || 'main'}`,
+        icon: 'spinner',
+      });
+
+      // Get the latest commit SHA and tree
+      type GitRefResponse = RestEndpointMethodTypes['git']['getRef']['response'];
+      type GitCommitResponse = RestEndpointMethodTypes['git']['getCommit']['response'];
+
+      interface GitHubResponse<T> {
+        data: T;
+        status: number;
+      }
+
+      type RefData = GitRefResponse['data'];
+      type CommitData = GitCommitResponse['data'];
+
+      async function getRefSha(octokit: Octokit, owner: string, repoName: string, branch: string): Promise<string> {
+        const response = (await retryOperation(() =>
+          octokit.git.getRef({
+            owner,
+            repo: repoName,
+            ref: `heads/${branch}`,
+          }),
+        )) as GitHubResponse<RefData>;
+        return response.data.object.sha;
+      }
+
+      const refSha = await getRefSha(
+        octokit,
+        repo.owner.login,
+        repo.name,
+        options.branch || repo.default_branch || 'main',
+      );
+
+      const commitResponse = (await retryOperation(() =>
+        octokit.git.getCommit({
           owner: repo.owner.login,
           repo: repo.name,
-          ref: `heads/${options.branch || repo.default_branch || 'main'}`,
+          commit_sha: refSha,
         }),
-      );
+      )) as GitHubResponse<CommitData>;
+
+      const lastCommit = commitResponse.data;
 
       // Create a new tree
       const { data: newTree } = await retryOperation(() =>
         octokit.git.createTree({
           owner: repo.owner.login,
           repo: repo.name,
-          base_tree: ref.object.sha,
+          base_tree: lastCommit.tree.sha,
           tree: blobs.map((blob) => ({
             path: blob.path,
             mode: '100644',
@@ -620,7 +775,7 @@ export class WorkbenchStore {
           repo: repo.name,
           message: options.commitMessage || 'Update from Bolt.diy',
           tree: newTree.sha,
-          parents: [ref.object.sha],
+          parents: [lastCommit.sha],
         }),
       );
 
@@ -634,12 +789,27 @@ export class WorkbenchStore {
         }),
       );
 
-      updateProgress({ stage: 'committing', progress: 100, details: 'Push completed successfully!' });
+      updateProgress({
+        stage: 'committing',
+        progress: 100,
+        details: 'Push completed successfully!',
+        subText: `Files are now available on GitHub`,
+        icon: 'check',
+        color: 'success',
+      });
+
+      logStore.logSystem('GitHub push completed', {
+        repository: `${owner}/${repoName}`,
+        filesCount: blobs.length,
+        commitSha: newCommit.sha,
+        branch: options.branch || repo.default_branch || 'main',
+      });
 
       return {
         success: true,
         repoUrl: repo.html_url,
         commitSha: newCommit.sha,
+        branch: options.branch || repo.default_branch || 'main',
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -650,11 +820,62 @@ export class WorkbenchStore {
         statusCode,
       });
 
-      toast.error(
-        statusCode === 403
-          ? 'Failed to push to GitHub. Please check your permissions.'
-          : 'Failed to push to GitHub. Please try again.',
-      );
+      const userMessage = (() => {
+        if (statusCode === 403) {
+          return {
+            message: 'Failed to push to GitHub. Please check your permissions.',
+            subText: 'Repository access denied',
+            icon: 'error' as const,
+            color: 'error' as const,
+          };
+        }
+
+        if (statusCode === 404) {
+          return {
+            message: 'Repository not found. Please check the repository name.',
+            subText: 'Repository does not exist',
+            icon: 'error' as const,
+            color: 'error' as const,
+          };
+        }
+
+        if (statusCode === 401) {
+          return {
+            message: 'Authentication failed. Please check your GitHub token.',
+            subText: 'Invalid or expired token',
+            icon: 'error' as const,
+            color: 'error' as const,
+          };
+        }
+
+        if (statusCode === 422) {
+          return {
+            message: 'Invalid repository name or branch.',
+            subText: 'Please check your input',
+            icon: 'error' as const,
+            color: 'error' as const,
+          };
+        }
+
+        return {
+          message: 'Failed to push to GitHub. Please try again.',
+          subText: errorMessage,
+          icon: 'error' as const,
+          color: 'error' as const,
+        };
+      })();
+
+      updateProgress({
+        stage: 'preparing',
+        progress: 0,
+        details: userMessage.message,
+        subText: userMessage.subText,
+        icon: userMessage.icon,
+        color: userMessage.color,
+        error: errorMessage,
+      });
+
+      toast.error(userMessage.message);
       throw error;
     }
   }

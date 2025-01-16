@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import Cookies from 'js-cookie';
 import { logStore } from '~/lib/stores/logs';
 import { GitHubClient } from '~/lib/github/GitHubClient';
+import { Dialog, DialogTitle, DialogRoot } from '~/components/ui/Dialog';
 
 interface GitHubApiResponse {
   login: string;
@@ -40,9 +41,10 @@ interface Repository {
   html_url: string;
   private: boolean;
   fork: boolean;
+  archived: boolean;
   stargazers_count: number;
   updated_at: string;
-  language?: string;
+  language: string | null;
 }
 
 interface Branch {
@@ -53,12 +55,27 @@ interface Branch {
   };
   protected: boolean;
   default?: boolean;
+  isExpanded?: boolean;
+  files?: RepoFile[];
+  isLoadingFiles?: boolean;
+}
+
+interface RepoFile {
+  name: string;
+  path: string;
+  type: 'file' | 'dir';
+  size?: number;
+  url: string;
+  isExpanded?: boolean;
+  isLoading?: boolean;
+  files?: RepoFile[];
 }
 
 interface RepositoryState extends Repository {
   isExpanded?: boolean;
   isLoadingBranches?: boolean;
   branches?: Branch[];
+  archived: boolean;
 }
 
 interface GitHubAuthState {
@@ -73,6 +90,108 @@ interface GitHubAuthState {
   };
   repositories?: RepositoryState[];
   isLoadingRepos: boolean;
+}
+
+interface RepositoryAction {
+  name: string;
+  icon: string;
+  onClick: () => void;
+  color?: 'red' | 'yellow';
+}
+
+interface DeleteConfirmationDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  repositoryName: string;
+}
+
+function DeleteConfirmationDialog({ isOpen, onClose, onConfirm, repositoryName }: DeleteConfirmationDialogProps) {
+  return (
+    <DialogRoot open={isOpen} onOpenChange={onClose}>
+      <Dialog onClose={onClose}>
+        <div className="p-6">
+          <DialogTitle>
+            <div className="flex items-center gap-3">
+              <div className="i-ph:warning-circle-bold text-xl text-red-500" />
+              <span>Delete Repository</span>
+            </div>
+          </DialogTitle>
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-bolt-elements-textSecondary">
+              Are you sure you want to delete <span className="font-semibold">{repositoryName}</span>? This action
+              cannot be undone.
+            </p>
+            <p className="text-sm text-red-500">
+              All repository data, issues, pull requests, and settings will be permanently deleted.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-bolt-elements-textSecondary 
+                  hover:text-bolt-elements-textPrimary transition-colors rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 
+                  hover:bg-red-600 transition-colors rounded-lg"
+              >
+                Delete Repository
+              </button>
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    </DialogRoot>
+  );
+}
+
+function RepositoryMenu({ repo: _repo, actions }: { repo: Repository; actions: RepositoryAction[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-1.5 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary 
+          hover:bg-bolt-elements-background-depth-1 rounded-lg transition-colors"
+      >
+        <div className="i-ph:dots-three-vertical-bold text-lg" />
+      </button>
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div
+            className="absolute right-0 mt-1 w-48 bg-bolt-elements-background-depth-2 border 
+            border-bolt-elements-borderColor rounded-lg shadow-lg overflow-hidden z-20"
+          >
+            {actions.map((action) => (
+              <button
+                key={action.name}
+                onClick={() => {
+                  action.onClick();
+                  setIsOpen(false);
+                }}
+                className={`w-full px-4 py-2 text-sm flex items-center gap-2 hover:bg-bolt-elements-background-depth-1
+                  ${
+                    action.color === 'red'
+                      ? 'text-red-500 hover:bg-red-500/10'
+                      : action.color === 'yellow'
+                        ? 'text-yellow-500 hover:bg-yellow-500/10'
+                        : 'text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary'
+                  }`}
+              >
+                <div className={action.icon} />
+                {action.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 const REQUIRED_SCOPES = ['repo', 'user', 'read:org', 'workflow'];
@@ -112,15 +231,101 @@ export default function ConnectionsTab() {
     isLoadingRepos: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+
+  const loadRepositoriesAndBranches = async () => {
+    if (!authState.isConnected || !authState.tokenInfo) {
+      logStore.logSystem('Skipping repository load - not connected or no token');
+      return;
+    }
+
+    logStore.logSystem('Starting to load repositories', { username: authState.username });
+    setAuthState((prev) => ({ ...prev, isLoadingRepos: true }));
+
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo.token,
+        username: authState.username,
+      });
+
+      const repositories = await client.listRepositories();
+      logStore.logSystem('Repositories loaded', { count: repositories.length });
+
+      const reposWithBranches = await Promise.all(
+        repositories.map(async (repo) => {
+          try {
+            const [owner, repoName] = repo.full_name.split('/');
+            const branches = await client.listBranches(owner, repoName);
+
+            logStore.logSystem('Branches loaded', {
+              repoName: repo.full_name,
+              branchCount: branches.length,
+              defaultBranch: branches.find((b) => b.default)?.name,
+            });
+
+            return {
+              ...repo,
+              branches,
+              isExpanded: false,
+              isLoadingBranches: false,
+              archived: repo.archived || false,
+            } as RepositoryState;
+          } catch (error) {
+            logStore.logError('Failed to load branches', {
+              repoName: repo.full_name,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+
+            return {
+              ...repo,
+              branches: [],
+              isExpanded: false,
+              isLoadingBranches: false,
+              archived: repo.archived || false,
+            } as RepositoryState;
+          }
+        }),
+      );
+
+      logStore.logSystem('Setting repositories in state', { count: reposWithBranches.length });
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: reposWithBranches,
+        isLoadingRepos: false,
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to load repositories', { error: errorMessage });
+      toast.error('Failed to load repositories. Please try again.');
+      setAuthState((prev) => ({ ...prev, isLoadingRepos: false }));
+    }
+  };
 
   useEffect(() => {
     // Load token info from secure storage
     const storedToken = Cookies.get('githubToken');
+    logStore.logSystem('Initial load - checking for stored token', { hasToken: !!storedToken });
 
     if (storedToken) {
       verifyAndLoadTokenInfo(storedToken);
     }
   }, []);
+
+  // Load repositories when connected
+  useEffect(() => {
+    logStore.logSystem('Connection state changed', {
+      isConnected: authState.isConnected,
+      hasRepositories: !!authState.repositories,
+      username: authState.username,
+      hasToken: !!authState.tokenInfo?.token,
+    });
+
+    if (authState.isConnected && !authState.repositories) {
+      logStore.logSystem('Loading repositories due to connection state change');
+      loadRepositoriesAndBranches();
+    }
+  }, [authState.isConnected]);
 
   // Periodically check rate limits when connected
   useEffect(() => {
@@ -169,78 +374,8 @@ export default function ConnectionsTab() {
     return undefined;
   }, [authState.isConnected, authState.tokenInfo?.token]);
 
-  // Add new useEffect for loading repositories and their branches
-  useEffect(() => {
-    async function loadRepositoriesAndBranches() {
-      if (!authState.isConnected || !authState.tokenInfo) {
-        return;
-      }
-
-      setAuthState((prev) => ({ ...prev, isLoadingRepos: true }));
-
-      try {
-        const client = new GitHubClient({
-          token: authState.tokenInfo.token,
-          username: authState.username,
-        });
-
-        // First get repositories
-        const repositories = await client.listRepositories();
-
-        logStore.logSystem('Repositories loaded', { count: repositories.length });
-
-        // Then fetch branches for each repository
-        const reposWithBranches = await Promise.all(
-          repositories.map(async (repo) => {
-            try {
-              const [owner, repoName] = repo.full_name.split('/');
-              const branches = await client.listBranches(owner, repoName);
-
-              logStore.logSystem('Branches loaded', {
-                repoName: repo.full_name,
-                branchCount: branches.length,
-                defaultBranch: branches.find((b) => b.default)?.name,
-              });
-
-              return {
-                ...repo,
-                branches,
-                isExpanded: false,
-                isLoadingBranches: false,
-              };
-            } catch (error) {
-              logStore.logError('Failed to load branches', {
-                repoName: repo.full_name,
-                error: error instanceof Error ? error.message : 'Unknown error',
-              });
-
-              return {
-                ...repo,
-                branches: [],
-                isExpanded: false,
-                isLoadingBranches: false,
-              };
-            }
-          }),
-        );
-
-        setAuthState((prev) => ({
-          ...prev,
-          repositories: reposWithBranches,
-          isLoadingRepos: false,
-        }));
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        logStore.logError('Failed to load repositories', { error: errorMessage });
-        toast.error('Failed to load repositories. Please try again.');
-        setAuthState((prev) => ({ ...prev, isLoadingRepos: false }));
-      }
-    }
-
-    loadRepositoriesAndBranches();
-  }, [authState.isConnected, authState.tokenInfo]);
-
   const verifyAndLoadTokenInfo = async (token: string) => {
+    logStore.logSystem('Starting token verification', { username: authState.username });
     setAuthState((prev) => ({ ...prev, isVerifying: true }));
 
     try {
@@ -248,6 +383,7 @@ export default function ConnectionsTab() {
 
       // First validate basic authentication
       const isValid = await client.validateAuth();
+      logStore.logSystem('Token validation result', { isValid });
 
       if (!isValid) {
         throw new Error('Invalid GitHub credentials');
@@ -255,81 +391,21 @@ export default function ConnectionsTab() {
 
       // Get all scopes and user details
       const [scopes, userDetails] = await Promise.all([client.getScopes(), client.getUserDetails()]);
+      logStore.logSystem('Token verified successfully', {
+        username: userDetails.login,
+        scopesCount: scopes.length,
+        scopes,
+      });
 
-      // Validate required scopes
-      const missingScopes = REQUIRED_SCOPES.filter((scope) => !scopes.includes(scope));
-      const missingOptionalScopes = OPTIONAL_SCOPES.filter((scope) => !scopes.includes(scope));
-
-      // Specifically check organization access
-      if (scopes.includes('read:org')) {
-        const orgAccess = await client.validateOrganizationAccess();
-
-        if (!orgAccess.hasAccess) {
-          toast.warning(
-            <div>
-              <p className="font-bold mb-1">Organization Access Issue</p>
-              <p>{orgAccess.error}</p>
-              <div className="mt-2 p-3 bg-bolt-elements-background-depth-5 rounded-lg text-xs">
-                <p className="font-medium mb-1">How to fix:</p>
-                <div className="whitespace-pre-line">{orgAccess.details}</div>
-              </div>
-              <div className="mt-3 flex items-center space-x-3">
-                <a
-                  href="https://github.com/settings/organizations"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-3 py-1.5 text-xs text-bolt-elements-textLink hover:text-bolt-elements-textLinkHover bg-bolt-elements-background-depth-5 rounded-lg border border-bolt-elements-borderColor/20 transition-all duration-200 hover:scale-105"
-                >
-                  <div className="i-ph:buildings" />
-                  <span>Organization Settings</span>
-                </a>
-                <a
-                  href="https://docs.github.com/organizations/restricting-access-to-your-organizations-data/enabling-oauth-app-access-restrictions-for-your-organization"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-2 px-3 py-1.5 text-xs text-bolt-elements-textLink hover:text-bolt-elements-textLinkHover bg-bolt-elements-background-depth-5 rounded-lg border border-bolt-elements-borderColor/20 transition-all duration-200 hover:scale-105"
-                >
-                  <div className="i-ph:book" />
-                  <span>Learn More</span>
-                </a>
-              </div>
-            </div>,
-            {
-              autoClose: false,
-            },
-          );
-        }
-      }
-
-      if (missingScopes.length > 0) {
-        toast.warning(
-          <div>
-            <p className="font-bold mb-1">Missing required GitHub scopes:</p>
-            <ul className="list-disc pl-4">
-              {missingScopes.map((scope) => (
-                <li key={scope}>
-                  {scope} - {getScopeDescription(scope)}
-                </li>
-              ))}
-            </ul>
-          </div>,
-        );
-      }
-
-      if (missingOptionalScopes.length > 0) {
-        toast.info(
-          <div>
-            <p className="font-bold mb-1">Some optional scopes are not granted:</p>
-            <ul className="list-disc pl-4">
-              {missingOptionalScopes.map((scope) => (
-                <li key={scope}>
-                  {scope} - {getScopeDescription(scope)}
-                </li>
-              ))}
-            </ul>
-          </div>,
-        );
-      }
+      // Store token securely
+      Cookies.set('githubToken', token, {
+        secure: true,
+        sameSite: 'strict',
+      });
+      Cookies.set('githubUsername', userDetails.login, {
+        secure: true,
+        sameSite: 'strict',
+      });
 
       setAuthState((prev) => ({
         ...prev,
@@ -343,31 +419,14 @@ export default function ConnectionsTab() {
         isVerifying: false,
       }));
 
-      // Store token securely
-      Cookies.set('githubToken', token, {
-        secure: true,
-        sameSite: 'strict',
-        expires: 30, // 30 days
-      });
+      // Load repositories after successful authentication
+      logStore.logSystem('Loading repositories after successful authentication');
+      await loadRepositoriesAndBranches();
 
-      Cookies.set('githubUsername', userDetails.login);
-      Cookies.set(
-        'git:github.com',
-        JSON.stringify({
-          username: token,
-          password: 'x-oauth-basic',
-        }),
-      );
-
-      logStore.logSystem('GitHub connection verified', {
-        username: userDetails.login,
-        scopes,
-        hasToken: true,
-      });
+      toast.success('GitHub connection verified successfully!');
     } catch (error) {
-      console.error('Failed to verify GitHub token:', error);
-
       const errorMessage = error instanceof Error ? error.message : 'Failed to verify GitHub token';
+      logStore.logError('Failed to verify GitHub token', { error: errorMessage });
       toast.error(errorMessage);
       setAuthState((prev) => ({ ...prev, isVerifying: false }));
     }
@@ -440,28 +499,645 @@ export default function ConnectionsTab() {
     return descriptions[scope] || scope;
   };
 
-  const handleRepositoryClick = (repo: RepositoryState) => {
-    if (!authState.tokenInfo) {
-      toast.error('Not connected to GitHub');
+  const handleDeleteRepository = async (repo: Repository) => {
+    if (!authState.tokenInfo?.scopes.includes('delete_repo')) {
+      toast.error('Missing required permission: delete_repo. Please update your token permissions.');
       return;
     }
 
-    setAuthState((prev) => ({
-      ...prev,
-      repositories: prev.repositories?.map((r) =>
-        r.id === repo.id
-          ? {
-              ...r,
-              isExpanded: !r.isExpanded,
-            }
-          : r,
-      ),
-    }));
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
 
-    logStore.logSystem(repo.isExpanded ? 'Repository collapsed' : 'Repository expanded', {
-      repoName: repo.full_name,
-      branchCount: repo.branches?.length ?? 0,
-    });
+      logStore.logSystem('Deleting repository', { repoName: repo.full_name });
+      await client.deleteRepository(repo.full_name);
+
+      toast.success(`Repository ${repo.name} deleted successfully`);
+
+      // First remove from local state for immediate feedback
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.filter((r) => r.id !== repo.id),
+      }));
+
+      // Then refresh from API
+      await loadRepositoriesAndBranches();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to delete repository', {
+        repoName: repo.full_name,
+        error: errorMessage,
+      });
+
+      if (errorMessage.includes('403')) {
+        toast.error('Permission denied. Please check your token has the delete_repo scope.');
+      } else {
+        toast.error(`Failed to delete repository: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleRenameRepository = async (repo: Repository, newName: string) => {
+    if (!authState.tokenInfo?.scopes.includes('repo')) {
+      toast.error('Missing required permission: repo. Please update your token permissions.');
+      return;
+    }
+
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      logStore.logSystem('Renaming repository', {
+        repoName: repo.full_name,
+        newName,
+      });
+
+      await client.updateRepository(repo.full_name, { name: newName });
+      toast.success(`Repository renamed to ${newName}`);
+
+      // First update local state for immediate feedback
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                name: newName,
+                full_name: `${authState.username}/${newName}`,
+                html_url: repo.html_url.replace(repo.name, newName),
+              }
+            : r,
+        ),
+      }));
+
+      // Wait for GitHub to process the change before refreshing
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Then refresh from API
+      await loadRepositoriesAndBranches();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to rename repository', {
+        repoName: repo.full_name,
+        newName,
+        error: errorMessage,
+      });
+
+      if (errorMessage.includes('403')) {
+        toast.error('Permission denied. Please check your token has the repo scope.');
+      } else {
+        toast.error(`Failed to rename repository: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleUpdateRepository = async (
+    repo: Repository,
+    data: {
+      name?: string;
+      description?: string;
+      private?: boolean;
+      archived?: boolean;
+    },
+  ) => {
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      logStore.logSystem('Updating repository', {
+        repoName: repo.full_name,
+        updates: data,
+      });
+
+      await client.updateRepository(repo.full_name, data);
+      toast.success('Repository updated successfully');
+
+      // First update local state for immediate feedback
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) => (r.id === repo.id ? { ...r, ...data } : r)),
+      }));
+
+      // Then refresh from API
+      await loadRepositoriesAndBranches();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to update repository', {
+        repoName: repo.full_name,
+        updates: data,
+        error: errorMessage,
+      });
+      toast.error(`Failed to update repository: ${errorMessage}`);
+    }
+  };
+
+  const handleTransferRepository = async (repo: Repository, newOwner: string) => {
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      logStore.logSystem('Transferring repository', {
+        repoName: repo.full_name,
+        newOwner,
+      });
+
+      await client.transferRepository(repo.full_name, newOwner);
+      toast.success(`Repository transfer to ${newOwner} initiated`);
+
+      // First remove from local state for immediate feedback
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.filter((r) => r.id !== repo.id),
+      }));
+
+      // Then refresh from API
+      await loadRepositoriesAndBranches();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to transfer repository', {
+        repoName: repo.full_name,
+        newOwner,
+        error: errorMessage,
+      });
+      toast.error(`Failed to transfer repository: ${errorMessage}`);
+    }
+  };
+
+  const getRepositoryActions = (repo: Repository): RepositoryAction[] => [
+    {
+      name: 'View on GitHub',
+      icon: 'i-ph:arrow-square-out-bold',
+      onClick: () => window.open(repo.html_url, '_blank'),
+    },
+    {
+      name: 'Copy Clone URL',
+      icon: 'i-ph:copy-bold',
+      onClick: () => {
+        navigator.clipboard.writeText(repo.html_url);
+        toast.success('Clone URL copied to clipboard');
+      },
+    },
+    {
+      name: 'Rename',
+      icon: 'i-ph:pencil-simple-bold',
+      onClick: () => {
+        const newName = prompt('Enter new repository name:', repo.name);
+
+        if (newName && newName !== repo.name) {
+          handleRenameRepository(repo, newName);
+        }
+      },
+    },
+    {
+      name: repo.private ? 'Make Public' : 'Make Private',
+      icon: repo.private ? 'i-ph:lock-open-bold' : 'i-ph:lock-bold',
+      onClick: () => {
+        const action = repo.private ? 'public' : 'private';
+
+        if (confirm(`Are you sure you want to make this repository ${action}?`)) {
+          handleUpdateRepository(repo, { private: !repo.private });
+        }
+      },
+      color: repo.private ? undefined : 'yellow',
+    },
+    {
+      name: 'Transfer Ownership',
+      icon: 'i-ph:user-switch-bold',
+      onClick: () => {
+        const newOwner = prompt('Enter the new owner username:');
+
+        if (newOwner && confirm(`Are you sure you want to transfer this repository to ${newOwner}?`)) {
+          handleTransferRepository(repo, newOwner);
+        }
+      },
+      color: 'yellow',
+    },
+    {
+      name: repo.archived ? 'Unarchive' : 'Archive',
+      icon: 'i-ph:archive-bold',
+      onClick: () => {
+        const action = repo.archived ? 'unarchive' : 'archive';
+
+        if (
+          confirm(
+            `Are you sure you want to ${action} this repository? ${!repo.archived ? 'It will become read-only.' : ''}`,
+          )
+        ) {
+          handleUpdateRepository(repo, { archived: !repo.archived });
+        }
+      },
+      color: 'yellow',
+    },
+    {
+      name: 'Delete',
+      icon: 'i-ph:trash-bold',
+      onClick: () => {
+        setSelectedRepo(repo);
+        setShowDeleteConfirmation(true);
+      },
+      color: 'red',
+    },
+  ];
+
+  const handleLoadBranchFiles = async (repo: Repository, branch: Branch) => {
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      // Set loading state
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) => (b.name === branch.name ? { ...b, isLoadingFiles: true } : b)),
+              }
+            : r,
+        ),
+      }));
+
+      const [owner, repoName] = repo.full_name.split('/');
+      const files = await client.getRepositoryContents(owner, repoName, branch.name);
+
+      // Update state with files
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) =>
+                  b.name === branch.name
+                    ? {
+                        ...b,
+                        files: files.map((f) => ({
+                          ...f,
+                          url: f.html_url,
+                        })),
+                        isLoadingFiles: false,
+                        isExpanded: true,
+                      }
+                    : b,
+                ),
+              }
+            : r,
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to load branch files', {
+        repoName: repo.full_name,
+        branch: branch.name,
+        error: errorMessage,
+      });
+      toast.error(`Failed to load files: ${errorMessage}`);
+
+      // Reset loading state on error
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) => (b.name === branch.name ? { ...b, isLoadingFiles: false } : b)),
+              }
+            : r,
+        ),
+      }));
+    }
+  };
+
+  const handleLoadFolderContents = async (repo: Repository, branch: Branch, folder: RepoFile) => {
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      // Set loading state for the folder
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) =>
+                  b.name === branch.name
+                    ? {
+                        ...b,
+                        files: b.files?.map((f) => (f.path === folder.path ? { ...f, isLoading: true } : f)),
+                      }
+                    : b,
+                ),
+              }
+            : r,
+        ),
+      }));
+
+      const [owner, repoName] = repo.full_name.split('/');
+      const contents = await client.getRepositoryContents(owner, repoName, branch.name, folder.path);
+
+      // Map API response to RepoFile type
+      const files: RepoFile[] = contents.map((file) => ({
+        name: file.name,
+        path: file.path,
+        type: file.type,
+        size: file.size,
+        url: file.html_url,
+      }));
+
+      // Update state with folder contents
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) =>
+                  b.name === branch.name
+                    ? {
+                        ...b,
+                        files: b.files?.map((f) =>
+                          f.path === folder.path
+                            ? {
+                                ...f,
+                                files,
+                                isLoading: false,
+                                isExpanded: true,
+                              }
+                            : f,
+                        ),
+                      }
+                    : b,
+                ),
+              }
+            : r,
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logStore.logError('Failed to load folder contents', {
+        repoName: repo.full_name,
+        branch: branch.name,
+        folder: folder.path,
+        error: errorMessage,
+      });
+      toast.error(`Failed to load folder contents: ${errorMessage}`);
+
+      // Reset loading state on error
+      setAuthState((prev) => ({
+        ...prev,
+        repositories: prev.repositories?.map((r) =>
+          r.id === repo.id
+            ? {
+                ...r,
+                branches: r.branches?.map((b) =>
+                  b.name === branch.name
+                    ? {
+                        ...b,
+                        files: b.files?.map((f) => (f.path === folder.path ? { ...f, isLoading: false } : f)),
+                      }
+                    : b,
+                ),
+              }
+            : r,
+        ),
+      }));
+    }
+  };
+
+  const handleCreateFile = async (repo: Repository, branch: Branch, path: string = '') => {
+    const fileName = prompt('Enter file name:');
+
+    if (!fileName) {
+      return;
+    }
+
+    // Show a more user-friendly textarea for content
+    const contentDialog = document.createElement('dialog');
+    contentDialog.innerHTML = `
+      <div class="p-4 bg-bolt-elements-background-depth-1 rounded-lg">
+        <h3 class="text-lg font-medium mb-2">Enter file content</h3>
+        <textarea 
+          id="file-content" 
+          class="w-full h-64 p-2 bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-lg text-sm font-mono"
+          placeholder="Enter file content here..."
+        ></textarea>
+        <div class="flex justify-end mt-4 space-x-2">
+          <button id="cancel-btn" class="px-4 py-2 text-sm text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary">Cancel</button>
+          <button id="save-btn" class="px-4 py-2 text-sm bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text rounded-lg">Save</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(contentDialog);
+    contentDialog.showModal();
+
+    const saveContent = () =>
+      new Promise<string>((resolve, reject) => {
+        const saveBtn = contentDialog.querySelector('#save-btn');
+        const cancelBtn = contentDialog.querySelector('#cancel-btn');
+        const textarea = contentDialog.querySelector('#file-content') as HTMLTextAreaElement;
+
+        saveBtn?.addEventListener('click', () => {
+          contentDialog.close();
+          resolve(textarea.value);
+        });
+
+        cancelBtn?.addEventListener('click', () => {
+          contentDialog.close();
+          reject(new Error('Cancelled'));
+        });
+      });
+
+    try {
+      const content = await saveContent();
+      const fullPath = path ? `${path}/${fileName}` : fileName;
+
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      const [owner, repoName] = repo.full_name.split('/');
+      await client.createOrUpdateFile(owner, repoName, fullPath, content, `Create ${fullPath}`, branch.name);
+
+      toast.success('File created successfully');
+
+      // Refresh the current folder contents
+      if (path) {
+        const folder = branch.files?.find((f) => f.path === path);
+
+        if (folder) {
+          await handleLoadFolderContents(repo, branch, folder);
+        }
+      } else {
+        await handleLoadBranchFiles(repo, branch);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Cancelled') {
+        return;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to create file: ${errorMessage}`);
+    } finally {
+      contentDialog.remove();
+    }
+  };
+
+  const handleCreateFolder = async (repo: Repository, branch: Branch, path: string = '') => {
+    const folderName = prompt('Enter folder name:');
+
+    if (!folderName) {
+      return;
+    }
+
+    // Clean up folder name and path
+    const cleanFolderName = folderName.replace(/[^a-zA-Z0-9-_./]/g, '-').replace(/^\/+|\/+$/g, '');
+    const fullPath = path ? `${path}/${cleanFolderName}` : cleanFolderName;
+
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      const [owner, repoName] = repo.full_name.split('/');
+
+      // Create a README.md in the folder instead of .gitkeep
+      const readmeContent = `# ${cleanFolderName}\n\nFolder created via Bolt.diy`;
+      await client.createOrUpdateFile(
+        owner,
+        repoName,
+        `${fullPath}/README.md`,
+        readmeContent,
+        `Create folder ${fullPath}`,
+        branch.name,
+      );
+
+      toast.success('Folder created successfully');
+
+      // Refresh the current folder contents
+      if (path) {
+        const folder = branch.files?.find((f) => f.path === path);
+
+        if (folder) {
+          await handleLoadFolderContents(repo, branch, folder);
+        }
+      } else {
+        await handleLoadBranchFiles(repo, branch);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to create folder: ${errorMessage}`);
+    }
+  };
+
+  const handleDeleteFile = async (repo: Repository, branch: Branch, file: RepoFile) => {
+    if (!confirm(`Are you sure you want to delete ${file.name}?`)) {
+      return;
+    }
+
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      const [owner, repoName] = repo.full_name.split('/');
+
+      // Get file SHA first
+      const sha = await client.getFileSha(owner, repoName, file.path, branch.name);
+
+      if (!sha) {
+        throw new Error('Could not get file SHA');
+      }
+
+      await client.deleteFile(owner, repoName, file.path, `Delete ${file.path}`, branch.name, sha);
+
+      toast.success('File deleted successfully');
+
+      // Refresh the parent folder contents
+      const parentPath = file.path.split('/').slice(0, -1).join('/');
+
+      if (parentPath) {
+        const parentFolder = branch.files?.find((f) => f.path === parentPath);
+
+        if (parentFolder) {
+          await handleLoadFolderContents(repo, branch, parentFolder);
+        }
+      } else {
+        await handleLoadBranchFiles(repo, branch);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to delete file: ${errorMessage}`);
+    }
+  };
+
+  const handleRenameFile = async (repo: Repository, branch: Branch, file: RepoFile) => {
+    const newName = prompt('Enter new name:', file.name);
+
+    if (!newName || newName === file.name) {
+      return;
+    }
+
+    try {
+      const client = new GitHubClient({
+        token: authState.tokenInfo?.token || '',
+        username: authState.username,
+      });
+
+      const [owner, repoName] = repo.full_name.split('/');
+
+      // Get current file content and SHA
+      const { content, sha } = (await client.getFileContents(owner, repoName, file.path, branch.name)) || {};
+
+      if (!content || !sha) {
+        throw new Error('Could not get file content');
+      }
+
+      const parentPath = file.path.split('/').slice(0, -1).join('/');
+      const newPath = parentPath ? `${parentPath}/${newName}` : newName;
+
+      await client.renameFile(
+        owner,
+        repoName,
+        file.path,
+        newPath,
+        content,
+        `Rename ${file.path} to ${newPath}`,
+        branch.name,
+        sha,
+      );
+
+      toast.success('File renamed successfully');
+
+      // Refresh the parent folder contents
+      if (parentPath) {
+        const parentFolder = branch.files?.find((f) => f.path === parentPath);
+
+        if (parentFolder) {
+          await handleLoadFolderContents(repo, branch, parentFolder);
+        }
+      } else {
+        await handleLoadBranchFiles(repo, branch);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to rename file: ${errorMessage}`);
+    }
   };
 
   return (
@@ -761,148 +1437,340 @@ export default function ConnectionsTab() {
             ) : authState.repositories && authState.repositories.length > 0 ? (
               <div className="space-y-3">
                 {authState.repositories.map((repo) => (
-                  <div key={repo.id}>
-                    <div
-                      onClick={() => handleRepositoryClick(repo)}
-                      className="group p-4 rounded-lg bg-gradient-to-br from-bolt-elements-background-depth-1 to-bolt-elements-background-depth-2 border border-bolt-elements-borderColor/20 hover:from-bolt-elements-background-depth-2 hover:to-bolt-elements-background-depth-3 transition-all duration-200 cursor-pointer hover:shadow-lg"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <div className="i-ph:repo-fill text-bolt-elements-textTertiary group-hover:text-bolt-elements-textSecondary transition-colors duration-200" />
-                            <a
-                              href={repo.html_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-sm font-medium text-bolt-elements-textLink hover:text-bolt-elements-textLinkHover truncate transition-colors duration-200"
-                            >
-                              {repo.full_name}
-                            </a>
-                            {repo.private && (
-                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor/20 text-bolt-elements-textTertiary">
-                                Private
-                              </span>
-                            )}
+                  <div
+                    key={repo.id}
+                    className={`relative group p-4 rounded-lg border border-bolt-elements-borderColor/20 
+                      ${repo.archived ? 'bg-bolt-elements-background-depth-1 opacity-75' : 'bg-bolt-elements-background-depth-2'} 
+                      hover:bg-bolt-elements-background-depth-3 transition-all duration-200`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              setAuthState((prev) => ({
+                                ...prev,
+                                repositories: prev.repositories?.map((r) =>
+                                  r.id === repo.id ? { ...r, isExpanded: !r.isExpanded } : r,
+                                ),
+                              }));
+                            }}
+                            className="inline-flex items-center text-bolt-elements-textLink hover:text-bolt-elements-textLinkHover font-medium truncate"
+                          >
                             <div
-                              className={`i-ph:caret-down transition-transform duration-300 ease-in-out ${
-                                repo.isExpanded ? 'rotate-180' : ''
-                              } ${repo.isLoadingBranches ? 'opacity-0' : 'opacity-100'}`}
+                              className={`i-ph:caret-right transform transition-transform ${repo.isExpanded ? 'rotate-90' : ''} mr-1`}
                             />
-                            {repo.isLoadingBranches && (
-                              <div className="i-ph:spinner animate-spin text-bolt-elements-textTertiary" />
-                            )}
-                          </div>
-                          {repo.description && (
-                            <p className="mt-1 text-sm text-bolt-elements-textSecondary line-clamp-2 group-hover:text-bolt-elements-textPrimary transition-colors duration-200">
-                              {repo.description}
-                            </p>
+                            {repo.name}
+                          </button>
+                          {repo.private && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-bolt-elements-background-depth-4 text-bolt-elements-textTertiary">
+                              <div className="i-ph:lock-simple-fill mr-1" />
+                              Private
+                            </span>
                           )}
-                          <div className="mt-2 flex items-center space-x-4 text-xs text-bolt-elements-textTertiary">
-                            {repo.language && (
-                              <div className="flex items-center space-x-1">
-                                <div className="w-2 h-2 rounded-full bg-bolt-elements-textTertiary" />
-                                <span>{repo.language}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center space-x-1">
-                              <div className="i-ph:star" />
-                              <span>{repo.stargazers_count}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <div className="i-ph:clock" />
-                              <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
-                            </div>
-                          </div>
+                          {repo.archived && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-bolt-elements-background-depth-4 text-bolt-elements-textTertiary">
+                              <div className="i-ph:archive-fill mr-1" />
+                              Archived
+                            </span>
+                          )}
+                          {repo.fork && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-bolt-elements-background-depth-4 text-bolt-elements-textTertiary">
+                              <div className="i-ph:git-fork-fill mr-1" />
+                              Fork
+                            </span>
+                          )}
+                        </div>
+                        {repo.description && (
+                          <p className="mt-1 text-sm text-bolt-elements-textSecondary line-clamp-2">
+                            {repo.description}
+                          </p>
+                        )}
+                        <div className="mt-2 flex items-center space-x-4 text-sm text-bolt-elements-textTertiary">
+                          {repo.language && (
+                            <span className="inline-flex items-center">
+                              <span className="w-2 h-2 rounded-full bg-bolt-elements-textTertiary mr-1.5" />
+                              {repo.language}
+                            </span>
+                          )}
+                          {repo.stargazers_count > 0 && (
+                            <span className="inline-flex items-center">
+                              <div className="i-ph:star-fill mr-1" />
+                              {repo.stargazers_count}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center">
+                            <div className="i-ph:clock-clockwise mr-1" />
+                            Updated {new Date(repo.updated_at).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
+                      <RepositoryMenu repo={repo} actions={getRepositoryActions(repo)} />
                     </div>
 
-                    {/* Branches Section */}
+                    {/* Branch List */}
                     {repo.isExpanded && (
-                      <div className="mt-2 ml-6 pl-4 border-l-2 border-bolt-elements-borderColor/20">
-                        {repo.isLoadingBranches ? (
-                          <div className="flex items-center justify-center space-x-2 py-4 text-sm text-bolt-elements-textTertiary">
-                            <div className="i-ph:spinner animate-spin" />
-                            <span>Loading branches...</span>
-                          </div>
-                        ) : repo.branches && repo.branches.length > 0 ? (
-                          <div className="py-2 space-y-2">
-                            {/* Default branch first, then other branches */}
-                            {repo.branches
-                              .sort((a, b) => {
-                                if (a.default) {
-                                  return -1;
-                                }
-
-                                if (b.default) {
-                                  return 1;
-                                }
-
-                                return a.name.localeCompare(b.name);
-                              })
-                              .map((branch) => (
-                                <div
-                                  key={branch.name}
-                                  className={`group flex items-center justify-between p-2 rounded-lg transition-all duration-200 hover:shadow-md ${
-                                    branch.default
-                                      ? 'bg-green-500/5 hover:bg-green-500/10 border border-green-500/20'
-                                      : 'bg-gradient-to-br from-bolt-elements-background-depth-1 to-bolt-elements-background-depth-2 hover:from-bolt-elements-background-depth-2 hover:to-bolt-elements-background-depth-3'
-                                  }`}
-                                >
-                                  <div className="flex items-center min-w-0">
+                      <div className="mt-4 pl-6 border-l-2 border-bolt-elements-borderColor/20">
+                        <div className="space-y-2">
+                          {repo.branches?.map((branch) => (
+                            <div
+                              key={branch.name}
+                              className={`flex flex-col p-2 rounded-lg ${
+                                branch.default
+                                  ? 'bg-green-500/5 border border-green-500/20'
+                                  : 'bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor/20'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      if (!branch.files && !branch.isLoadingFiles) {
+                                        handleLoadBranchFiles(repo, branch);
+                                      } else {
+                                        setAuthState((prev) => ({
+                                          ...prev,
+                                          repositories: prev.repositories?.map((r) =>
+                                            r.id === repo.id
+                                              ? {
+                                                  ...r,
+                                                  branches: r.branches?.map((b) =>
+                                                    b.name === branch.name ? { ...b, isExpanded: !b.isExpanded } : b,
+                                                  ),
+                                                }
+                                              : r,
+                                          ),
+                                        }));
+                                      }
+                                    }}
+                                    className="flex items-center space-x-2 hover:text-bolt-elements-textPrimary transition-colors"
+                                  >
                                     <div
-                                      className={`i-ph:git-branch ${
-                                        branch.default ? 'text-green-500' : 'text-bolt-elements-textTertiary'
-                                      } group-hover:text-bolt-elements-textSecondary transition-colors duration-200`}
+                                      className={`i-ph:caret-right transform transition-transform ${branch.isExpanded ? 'rotate-90' : ''}`}
                                     />
-                                    <span className="ml-2 text-sm text-bolt-elements-textSecondary group-hover:text-bolt-elements-textPrimary transition-colors duration-200 truncate">
+                                    <div className="i-ph:git-branch text-bolt-elements-textTertiary" />
+                                    <span
+                                      className={`text-sm ${branch.default ? 'text-green-600 dark:text-green-400 font-medium' : 'text-bolt-elements-textSecondary'}`}
+                                    >
                                       {branch.name}
                                     </span>
-                                    {branch.default && (
-                                      <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400">
-                                        default
-                                      </span>
-                                    )}
-                                    {branch.protected && (
-                                      <div
-                                        className="ml-2 i-ph:shield-check text-bolt-elements-textTertiary group-hover:text-bolt-elements-textSecondary transition-colors duration-200"
-                                        title="Protected branch"
-                                      />
-                                    )}
-                                  </div>
-                                  <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                    <a
-                                      href={`${repo.html_url}/tree/${branch.name}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 rounded-lg text-bolt-elements-textLink hover:text-bolt-elements-textLinkHover hover:bg-bolt-elements-background-depth-3 transition-all duration-200"
-                                      title="View branch on GitHub"
-                                    >
-                                      <div className="i-ph:arrow-square-out" />
-                                    </a>
+                                  </button>
+                                  {branch.protected && (
+                                    <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-bolt-elements-background-depth-4 text-bolt-elements-textTertiary">
+                                      <div className="i-ph:shield-check-fill mr-1" />
+                                      Protected
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(branch.commit.sha);
+                                      toast.success('Commit SHA copied to clipboard');
+                                    }}
+                                    className="p-1.5 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                    title="Copy commit SHA"
+                                  >
+                                    <div className="i-ph:copy" />
+                                  </button>
+                                  <a
+                                    href={`${repo.html_url}/tree/${branch.name}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                    title="View branch on GitHub"
+                                  >
+                                    <div className="i-ph:arrow-square-out" />
+                                  </a>
+                                </div>
+                              </div>
+
+                              {/* Files List */}
+                              {branch.isLoadingFiles && (
+                                <div className="mt-2 pl-8 py-2">
+                                  <div className="animate-spin i-ph:spinner text-bolt-elements-textTertiary" />
+                                </div>
+                              )}
+                              {branch.isExpanded && branch.files && (
+                                <div className="mt-2 pl-8 space-y-1">
+                                  <div className="flex items-center space-x-2 mb-2">
                                     <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(branch.commit.sha);
-                                        toast.success(`Copied ${branch.name} commit SHA`);
-                                      }}
-                                      className="p-1 rounded-lg text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-3 transition-all duration-200"
-                                      title="Copy commit SHA"
+                                      onClick={() => handleCreateFile(repo, branch)}
+                                      className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary bg-bolt-elements-background-depth-1 rounded-lg transition-colors"
                                     >
-                                      <div className="i-ph:copy" />
+                                      <div className="i-ph:plus-circle" />
+                                      <span>New File</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleCreateFolder(repo, branch)}
+                                      className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary bg-bolt-elements-background-depth-1 rounded-lg transition-colors"
+                                    >
+                                      <div className="i-ph:folder-plus" />
+                                      <span>New Folder</span>
                                     </button>
                                   </div>
+                                  {branch.files.map((file) => (
+                                    <div key={file.path}>
+                                      <div className="flex items-center justify-between py-1">
+                                        <div className="flex items-center space-x-2">
+                                          {file.type === 'dir' ? (
+                                            <button
+                                              onClick={() => {
+                                                if (!file.files && !file.isLoading) {
+                                                  handleLoadFolderContents(repo, branch, file);
+                                                } else {
+                                                  setAuthState((prev) => ({
+                                                    ...prev,
+                                                    repositories: prev.repositories?.map((r) =>
+                                                      r.id === repo.id
+                                                        ? {
+                                                            ...r,
+                                                            branches: r.branches?.map((b) =>
+                                                              b.name === branch.name
+                                                                ? {
+                                                                    ...b,
+                                                                    files: b.files?.map((f) =>
+                                                                      f.path === file.path
+                                                                        ? { ...f, isExpanded: !f.isExpanded }
+                                                                        : f,
+                                                                    ),
+                                                                  }
+                                                                : b,
+                                                            ),
+                                                          }
+                                                        : r,
+                                                    ),
+                                                  }));
+                                                }
+                                              }}
+                                              className="flex items-center space-x-2 hover:text-bolt-elements-textPrimary transition-colors"
+                                            >
+                                              <div
+                                                className={`i-ph:caret-right transform transition-transform ${file.isExpanded ? 'rotate-90' : ''}`}
+                                              />
+                                              <div className="i-ph:folder-fill" />
+                                              <span className="text-sm text-bolt-elements-textSecondary">
+                                                {file.name}
+                                              </span>
+                                            </button>
+                                          ) : (
+                                            <>
+                                              <div className="i-ph:file-fill" />
+                                              <span className="text-sm text-bolt-elements-textSecondary">
+                                                {file.name}
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          {file.type === 'file' && file.size && (
+                                            <span className="text-xs text-bolt-elements-textTertiary">
+                                              {(file.size / 1024).toFixed(1)} KB
+                                            </span>
+                                          )}
+                                          <button
+                                            onClick={() => handleRenameFile(repo, branch, file)}
+                                            className="p-1 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                            title="Rename"
+                                          >
+                                            <div className="i-ph:pencil-simple" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteFile(repo, branch, file)}
+                                            className="p-1 text-bolt-elements-textTertiary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            title="Delete"
+                                          >
+                                            <div className="i-ph:trash" />
+                                          </button>
+                                          <a
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                          >
+                                            <div className="i-ph:arrow-square-out" />
+                                          </a>
+                                        </div>
+                                      </div>
+                                      {/* Nested files */}
+                                      {file.type === 'dir' && file.isLoading && (
+                                        <div className="mt-1 ml-8 py-2">
+                                          <div className="animate-spin i-ph:spinner text-bolt-elements-textTertiary" />
+                                        </div>
+                                      )}
+                                      {file.type === 'dir' && file.isExpanded && file.files && (
+                                        <div className="mt-1 ml-8 space-y-1">
+                                          <div className="flex items-center space-x-2 mb-2">
+                                            <button
+                                              onClick={() => handleCreateFile(repo, branch, file.path)}
+                                              className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary bg-bolt-elements-background-depth-1 rounded-lg transition-colors"
+                                            >
+                                              <div className="i-ph:plus-circle" />
+                                              <span>New File</span>
+                                            </button>
+                                            <button
+                                              onClick={() => handleCreateFolder(repo, branch, file.path)}
+                                              className="inline-flex items-center space-x-1 px-2 py-1 text-xs text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary bg-bolt-elements-background-depth-1 rounded-lg transition-colors"
+                                            >
+                                              <div className="i-ph:folder-plus" />
+                                              <span>New Folder</span>
+                                            </button>
+                                          </div>
+                                          {file.files.map((nestedFile) => (
+                                            <div
+                                              key={nestedFile.path}
+                                              className="flex items-center justify-between py-1"
+                                            >
+                                              <div className="flex items-center space-x-2">
+                                                <div
+                                                  className={
+                                                    nestedFile.type === 'dir' ? 'i-ph:folder-fill' : 'i-ph:file-fill'
+                                                  }
+                                                />
+                                                <span className="text-sm text-bolt-elements-textSecondary">
+                                                  {nestedFile.name}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center space-x-2">
+                                                {nestedFile.type === 'file' && nestedFile.size && (
+                                                  <span className="text-xs text-bolt-elements-textTertiary">
+                                                    {(nestedFile.size / 1024).toFixed(1)} KB
+                                                  </span>
+                                                )}
+                                                <button
+                                                  onClick={() => handleRenameFile(repo, branch, nestedFile)}
+                                                  className="p-1 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                                  title="Rename"
+                                                >
+                                                  <div className="i-ph:pencil-simple" />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteFile(repo, branch, nestedFile)}
+                                                  className="p-1 text-bolt-elements-textTertiary hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                  title="Delete"
+                                                >
+                                                  <div className="i-ph:trash" />
+                                                </button>
+                                                <a
+                                                  href={nestedFile.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="p-1 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 rounded-lg transition-colors"
+                                                >
+                                                  <div className="i-ph:arrow-square-out" />
+                                                </a>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-6 text-sm text-bolt-elements-textTertiary">
-                            <div className="i-ph:git-branch text-2xl mb-2" />
-                            <p>No branches found</p>
-                          </div>
-                        )}
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1056,6 +1924,22 @@ export default function ConnectionsTab() {
           </div>
         </form>
       </div>
+
+      {showDeleteConfirmation && selectedRepo && (
+        <DeleteConfirmationDialog
+          isOpen={showDeleteConfirmation}
+          onClose={() => {
+            setShowDeleteConfirmation(false);
+            setSelectedRepo(null);
+          }}
+          onConfirm={() => {
+            handleDeleteRepository(selectedRepo);
+            setShowDeleteConfirmation(false);
+            setSelectedRepo(null);
+          }}
+          repositoryName={selectedRepo.full_name}
+        />
+      )}
     </div>
   );
 }

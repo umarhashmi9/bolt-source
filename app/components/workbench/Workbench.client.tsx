@@ -18,6 +18,10 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import Cookies from 'js-cookie';
+import { GitHubCreateRepoDialog } from '~/components/settings/GitHubCreateRepoDialog';
+import { GitHubCredentialsDialog } from '~/components/settings/GitHubCredentialsDialog';
+import { GitHubPushDialog } from '~/components/settings/GitHubPushDialog';
+import { type GitHubPushProgress } from '~/lib/stores/workbench';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -58,6 +62,10 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   renderLogger.trace('Workbench');
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showCreateRepoDialog, setShowCreateRepoDialog] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [pendingRepoName, setPendingRepoName] = useState<string | null>(null);
+  const [pushProgress, setPushProgress] = useState<GitHubPushProgress | null>(null);
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -120,6 +128,29 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
+  const handleCreateRepo = (repoName: string) => {
+    const githubUsername = Cookies.get('githubUsername');
+    const githubToken = Cookies.get('githubToken');
+
+    if (!githubUsername || !githubToken) {
+      setPendingRepoName(repoName);
+      setShowCredentialsDialog(true);
+    } else {
+      workbenchStore.pushToGitHub(repoName, githubUsername, githubToken, {
+        onProgress: setPushProgress,
+      });
+    }
+  };
+
+  const handleCredentialsSubmit = (username: string, token: string) => {
+    if (pendingRepoName) {
+      workbenchStore.pushToGitHub(pendingRepoName, username, token, {
+        onProgress: setPushProgress,
+      });
+      setPendingRepoName(null);
+    }
+  };
+
   return (
     chatStarted && (
       <motion.div
@@ -145,9 +176,8 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
-                  <div className="flex overflow-y-auto">
+                  <div className="flex items-center gap-2">
                     <PanelHeaderButton
-                      className="mr-1 text-sm"
                       onClick={() => {
                         workbenchStore.downloadZip();
                       }}
@@ -155,12 +185,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:code" />
                       Download Code
                     </PanelHeaderButton>
-                    <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
+                    <PanelHeaderButton onClick={handleSyncFiles} disabled={isSyncing}>
                       {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
                       {isSyncing ? 'Syncing...' : 'Sync Files'}
                     </PanelHeaderButton>
                     <PanelHeaderButton
-                      className="mr-1 text-sm"
                       onClick={() => {
                         workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
                       }}
@@ -168,38 +197,8 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:terminal" />
                       Toggle Terminal
                     </PanelHeaderButton>
-                    <PanelHeaderButton
-                      className="mr-1 text-sm"
-                      onClick={() => {
-                        const repoName = prompt(
-                          'Please enter a name for your new GitHub repository:',
-                          'bolt-generated-project',
-                        );
-
-                        if (!repoName) {
-                          alert('Repository name is required. Push to GitHub cancelled.');
-                          return;
-                        }
-
-                        const githubUsername = Cookies.get('githubUsername');
-                        const githubToken = Cookies.get('githubToken');
-
-                        if (!githubUsername || !githubToken) {
-                          const usernameInput = prompt('Please enter your GitHub username:');
-                          const tokenInput = prompt('Please enter your GitHub personal access token:');
-
-                          if (!usernameInput || !tokenInput) {
-                            alert('GitHub username and token are required. Push to GitHub cancelled.');
-                            return;
-                          }
-
-                          workbenchStore.pushToGitHub(repoName, usernameInput, tokenInput);
-                        } else {
-                          workbenchStore.pushToGitHub(repoName, githubUsername, githubToken);
-                        }
-                      }}
-                    >
-                      <div className="i-ph:github-logo" />
+                    <PanelHeaderButton onClick={() => setShowCreateRepoDialog(true)} disabled={isSyncing}>
+                      <div className="i-ph:github-logo-bold" />
                       Push to GitHub
                     </PanelHeaderButton>
                   </div>
@@ -241,6 +240,21 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             </div>
           </div>
         </div>
+        {showCreateRepoDialog && (
+          <GitHubCreateRepoDialog
+            isOpen={showCreateRepoDialog}
+            onClose={() => setShowCreateRepoDialog(false)}
+            onSubmit={handleCreateRepo}
+          />
+        )}
+        {showCredentialsDialog && (
+          <GitHubCredentialsDialog
+            _isOpen={showCredentialsDialog}
+            onClose={() => setShowCredentialsDialog(false)}
+            onSubmit={handleCredentialsSubmit}
+          />
+        )}
+        {pushProgress && <GitHubPushDialog progress={pushProgress} onClose={() => setPushProgress(null)} />}
       </motion.div>
     )
   );

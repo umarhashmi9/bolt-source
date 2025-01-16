@@ -26,9 +26,10 @@ export interface Repository {
   html_url: string;
   private: boolean;
   fork: boolean;
+  archived: boolean;
   stargazers_count: number;
   updated_at: string;
-  language?: string;
+  language: string | null;
 }
 
 export interface Branch {
@@ -39,6 +40,10 @@ export interface Branch {
   };
   protected: boolean;
   default?: boolean;
+}
+
+function isGitHubError(error: unknown): error is GitHubError {
+  return error instanceof Error && 'status' in error;
 }
 
 export class GitHubClient {
@@ -476,9 +481,10 @@ export class GitHubClient {
       html_url: repo.html_url,
       private: repo.private,
       fork: repo.fork,
+      archived: repo.archived,
       stargazers_count: repo.stargazers_count,
       updated_at: repo.updated_at || new Date().toISOString(),
-      language: repo.language || undefined,
+      language: repo.language || null,
     }));
   }
 
@@ -530,6 +536,226 @@ export class GitHubClient {
         toast.error('No permission to list branches. Please check your token permissions.');
 
         return [];
+      }
+
+      throw error;
+    }
+  }
+
+  async deleteRepository(fullName: string): Promise<void> {
+    try {
+      const [owner, repo] = fullName.split('/');
+      await this._octokit.repos.delete({
+        owner,
+        repo,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to delete repository', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async updateRepository(
+    fullName: string,
+    data: {
+      name?: string;
+      description?: string;
+      private?: boolean;
+      archived?: boolean;
+    },
+  ): Promise<void> {
+    try {
+      const [owner, repo] = fullName.split('/');
+      await this._octokit.repos.update({
+        owner,
+        repo,
+        ...data,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to update repository', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async transferRepository(fullName: string, newOwner: string): Promise<void> {
+    try {
+      const [owner, repo] = fullName.split('/');
+      await this._octokit.repos.transfer({
+        owner,
+        repo,
+        new_owner: newOwner,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to transfer repository', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async getRepositoryContents(
+    owner: string,
+    repo: string,
+    ref: string,
+    path: string = '',
+  ): Promise<
+    Array<{
+      name: string;
+      path: string;
+      type: 'file' | 'dir';
+      size?: number;
+      html_url: string;
+    }>
+  > {
+    try {
+      const { data } = await this._octokit.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+
+      if (!Array.isArray(data)) {
+        return [];
+      }
+
+      return data
+        .filter((file) => file.html_url != null)
+        .map((file) => ({
+          name: file.name,
+          path: file.path,
+          type: file.type as 'file' | 'dir',
+          size: file.size,
+          html_url: file.html_url as string,
+        }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to get repository contents', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async createOrUpdateFile(
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string,
+    sha?: string,
+  ): Promise<{ sha: string; content: { html_url: string } }> {
+    try {
+      const { data } = await this._octokit.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path,
+        message,
+        content: Buffer.from(content).toString('base64'),
+        branch,
+        sha, // Include SHA if updating existing file
+      });
+
+      if (!data.content?.sha || !data.content?.html_url) {
+        throw new Error('Invalid response from GitHub API');
+      }
+
+      return {
+        sha: data.content.sha,
+        content: {
+          html_url: data.content.html_url,
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to create/update file', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async deleteFile(
+    owner: string,
+    repo: string,
+    path: string,
+    message: string,
+    branch: string,
+    sha: string,
+  ): Promise<void> {
+    try {
+      await this._octokit.repos.deleteFile({
+        owner,
+        repo,
+        path,
+        message,
+        sha,
+        branch,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to delete file', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async renameFile(
+    owner: string,
+    repo: string,
+    oldPath: string,
+    newPath: string,
+    content: string,
+    message: string,
+    branch: string,
+    sha: string,
+  ): Promise<{ sha: string; content: { html_url: string } }> {
+    try {
+      // Delete the old file
+      await this.deleteFile(owner, repo, oldPath, `Delete ${oldPath} for rename`, branch, sha);
+
+      // Create the new file
+      return await this.createOrUpdateFile(owner, repo, newPath, content, message, branch);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to rename file', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async createFolder(owner: string, repo: string, path: string, message: string, branch: string): Promise<void> {
+    try {
+      // Create an empty .gitkeep file in the folder to create it
+      await this.createOrUpdateFile(owner, repo, `${path}/.gitkeep`, '', message, branch);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = isGitHubError(error) ? error.status : undefined;
+      logStore.logError('Failed to create folder', { error: errorMessage, statusCode });
+      throw error;
+    }
+  }
+
+  async getFileSha(owner: string, repo: string, path: string, ref: string): Promise<string | null> {
+    try {
+      const { data } = await this._octokit.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+
+      if ('sha' in data) {
+        return data.sha;
+      }
+
+      return null;
+    } catch (error) {
+      if (isGitHubError(error) && error.status === 404) {
+        return null;
       }
 
       throw error;
