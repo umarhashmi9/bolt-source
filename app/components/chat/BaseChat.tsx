@@ -3,7 +3,7 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import type { Message } from 'ai';
-import React, { type RefCallback, useEffect, useState } from 'react';
+import React, { type RefCallback, useCallback, useEffect, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -25,7 +25,7 @@ import GitCloneButton from './GitCloneButton';
 import FilePreview from './FilePreview';
 import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
-import type { ProviderInfo } from '~/types/model';
+import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
@@ -109,6 +109,29 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [transcript, setTranscript] = useState('');
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
 
+    const getProviderSettings = useCallback(() => {
+      let providerSettings: Record<string, IProviderSetting> | undefined = undefined;
+
+      try {
+        const savedProviderSettings = Cookies.get('providers');
+
+        if (savedProviderSettings) {
+          const parsedProviderSettings = JSON.parse(savedProviderSettings);
+
+          if (typeof parsedProviderSettings === 'object' && parsedProviderSettings !== null) {
+            providerSettings = parsedProviderSettings;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading Provider Settings from cookies:', error);
+
+        // Clear invalid cookie data
+        Cookies.remove('providers');
+      }
+
+      return providerSettings;
+    }, []);
+
     useEffect(() => {
       console.log(transcript);
     }, [transcript]);
@@ -148,6 +171,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     useEffect(() => {
       if (typeof window !== 'undefined') {
         let parsedApiKeys: Record<string, string> | undefined = {};
+        const providerSettings = getProviderSettings();
 
         try {
           parsedApiKeys = getApiKeysFromCookies();
@@ -161,6 +185,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         fetch('/api/models', {
           headers: {
             'x-client-api-keys': JSON.stringify(parsedApiKeys),
+            'x-client-provider-settings': JSON.stringify(providerSettings),
           },
         })
           .then((response) => response.json())
@@ -185,9 +210,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setIsModelLoading(providerName);
 
       try {
+        const providerSettings = getProviderSettings();
+
         const response = await fetch('/api/models', {
           headers: {
             'x-client-api-keys': JSON.stringify(newApiKeys),
+            'x-client-provider-settings': JSON.stringify(providerSettings),
           },
         });
         const data = await response.json();

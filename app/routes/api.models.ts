@@ -40,15 +40,18 @@ function getProviderInfo(llmManager: LLMManager) {
 export async function loader({ request }: { request: Request }): Promise<Response> {
   const llmManager = LLMManager.getInstance(import.meta.env);
 
-  // process client-side overwritten api keys
+  // process client-side overwritten api keys and provider settings
   const clientsideApiKeys = request.headers.get('x-client-api-keys');
+  const cliensideProviderSettings = request.headers.get('x-client-provider-settings');
+
   const apiKeys = clientsideApiKeys ? JSON.parse(clientsideApiKeys) : {};
+  const providerSettings = cliensideProviderSettings ? JSON.parse(cliensideProviderSettings) : [];
 
   const { providers, defaultProvider } = getProviderInfo(llmManager);
 
   const modelList = await llmManager.updateModelList({
     apiKeys,
-    providerSettings: {},
+    providerSettings,
     serverEnv: import.meta.env,
   });
 
