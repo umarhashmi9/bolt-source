@@ -9,8 +9,13 @@ interface ModelsResponse {
   defaultProvider: ProviderInfo;
 }
 
-export async function loader(): Promise<Response> {
+export async function loader({ request }: { request: Request }): Promise<Response> {
   const llmManager = LLMManager.getInstance(import.meta.env);
+  const url = new URL(request.url);
+
+  // process client-side overwritten api keys
+  const apiKeysParam = url.searchParams.get('apiKeys');
+  const apiKeys = apiKeysParam ? JSON.parse(decodeURIComponent(apiKeysParam)) : {};
 
   // Get all providers and map to ProviderInfo interface
   const providers = llmManager.getAllProviders().map((provider) => ({
@@ -30,7 +35,7 @@ export async function loader(): Promise<Response> {
   };
 
   const modelList = await llmManager.updateModelList({
-    apiKeys: {},
+    apiKeys,
     providerSettings: {},
     serverEnv: import.meta.env,
   });

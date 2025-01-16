@@ -3,7 +3,7 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import type { Message } from 'ai';
-import React, { type RefCallback, useCallback, useEffect, useState } from 'react';
+import React, { type RefCallback, useEffect, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -25,13 +25,12 @@ import GitCloneButton from './GitCloneButton';
 import FilePreview from './FilePreview';
 import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
-import type { IProviderSetting, ProviderInfo } from '~/types/model';
+import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
-import { LLMManager } from '~/lib/modules/llm/manager';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 
 const TEXTAREA_MIN_HEIGHT = 76;
@@ -110,28 +109,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [transcript, setTranscript] = useState('');
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
 
-    const getProviderSettings = useCallback(() => {
-      let providerSettings: Record<string, IProviderSetting> | undefined = undefined;
-
-      try {
-        const savedProviderSettings = Cookies.get('providers');
-
-        if (savedProviderSettings) {
-          const parsedProviderSettings = JSON.parse(savedProviderSettings);
-
-          if (typeof parsedProviderSettings === 'object' && parsedProviderSettings !== null) {
-            providerSettings = parsedProviderSettings;
-          }
-        }
-      } catch (error) {
-        console.error('Error loading Provider Settings from cookies:', error);
-
-        // Clear invalid cookie data
-        Cookies.remove('providers');
-      }
-
-      return providerSettings;
-    }, []);
     useEffect(() => {
       console.log(transcript);
     }, [transcript]);
@@ -181,7 +158,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         }
 
         setIsModelLoading('all');
-        fetch('/api/models')
+        fetch(`/api/models?apiKeys=${encodeURIComponent(JSON.stringify(parsedApiKeys))}`)
           .then((response) => response.json())
           .then((data) => {
             const typedData = data as { modelList: ModelInfo[] };
@@ -201,29 +178,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setApiKeys(newApiKeys);
       Cookies.set('apiKeys', JSON.stringify(newApiKeys));
 
-      const provider = LLMManager.getInstance(import.meta.env || process.env || {}).getProvider(providerName);
+      setIsModelLoading(providerName);
 
-      if (provider && provider.getDynamicModels) {
-        setIsModelLoading(providerName);
-
-        try {
-          const providerSettings = getProviderSettings();
-          const staticModels = provider.staticModels;
-          const dynamicModels = await provider.getDynamicModels(
-            newApiKeys,
-            providerSettings,
-            import.meta.env || process.env || {},
-          );
-
-          setModelList((preModels) => {
-            const filteredOutPreModels = preModels.filter((x) => x.provider !== providerName);
-            return [...filteredOutPreModels, ...staticModels, ...dynamicModels];
-          });
-        } catch (error) {
-          console.error('Error loading dynamic models:', error);
-        }
-        setIsModelLoading(undefined);
+      try {
+        const response = await fetch(`/api/models?apiKeys=${encodeURIComponent(JSON.stringify(newApiKeys))}`);
+        const data = await response.json();
+        const typedData = data as { modelList: ModelInfo[] };
+        setModelList(typedData.modelList);
+      } catch (error) {
+        console.error('Error loading dynamic models:', error);
       }
+      setIsModelLoading(undefined);
     };
 
     const startListening = () => {
