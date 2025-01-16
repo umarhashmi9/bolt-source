@@ -158,7 +158,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         }
 
         setIsModelLoading('all');
-        fetch(`/api/models?apiKeys=${encodeURIComponent(JSON.stringify(parsedApiKeys))}`)
+        fetch('/api/models', {
+          headers: {
+            'x-client-api-keys': JSON.stringify(parsedApiKeys),
+          },
+        })
           .then((response) => response.json())
           .then((data) => {
             const typedData = data as { modelList: ModelInfo[] };
@@ -181,7 +185,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setIsModelLoading(providerName);
 
       try {
-        const response = await fetch(`/api/models?apiKeys=${encodeURIComponent(JSON.stringify(newApiKeys))}`);
+        const response = await fetch('/api/models', {
+          headers: {
+            'x-client-api-keys': JSON.stringify(newApiKeys),
+          },
+        });
         const data = await response.json();
         const typedData = data as { modelList: ModelInfo[] };
         setModelList(typedData.modelList);

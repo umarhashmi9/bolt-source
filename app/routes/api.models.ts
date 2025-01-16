@@ -11,11 +11,10 @@ interface ModelsResponse {
 
 export async function loader({ request }: { request: Request }): Promise<Response> {
   const llmManager = LLMManager.getInstance(import.meta.env);
-  const url = new URL(request.url);
 
-  // process client-side overwritten api keys
-  const apiKeysParam = url.searchParams.get('apiKeys');
-  const apiKeys = apiKeysParam ? JSON.parse(decodeURIComponent(apiKeysParam)) : {};
+  // Get API keys from header
+  const apiKeysHeader = request.headers.get('x-client-api-keys');
+  const apiKeys = apiKeysHeader ? JSON.parse(apiKeysHeader) : {};
 
   // Get all providers and map to ProviderInfo interface
   const providers = llmManager.getAllProviders().map((provider) => ({
