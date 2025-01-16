@@ -115,7 +115,8 @@
     "remix-utils": "^7.7.0",
     "shiki": "^1.24.0",
     "unist-util-visit": "^5.0.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "vite-plugin-node-polyfills": "^0.22.0"
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.0",
@@ -142,7 +143,6 @@
     "unified": "^11.0.5",
     "unocss": "^0.61.9",
     "vite": "^5.4.11",
-    "vite-plugin-node-polyfills": "^0.22.0",
     "vite-plugin-optimize-css-modules": "^1.1.0",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.7",
