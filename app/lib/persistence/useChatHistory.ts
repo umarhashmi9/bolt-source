@@ -13,6 +13,7 @@ import {
   setMessages,
   duplicateChat,
   createChatFromMessages,
+  type IChatMetadata,
 } from './db';
 
 export interface ChatHistoryItem {
@@ -21,6 +22,7 @@ export interface ChatHistoryItem {
   description?: string;
   messages: Message[];
   timestamp: string;
+  metadata?: IChatMetadata;
 }
 
 const persistenceEnabled = !import.meta.env.VITE_DISABLE_PERSISTENCE;
@@ -29,7 +31,7 @@ export const db = persistenceEnabled ? await openDatabase() : undefined;
 
 export const chatId = atom<string | undefined>(undefined);
 export const description = atom<string | undefined>(undefined);
-
+export const chatMetadata = atom<IChatMetadata | undefined>(undefined);
 export function useChatHistory() {
   const navigate = useNavigate();
   const { id: mixedId } = useLoaderData<{ id?: string }>();
@@ -65,6 +67,7 @@ export function useChatHistory() {
             setUrlId(storedMessages.urlId);
             description.set(storedMessages.description);
             chatId.set(storedMessages.id);
+            chatMetadata.set(storedMessages.metadata);
           } else {
             navigate('/', { replace: true });
           }
@@ -125,13 +128,13 @@ export function useChatHistory() {
         console.log(error);
       }
     },
-    importChat: async (description: string, messages: Message[]) => {
+    importChat: async (description: string, messages: Message[], metadata?: IChatMetadata) => {
       if (!db) {
         return;
       }
 
       try {
-        const newId = await createChatFromMessages(db, description, messages);
+        const newId = await createChatFromMessages(db, description, messages, metadata);
         window.location.href = `/chat/${newId}`;
         toast.success('Chat imported successfully');
       } catch (error) {
