@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from '@remix-run/cloudflare';
+import { type ActionFunctionArgs } from '@remix-run/server-runtime';
 import { createDataStream } from 'ai';
 import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';

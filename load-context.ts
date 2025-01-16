@@ -7,3 +7,12 @@ declare module '@remix-run/cloudflare' {
     cloudflare: Cloudflare;
   }
 }
+
+
+declare module '@remix-run/server-runtime' {
+  interface AppLoadContext {
+    cloudflare: Cloudflare;
+  }
+}
+
+
