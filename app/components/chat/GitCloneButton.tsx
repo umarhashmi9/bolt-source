@@ -1,11 +1,17 @@
-import ignore from 'ignore';
+import React, { useState, useEffect } from 'react';
 import { useGit } from '~/lib/hooks/useGit';
 import type { Message } from 'ai';
 import { detectProjectCommands, createCommandsMessage } from '~/utils/projectCommands';
 import { generateId } from '~/utils/fileUtils';
-import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { logStore } from '~/lib/stores/logs';
+import { motion } from 'framer-motion';
+import { DialogRoot } from '~/components/ui/Dialog';
+import { classNames } from '~/utils/classNames';
+import ignore from 'ignore';
+import Cookies from 'js-cookie';
+import { GitHubClient, type Repository } from '~/lib/github/GitHubClient';
+import styles from '~/components/settings/Settings.module.scss';
 
 // Enhanced ignore patterns
 const IGNORE_PATTERNS = [
@@ -112,11 +118,112 @@ interface GitCloneButtonProps {
   importChat?: (description: string, messages: Message[]) => Promise<void>;
 }
 
+interface Branch {
+  name: string;
+  commit: {
+    sha: string;
+    url: string;
+  };
+  protected: boolean;
+  default?: boolean;
+}
+
 export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
   const { ready, gitClone } = useGit();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<CloneProgress | null>(null);
   const [memoryWarningShown, setMemoryWarningShown] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+  const [repoUrl, setRepoUrl] = useState('');
+  const [branch, setBranch] = useState('');
+  const [error, setError] = useState<string>('');
+
+  // New state for repository selection
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState<string>('');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [customUrl, setCustomUrl] = useState(false);
+
+  // Fetch repositories when dialog opens
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      if (!showDialog) {
+        return;
+      }
+
+      try {
+        setIsLoadingRepos(true);
+        setError('');
+
+        const token = Cookies.get('githubToken');
+        const username = Cookies.get('githubUsername');
+
+        if (!token || !username) {
+          return;
+        }
+
+        const client = new GitHubClient({ token, username });
+        const repoList = await client.listRepositories();
+        setRepositories(repoList);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch repositories');
+      } finally {
+        setIsLoadingRepos(false);
+      }
+    };
+
+    fetchRepositories();
+  }, [showDialog]);
+
+  // Fetch branches when repository is selected
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!selectedRepo) {
+        setBranches([]);
+        return;
+      }
+
+      try {
+        setIsLoadingBranches(true);
+        setError('');
+
+        const token = Cookies.get('githubToken');
+        const username = Cookies.get('githubUsername');
+
+        if (!token || !username) {
+          return;
+        }
+
+        const client = new GitHubClient({ token, username });
+        const [owner, repo] = selectedRepo.split('/');
+        const branchList = await client.listBranches(owner, repo);
+        setBranches(branchList);
+
+        // Set default branch if available
+        const defaultBranch = branchList.find((b) => b.default);
+
+        if (defaultBranch) {
+          setBranch(defaultBranch.name);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch branches');
+      } finally {
+        setIsLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, [selectedRepo]);
+
+  // Update repoUrl when repository is selected
+  useEffect(() => {
+    if (selectedRepo && !customUrl) {
+      setRepoUrl(`https://github.com/${selectedRepo}`);
+      setError('');
+    }
+  }, [selectedRepo, customUrl]);
 
   const validateGitUrl = (url: string): boolean => {
     return parseGitUrl(url) !== null;
@@ -194,38 +301,34 @@ export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
     return processedFiles;
   };
 
-  const onClick = async (_e: any) => {
-    if (!ready) {
-      toast.error('Git is not ready. Please try again.');
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const repoUrl = prompt('Enter the Git url');
-
-    if (!repoUrl) {
+    if (!ready || !repoUrl.trim()) {
       return;
     }
 
     if (!validateGitUrl(repoUrl)) {
-      toast.error('Invalid GitHub repository URL. Please use HTTPS or SSH format.');
+      setError('Invalid GitHub repository URL. Please use HTTPS or SSH format.');
       return;
     }
 
     const repoInfo = parseGitUrl(repoUrl)!;
-    const branch = prompt(`Enter branch name (default: ${repoInfo.branch})`) || repoInfo.branch;
+    const selectedBranch = branch.trim() || repoInfo.branch;
 
     setLoading(true);
+    setShowDialog(false);
     setProgress({
       stage: 'preparing',
       progress: 0,
       details: 'Initializing clone operation...',
-      branch,
+      branch: selectedBranch,
     });
 
     try {
       logStore.logSystem('Starting repository clone', {
         url: repoUrl,
-        branch,
+        branch: selectedBranch,
         owner: repoInfo.owner,
         repo: repoInfo.name,
         isPrivate: repoInfo.isPrivate,
@@ -234,7 +337,7 @@ export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
       updateProgress({
         stage: 'cloning',
         progress: 20,
-        details: `Cloning repository (${branch})...`,
+        details: `Cloning repository (${selectedBranch})...`,
       });
 
       const { workdir, data } = await gitClone(repoUrl);
@@ -255,7 +358,7 @@ export default function GitCloneButton({ importChat }: GitCloneButtonProps) {
         // Create files message with branch info
         const filesMessage: Message = {
           role: 'assistant',
-          content: `Successfully cloned repository: ${repoUrl} (branch: ${branch}) into ${workdir}
+          content: `Successfully cloned repository: ${repoUrl} (branch: ${selectedBranch}) into ${workdir}
 <boltArtifact id="imported-files" title="Git Cloned Files" type="bundled">
 ${processedFiles
   .map(
@@ -277,21 +380,21 @@ ${file.content}
         }
 
         updateProgress({ progress: 90, details: 'Importing project...' });
-        await importChat(`Git Project: ${repoInfo.name} (${branch})`, messages);
+        await importChat(`Git Project: ${repoInfo.name} (${selectedBranch})`, messages);
 
         logStore.logSystem('Repository clone completed', {
           url: repoUrl,
-          branch,
+          branch: selectedBranch,
           fileCount: processedFiles.length,
           hasCommands: Boolean(commandsMessage),
         });
 
-        toast.success(`Repository cloned successfully from branch ${branch}!`);
+        toast.success(`Repository cloned successfully from branch ${selectedBranch}!`);
       }
     } catch (error) {
       logStore.logError('Failed to clone repository', {
         url: repoUrl,
-        branch,
+        branch: selectedBranch,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
@@ -302,40 +405,227 @@ ${file.content}
       } else if (errorMessage.includes('Operation cancelled')) {
         toast.info('Clone operation cancelled by user.');
       } else if (errorMessage.includes('not found')) {
-        toast.error(`Branch '${branch}' not found in repository.`);
+        toast.error(`Branch '${selectedBranch}' not found in repository.`);
       } else {
         toast.error('Failed to clone repository. Please try again.');
       }
     } finally {
       setLoading(false);
       setProgress(null);
+      setRepoUrl('');
+      setBranch('');
+      setSelectedRepo('');
+      setCustomUrl(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex">
       <button
-        onClick={onClick}
-        title="Clone a Git Repository"
-        className={`
-          px-4 py-2.5 rounded-lg border transition-all duration-200 flex items-center gap-2.5
-          ${
-            loading
-              ? 'bg-bolt-elements-background-depth-2 border-bolt-elements-borderColor cursor-wait'
-              : 'bg-bolt-elements-prompt-background border-bolt-elements-borderColor hover:bg-bolt-elements-background-depth-3 hover:border-bolt-elements-borderColorHover'
-          }
-          ${!ready ? 'opacity-50 cursor-not-allowed' : ''}
-        `}
+        onClick={() => setShowDialog(true)}
         disabled={loading || !ready}
+        className="px-4 py-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-3 transition-all flex items-center gap-2"
       >
         {loading ? (
           <div className="i-ph:spinner-gap-bold animate-spin text-lg" />
         ) : (
           <span className="i-ph:git-branch-bold text-lg" />
         )}
-        <span className="font-medium">Clone Repository</span>
+        <span>Clone Repository</span>
       </button>
 
+      {/* Clone Dialog */}
+      {showDialog && (
+        <DialogRoot open={showDialog} onOpenChange={setShowDialog}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-bolt-elements-background/80 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-xl p-6 max-w-md w-full mx-4 shadow-lg"
+            >
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="i-ph:git-branch-bold text-2xl text-bolt-elements-textPrimary" />
+                    <h3 className="text-lg font-semibold text-bolt-elements-textPrimary">Clone Repository</h3>
+                  </div>
+                  <motion.button
+                    type="button"
+                    onClick={() => setShowDialog(false)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={classNames(
+                      'text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary transition-colors',
+                      'hover:bg-bolt-elements-button-primary-backgroundHover rounded-md p-1',
+                    )}
+                  >
+                    <span className="i-ph:x-bold text-xl" />
+                  </motion.button>
+                </div>
+
+                <div className="space-y-4 border-t border-bolt-elements-borderColor pt-4">
+                  {/* Repository Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-bolt-elements-textSecondary mb-2">
+                      Select Repository
+                    </label>
+                    {isLoadingRepos ? (
+                      <div className="flex items-center gap-2 text-sm text-bolt-elements-textTertiary">
+                        <div className="i-ph:spinner-gap animate-spin" />
+                        Loading repositories...
+                      </div>
+                    ) : repositories.length > 0 ? (
+                      <select
+                        value={selectedRepo}
+                        onChange={(e) => {
+                          setSelectedRepo(e.target.value);
+                          setCustomUrl(false);
+                        }}
+                        className={classNames(
+                          'w-full px-3 py-2 bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor rounded-lg',
+                          'text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-accent/50',
+                          'focus:border-bolt-elements-accent transition-all duration-200',
+                        )}
+                      >
+                        <option value="">Select a repository</option>
+                        {repositories.map((repo) => (
+                          <option key={repo.id} value={repo.full_name}>
+                            {repo.name} ({repo.private ? 'Private' : 'Public'})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-sm text-bolt-elements-textTertiary">No repositories found</div>
+                    )}
+                  </div>
+
+                  {/* Custom URL Toggle */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="customUrl"
+                      checked={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.checked)}
+                      className="rounded border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                    />
+                    <label htmlFor="customUrl" className="text-sm text-bolt-elements-textSecondary">
+                      Use custom repository URL
+                    </label>
+                  </div>
+
+                  {/* Repository URL Input (shown when custom URL is enabled) */}
+                  {customUrl && (
+                    <div>
+                      <label className="block text-sm font-medium text-bolt-elements-textSecondary mb-2">
+                        Repository URL
+                      </label>
+                      <input
+                        type="text"
+                        value={repoUrl}
+                        onChange={(e) => {
+                          setRepoUrl(e.target.value);
+                          setError('');
+                        }}
+                        placeholder="https://github.com/username/repo or git@github.com:username/repo.git"
+                        className={classNames(
+                          'w-full px-3 py-2 bg-bolt-elements-background-depth-1 border rounded-lg',
+                          'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
+                          'focus:outline-none focus:ring-2 focus:ring-bolt-elements-accent/50',
+                          'focus:border-bolt-elements-accent transition-all duration-200',
+                          error ? 'border-red-500' : 'border-bolt-elements-borderColor',
+                        )}
+                      />
+                      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+                    </div>
+                  )}
+
+                  {/* Branch Selection */}
+                  {selectedRepo && !customUrl && (
+                    <div>
+                      <label className="block text-sm font-medium text-bolt-elements-textSecondary mb-2">
+                        Select Branch
+                      </label>
+                      {isLoadingBranches ? (
+                        <div className="flex items-center gap-2 text-sm text-bolt-elements-textTertiary">
+                          <div className="i-ph:spinner-gap animate-spin" />
+                          Loading branches...
+                        </div>
+                      ) : branches.length > 0 ? (
+                        <select
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          className={classNames(
+                            'w-full px-3 py-2 bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor rounded-lg',
+                            'text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-accent/50',
+                            'focus:border-bolt-elements-accent transition-all duration-200',
+                          )}
+                        >
+                          {branches.map((b) => (
+                            <option key={b.name} value={b.name}>
+                              {b.name} {b.default ? '(default)' : ''} {b.protected ? '(protected)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-sm text-bolt-elements-textTertiary">No branches found</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Custom Branch Input (shown when custom URL is enabled) */}
+                  {customUrl && (
+                    <div>
+                      <label className="block text-sm font-medium text-bolt-elements-textSecondary mb-2">
+                        Branch (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={branch}
+                        onChange={(e) => setBranch(e.target.value)}
+                        placeholder="main"
+                        className={classNames(
+                          'w-full px-3 py-2 bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor rounded-lg',
+                          'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
+                          'focus:outline-none focus:ring-2 focus:ring-bolt-elements-accent/50',
+                          'focus:border-bolt-elements-accent transition-all duration-200',
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {/* Buttons */}
+                  <div className="flex justify-end gap-3 pt-4 border-t border-bolt-elements-borderColor">
+                    <button type="button" onClick={() => setShowDialog(false)} className={styles['settings-button']}>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!repoUrl.trim()}
+                      className={classNames(
+                        styles['settings-button'],
+                        'bg-bolt-elements-accent text-white flex items-center gap-2',
+                        'disabled:opacity-50 disabled:cursor-not-allowed',
+                      )}
+                    >
+                      <div className="i-ph:git-branch text-lg" />
+                      Clone Repository
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        </DialogRoot>
+      )}
+
+      {/* Progress Dialog */}
       {loading && progress && (
         <div className="fixed inset-0 bg-bolt-elements-background/80 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-xl p-6 max-w-md w-full mx-4 shadow-lg">

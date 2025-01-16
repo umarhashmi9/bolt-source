@@ -132,23 +132,56 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     const githubUsername = Cookies.get('githubUsername');
     const githubToken = Cookies.get('githubToken');
 
+    setPendingRepoName(repoName);
+
     if (!githubUsername || !githubToken) {
-      setPendingRepoName(repoName);
       setShowCredentialsDialog(true);
     } else {
-      workbenchStore.pushToGitHub(repoName, githubUsername, githubToken, {
-        onProgress: setPushProgress,
+      setPushProgress({
+        stage: 'preparing',
+        progress: 0,
+        details: 'Select repository and branch',
+        icon: 'github',
+        color: 'default',
       });
     }
   };
 
-  const handleCredentialsSubmit = (username: string, token: string) => {
-    if (pendingRepoName) {
-      workbenchStore.pushToGitHub(pendingRepoName, username, token, {
-        onProgress: setPushProgress,
-      });
-      setPendingRepoName(null);
+  const handlePushSubmit = (repository: string, branch: string) => {
+    const githubUsername = Cookies.get('githubUsername');
+    const githubToken = Cookies.get('githubToken');
+
+    if (!githubUsername || !githubToken) {
+      setShowCredentialsDialog(true);
+      return;
     }
+
+    workbenchStore.pushToGitHub(repository, githubUsername, githubToken, {
+      onProgress: setPushProgress,
+      branch,
+    });
+  };
+
+  const handleCredentialsSubmit = (_username: string, _token: string) => {
+    if (pendingRepoName) {
+      setPushProgress({
+        stage: 'preparing',
+        progress: 0,
+        details: 'Select repository and branch',
+        icon: 'github',
+        color: 'default',
+      });
+      setShowCredentialsDialog(false);
+    }
+  };
+
+  const handlePushComplete = () => {
+    setPushProgress(null);
+    setPendingRepoName(null);
+  };
+
+  const handleBranchSelect = (_branch: string) => {
+    // We don't need to store the branch locally anymore since it's handled in the dialog
   };
 
   return (
@@ -176,17 +209,21 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <PanelHeaderButton
                       onClick={() => {
                         workbenchStore.downloadZip();
                       }}
                     >
-                      <div className="i-ph:code" />
+                      <div className="i-ph:code text-lg" />
                       Download Code
                     </PanelHeaderButton>
                     <PanelHeaderButton onClick={handleSyncFiles} disabled={isSyncing}>
-                      {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
+                      {isSyncing ? (
+                        <div className="i-ph:spinner animate-spin text-lg" />
+                      ) : (
+                        <div className="i-ph:cloud-arrow-down text-lg" />
+                      )}
                       {isSyncing ? 'Syncing...' : 'Sync Files'}
                     </PanelHeaderButton>
                     <PanelHeaderButton
@@ -194,11 +231,16 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                         workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
                       }}
                     >
-                      <div className="i-ph:terminal" />
+                      <div className="i-ph:terminal text-lg" />
                       Toggle Terminal
                     </PanelHeaderButton>
-                    <PanelHeaderButton onClick={() => setShowCreateRepoDialog(true)} disabled={isSyncing}>
-                      <div className="i-ph:github-logo-bold" />
+                    <div className="w-[1px] h-6 bg-bolt-elements-borderColor mx-1" />
+                    <PanelHeaderButton
+                      onClick={() => setShowCreateRepoDialog(true)}
+                      disabled={isSyncing}
+                      className="bg-bolt-elements-accent/10 hover:bg-bolt-elements-accent/20 text-bolt-elements-accent"
+                    >
+                      <div className="i-ph:github-logo-bold text-lg" />
                       Push to GitHub
                     </PanelHeaderButton>
                   </div>
@@ -254,7 +296,15 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             onSubmit={handleCredentialsSubmit}
           />
         )}
-        {pushProgress && <GitHubPushDialog progress={pushProgress} onClose={() => setPushProgress(null)} />}
+        {pushProgress && (
+          <GitHubPushDialog
+            progress={pushProgress}
+            onClose={handlePushComplete}
+            repoName={pendingRepoName || undefined}
+            onBranchSelect={handleBranchSelect}
+            onSubmit={handlePushSubmit}
+          />
+        )}
       </motion.div>
     )
   );
