@@ -164,6 +164,9 @@ importers:
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
+      electron-log:
+        specifier: ^5.2.4
+        version: 5.2.4
       express:
         specifier: ^4.21.2
         version: 4.21.2
@@ -285,6 +288,9 @@ importers:
       electron-builder:
         specifier: ^25.1.8
         version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      electron-builder-squirrel-windows:
+        specifier: ^25.1.8
+        version: 25.1.8(dmg-builder@25.1.8)
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.2
@@ -3635,6 +3641,10 @@ packages:
     resolution: {integrity: sha512-poRgAtUHHOnlzZnc9PK4nzG53xh74wj2Jy7jkTrqZ0MWPoHGh1M2+C//hGeYdA+4K8w4yiVCNYoLXF7ySj2Wig==}
     engines: {node: '>=14.0.0'}
     hasBin: true
+
+  electron-log@5.2.4:
+    resolution: {integrity: sha512-iX12WXc5XAaKeHg2QpiFjVwL+S1NVHPFd3V5RXtCmKhpAzXsVQnR3UEc0LovM6p6NkUQxDWnkdkaam9FNUVmCA==}
+    engines: {node: '>= 14'}
 
   electron-publish@25.1.7:
     resolution: {integrity: sha512-+jbTkR9m39eDBMP4gfbqglDd6UvBC7RLh5Y0MhFSsc6UkGHj9Vj9TWobxevHYMMqmoujL11ZLjfPpMX+Pt6YEg==}
@@ -10895,6 +10905,8 @@ snapshots:
       - bluebird
       - electron-builder-squirrel-windows
       - supports-color
+
+  electron-log@5.2.4: {}
 
   electron-publish@25.1.7:
     dependencies:
