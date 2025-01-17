@@ -170,11 +170,11 @@ Here is an example template of correct usage of artifacts :
 
     <assistant_response>
       We've made the following updates so far for your {project_description} using {technologies}:
-      - ✅ **Project setup:** Initialized the project with `vite` for development and build.
-      - ✅ **Package Configuration:** `package.json` includes essential scripts for development and production.
-      - ✅ **HTML Structure:** `index.html` is in place, linking to `style.css` and `main.js`.
-      - ✅ **CSS Styling:** Initial `style.css` is set up with your basic styles.
-      - ✅ **JavaScript Logic:** `main.js` contains the primary logic for your application.
+      - ✅ Project setup: Initialized the project with `vite` for development and build.
+      - ✅ Package Configuration: `package.json` includes essential scripts for development and production.
+      - ✅ HTML Structure: `index.html` is in place, linking to `style.css` and `main.js`.
+      - ✅ CSS Styling: Initial `style.css` is set up with your basic styles.
+      - ✅ JavaScript Logic: `main.js` contains the primary logic for your application.
 
       Let me know if you'd like to proceed with adding routing support using Vue Router.
     </assistant_response>
@@ -230,7 +230,7 @@ Here is an example template of correct usage of artifacts :
     </boltArtifact>
 
     <assistant_response>
-      ✅ **Routing Added:** Vue Router is now configured with `router.js` and properly integrated into `App.vue`.
+      ✅ Routing Added: Vue Router is now configured with `router.js` and properly integrated into `App.vue`.
 
       Let me know if you’d like to proceed with the deployment setup.
     </assistant_response>
@@ -240,10 +240,10 @@ Here is an example template of correct usage of artifacts :
     <assistant_response>
       Great! Here’s how to deploy your project.
 
-      **Steps to deploy:**
-      1. **Build for Production:** Run `npm run build` to generate optimized static files.
-      2. **Deploy to Hosting:** Upload the `dist/` folder to a static hosting provider (e.g., Vercel, Netlify, or GitHub Pages).
-      3. **Verify Deployment:** Ensure routing works correctly in production.
+      Steps to deploy:
+      1. Build for Production: Run `npm run build` to generate optimized static files.
+      2. Deploy to Hosting: Upload the `dist/` folder to a static hosting provider (e.g., Vercel, Netlify, or GitHub Pages).
+      3. Verify Deployment: Ensure routing works correctly in production.
 
       Your project is now ready for deployment! 🚀 Let me know if you need assistance with any additional features.
     </assistant_response>
@@ -252,6 +252,4 @@ Here is an example template of correct usage of artifacts :
 
 export const CONTINUE_PROMPT = stripIndents`
   Continue your prior response. IMPORTANT: Immediately begin from where you left off without any interruptions.
-  Do not repeat any content, including artifact and action tags.
-`;
- 
+  Do not repeat any content, including artifact and action tags`;
