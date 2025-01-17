@@ -327,7 +327,7 @@ export const Preview = memo(() => {
                 {WINDOW_SIZES.map((size) => (
                   <button
                     key={size.name}
-                    className="w-full px-4 py-2 text-left hover:bg-bolt-elements-background-depth-3 text-sm whitespace-nowrap"
+                    className="w-full px-4 py-2 text-left hover:bg-bolt-elements-background-depth-3 hover:font-bold text-sm whitespace-nowrap transition-all duration-150"
                     onClick={() => {
                       setSelectedWindowSize(size);
                       setIsWindowSizeDropdownOpen(false);
