@@ -90,6 +90,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             contextOptimization,
             onFinish(resp) {
               if (resp.usage) {
+                logger.debug('createSummary token usage', JSON.stringify(resp.usage));
                 cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
                 cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
                 cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
@@ -124,6 +125,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             summary,
             onFinish(resp) {
               if (resp.usage) {
+                logger.debug('selectContext token usage', JSON.stringify(resp.usage));
                 cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
                 cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
                 cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
