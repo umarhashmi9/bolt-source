@@ -159,8 +159,6 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         }
 
         // Stream the text
-        console.log(`Messages count: ${messages.length}`);
-
         const options: StreamingOptions = {
           toolChoice: 'none',
           onFinish: async ({ text: content, finishReason, usage }) => {
