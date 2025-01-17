@@ -299,7 +299,7 @@ export const ChatImpl = memo(
         // reload();
 
         const { template, title } = await selectStarterTemplate({
-          message: messageInput,
+          message:  messageInput+" translate to indonesian language",
           model,
           provider,
         });
@@ -322,7 +322,7 @@ export const ChatImpl = memo(
               {
                 id: `${new Date().getTime()}`,
                 role: 'user',
-                content: messageInput,
+                content:  messageInput+" translate to indonesian language",
 
                 // annotations: ['hidden'],
               },
