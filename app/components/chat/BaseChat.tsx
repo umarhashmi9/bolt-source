@@ -1,9 +1,11 @@
-/*
- * @ts-nocheck
- * Preventing TS checks with files presented in the video for a better presentation.
- */
+import React, { 
+  type RefCallback, 
+  useEffect, 
+  useState, 
+  useRef, 
+  forwardRef 
+} from 'react';
 import type { Message } from 'ai';
-import React, { type RefCallback, useEffect, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -67,7 +69,7 @@ interface BaseChatProps {
   onApiKeysChange?: (providerName: string, apiKey: string) => void;
 }
 
-export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
+export const BaseChat = forwardRef<HTMLDivElement, BaseChatProps>(
   (
     {
       textareaRef,
