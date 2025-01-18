@@ -40,18 +40,38 @@ export default function Auth() {
           navigate('/');
         }
       } catch (err) {
+        // Explicitly handle AuthSessionMissingError or other potential errors
         console.error('Error checking current user:', err);
+        
+        // If it's an AuthSessionMissingError or similar, it's not a critical error
+        if (err instanceof Error && err.name === 'AuthSessionMissingError') {
+          console.log('No active session, staying on auth page');
+        } else {
+          toast.error('An unexpected error occurred while checking authentication');
+        }
       }
     };
     checkUser();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    // Prevent default form submission behavior
     e.preventDefault();
+    
+    // Log form submission attempt
+    console.log('Form Submission Attempted', {
+      isSignUp,
+      email: email.length > 0,
+      passwordLength: password.length,
+      confirmPasswordLength: confirmPassword?.length || 0
+    });
+
+    // Disable submission if fields are empty
     setError(null);
 
     // Validate email and password
     if (!email || !password) {
+      console.warn('Email or Password is empty');
       toast.error('Please enter both email and password');
       return;
     }
@@ -59,7 +79,18 @@ export default function Auth() {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.warn('Invalid email format');
       toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Password strength validation
+    if (password.length < 8) {
+      console.warn('Password too short', { 
+        currentLength: password.length, 
+        requiredLength: 8 
+      });
+      toast.error(`Password must be at least 8 characters long. Current length: ${password.length}`);
       return;
     }
 
@@ -67,12 +98,12 @@ export default function Auth() {
       if (isSignUp) {
         // Sign Up logic
         if (password !== confirmPassword) {
+          console.warn('Passwords do not match');
           setError('Passwords do not match');
           toast.error('Passwords do not match');
           return;
         }
 
-        // Log the signup attempt with additional debug info
         console.log('Attempting Supabase Sign Up', { 
           email, 
           supabaseClient: !!supabaseClient,
@@ -84,7 +115,6 @@ export default function Auth() {
           password,
         });
 
-        // Log the full response for debugging
         console.log('Supabase Sign Up Response:', { 
           data, 
           error,
@@ -93,6 +123,11 @@ export default function Auth() {
         });
 
         if (error) {
+          console.error('Sign Up Error Details:', {
+            errorCode: error.code,
+            errorMessage: error.message,
+            errorStatus: error.status
+          });
           setError(error.message);
           toast.error(`Sign Up Error: ${error.message}`);
           return;
@@ -106,19 +141,22 @@ export default function Auth() {
         }
       } else {
         // Sign In logic
-        // Log the signin attempt with additional debug info
         console.log('Attempting Supabase Sign In', { 
           email, 
           supabaseClient: !!supabaseClient,
           supabaseUrl: import.meta.env.VITE_SUPABASE_URL
         });
 
+        // Verify Supabase configuration before sign-in attempt
+        if (!supabaseClient) {
+          throw new Error('Supabase client is not initialized');
+        }
+
         const { data, error } = await supabaseClient.auth.signInWithPassword({
           email,
           password,
         });
 
-        // Log the full response for debugging
         console.log('Supabase Sign In Response:', { 
           data, 
           error,
@@ -127,21 +165,51 @@ export default function Auth() {
         });
 
         if (error) {
+          console.error('Sign In Error Details:', {
+            errorCode: error.code,
+            errorMessage: error.message,
+            errorStatus: error.status
+          });
+          
+          // More specific error handling
+          switch (error.message) {
+            case 'Invalid login credentials':
+              toast.error('Incorrect email or password. Please try again.');
+              break;
+            case 'Email not confirmed':
+              toast.warning('Please confirm your email before signing in.');
+              break;
+            default:
+              toast.error(`Sign In Error: ${error.message}`);
+          }
+          
           setError(error.message);
-          toast.error(`Sign In Error: ${error.message}`);
           return;
         }
 
         if (data.user) {
+          console.log('Sign In Successful', {
+            userId: data.user.id,
+            userEmail: data.user.email
+          });
           toast.success('Signed in successfully');
           navigate('/');
+        } else {
+          console.warn('Sign In Completed but No User Found');
+          toast.warning('Sign in completed but no user details found');
         }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      console.error('Authentication Error:', err);
+      console.error('Authentication Catch Block Error:', {
+        error: err,
+        errorMessage,
+        isSignUp
+      });
+      
+      // More detailed error toast
+      toast.error(`Authentication Error: ${errorMessage}. Please try again.`);
       setError(errorMessage);
-      toast.error(`Unexpected Error: ${errorMessage}`);
     }
   };
 
@@ -205,6 +273,14 @@ export default function Auth() {
             
             <button 
               type="submit" 
+              onClick={(e) => {
+                console.log('Button Clicked', {
+                  isSignUp,
+                  email: email.length > 0,
+                  passwordLength: password.length
+                });
+                handleSubmit(e as unknown as React.FormEvent);
+              }}
               className="w-full bg-[#6E3BFF] text-white py-2 rounded-lg hover:bg-[#5A30CC] transition-colors"
             >
               {isSignUp ? 'Create Account' : 'Sign In'}
