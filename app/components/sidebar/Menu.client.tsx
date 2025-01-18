@@ -261,7 +261,10 @@ export const Menu = () => {
         </div>
       </div>
       {isSettingsOpen && (
-        <SettingsWindow onClose={() => setIsSettingsOpen(false)} />
+        <SettingsWindow 
+          open={isSettingsOpen} 
+          onClose={() => setIsSettingsOpen(false)} 
+        />
       )}
     </motion.div>
   );
