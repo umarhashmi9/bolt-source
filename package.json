@@ -12,8 +12,6 @@
     "dev": "node pre-start.cjs  && remix vite:dev",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint app",
-    "lint:fix": "npm run lint -- --fix && prettier app --write",
     "start:windows": "wrangler pages dev ./build/client",
     "start:unix": "bindings=$(./bindings.sh) && wrangler pages dev ./build/client $bindings",
     "start": "node -e \"const { spawn } = require('child_process'); const isWindows = process.platform === 'win32'; const cmd = isWindows ? 'npm run start:windows' : 'npm run start:unix'; const child = spawn(cmd, { shell: true, stdio: 'inherit' }); child.on('exit', code => process.exit(code));\"",
@@ -23,8 +21,7 @@
     "dockerbuild": "docker build -t bolt-ai:development -t bolt-ai:latest --target bolt-ai-development .",
     "typecheck": "tsc",
     "typegen": "wrangler types",
-    "preview": "pnpm run build && pnpm run start",
-    "prepare": "husky"
+    "preview": "pnpm run build && pnpm run start"
   },
   "engines": {
     "node": ">=18.18.0"
@@ -105,7 +102,6 @@
     "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
-    "@blitz/eslint-plugin": "0.1.0",
     "@cloudflare/workers-types": "^4.20241127.0",
     "@remix-run/dev": "^2.15.0",
     "@types/diff": "^5.2.3",
@@ -115,11 +111,9 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "fast-glob": "^3.3.2",
-    "husky": "9.1.7",
     "is-ci": "^3.0.1",
     "node-fetch": "^3.3.2",
     "pnpm": "^9.14.4",
-    "prettier": "^3.4.1",
     "sass-embedded": "^1.81.0",
     "typescript": "^5.7.2",
     "unified": "^11.0.5",

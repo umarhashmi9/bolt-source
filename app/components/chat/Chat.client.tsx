@@ -131,46 +131,64 @@ export const ChatImpl = memo(
       return (PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER) as ProviderInfo;
     });
 
+    const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+
     const { showChat } = useStore(chatStore);
 
     const [animationScope, animate] = useAnimate();
 
-    const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+    const {
+      messages,
+      input,
+      handleInputChange,
+      handleSubmit,
+      append,
+      isLoading,
+      error,
+      setMessages,
+      setInput,
+      reload,
+      stop,
+    } = useChat({
+      api: `/api/chat?model=${model}&provider=${provider.name}`,
+      body: {
+        description,
+        apiKeys, // Use the apiKeys state
+        files: [], // Placeholder for files
+        promptId: '', // Placeholder for promptId
+        contextOptimization: false, // Placeholder for context optimization
+      },
+      sendExtraMessageFields: true,
+      initialMessages,
+      initialInput: Cookies.get(PROMPT_COOKIE_KEY) || '',
+      onError: (e) => {
+        logger.error('Request failed\n\n', e, error);
+        toast.error(
+          'There was an error processing your request: ' + (e.message ? e.message : 'No details were returned'),
+        );
+      },
+      onFinish: (message, response) => {
+        const usage = response.usage;
 
-    const { messages, isLoading, input, handleInputChange, setInput, stop, append, setMessages, reload, error } =
-      useChat({
-        api: '/api/chat',
-        body: {
-          apiKeys,
-          files,
-          promptId,
-          contextOptimization: contextOptimizationEnabled,
-        },
-        sendExtraMessageFields: true,
-        onError: (e) => {
-          logger.error('Request failed\n\n', e, error);
-          toast.error(
-            'There was an error processing your request: ' + (e.message ? e.message : 'No details were returned'),
-          );
-        },
-        onFinish: (message, response) => {
-          const usage = response.usage;
+        if (usage) {
+          console.log('Token usage:', usage);
+        }
 
-          if (usage) {
-            console.log('Token usage:', usage);
+        logger.debug('Finished streaming');
+      },
+    });
 
-            // You can now use the usage data as needed
-          }
+    const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
+    const { parsedMessages, parseMessages } = useMessageParser();
 
-          logger.debug('Finished streaming');
-        },
-        initialMessages,
-        initialInput: Cookies.get(PROMPT_COOKIE_KEY) || '',
-      });
+    const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
+
+    useEffect(() => {
+      chatStore.setKey('started', initialMessages.length > 0);
+    }, [initialMessages]);
+
     useEffect(() => {
       const prompt = searchParams.get('prompt');
-
-      // console.log(prompt, searchParams, model, provider);
 
       if (prompt) {
         setSearchParams({});
@@ -185,16 +203,7 @@ export const ChatImpl = memo(
           ] as any, // Type assertion to bypass compiler check
         });
       }
-    }, [model, provider, searchParams]);
-
-    const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
-    const { parsedMessages, parseMessages } = useMessageParser();
-
-    const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-
-    useEffect(() => {
-      chatStore.setKey('started', initialMessages.length > 0);
-    }, []);
+    }, [model, provider, searchParams, append]);
 
     useEffect(() => {
       processSampledMessages({
@@ -481,6 +490,12 @@ export const ChatImpl = memo(
       Cookies.set('selectedProvider', newProvider.name, { expires: 30 });
     };
 
+    const onApiKeysChange = (providerName: string, apiKey: string) => {
+      const updatedApiKeys = { ...apiKeys, [providerName]: apiKey };
+      setApiKeys(updatedApiKeys);
+      Cookies.set('apiKeys', JSON.stringify(updatedApiKeys), { expires: 30 });
+    };
+
     return (
       <BaseChat
         ref={animationScope}
@@ -535,6 +550,7 @@ export const ChatImpl = memo(
         setImageDataList={setImageDataList}
         actionAlert={actionAlert}
         clearAlert={() => workbenchStore.clearAlert()}
+        onApiKeysChange={onApiKeysChange}
       />
     );
   },
