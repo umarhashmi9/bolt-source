@@ -137,24 +137,24 @@ export const ChatImpl = memo(
 
     const [animationScope, animate] = useAnimate();
 
-    const { 
-      messages, 
-      input, 
-      handleInputChange, 
-      handleSubmit, 
-      append, 
-      isLoading, 
-      error, 
-      setMessages, 
-      setInput, 
-      reload, 
-      stop 
+    const {
+      messages,
+      input,
+      handleInputChange,
+      handleSubmit,
+      append,
+      isLoading,
+      error,
+      setMessages,
+      setInput,
+      reload,
+      stop,
     } = useChat({
       api: `/api/chat?model=${model}&provider=${provider.name}`,
       body: {
         description,
-        apiKeys,  // Use the apiKeys state
-        files: [],    // Placeholder for files
+        apiKeys, // Use the apiKeys state
+        files: [], // Placeholder for files
         promptId: '', // Placeholder for promptId
         contextOptimization: false, // Placeholder for context optimization
       },
