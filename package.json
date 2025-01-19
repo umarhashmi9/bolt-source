@@ -7,24 +7,25 @@
   "type": "module",
   "version": "0.0.5",
   "scripts": {
-    "deploy": "npm run build && wrangler pages deploy",
     "build": "remix vite:build",
-    "dev": "node pre-start.cjs  && remix vite:dev",
+    "dev": "remix vite:dev",
+    "start": "remix-serve ./build/server/index.js",
+    "typecheck": "tsc",
     "test": "vitest --run",
     "test:watch": "vitest",
     "start:windows": "wrangler pages dev ./build/client",
     "start:unix": "bindings=$(./bindings.sh) && wrangler pages dev ./build/client $bindings",
-    "start": "node -e \"const { spawn } = require('child_process'); const isWindows = process.platform === 'win32'; const cmd = isWindows ? 'npm run start:windows' : 'npm run start:unix'; const child = spawn(cmd, { shell: true, stdio: 'inherit' }); child.on('exit', code => process.exit(code));\"",
     "dockerstart": "bindings=$(./bindings.sh) && wrangler pages dev ./build/client $bindings --ip 0.0.0.0 --port 5173 --no-show-interactive-dev-session",
     "dockerrun": "docker run -it -d --name bolt-ai-live -p 5173:5173 --env-file .env.local bolt-ai",
     "dockerbuild:prod": "docker build -t bolt-ai:production -t bolt-ai:latest --target bolt-ai-production .",
     "dockerbuild": "docker build -t bolt-ai:development -t bolt-ai:latest --target bolt-ai-development .",
-    "typecheck": "tsc",
     "typegen": "wrangler types",
-    "preview": "pnpm run build && pnpm run start"
+    "preview": "pnpm run build && pnpm run start",
+    "deploy:netlify": "netlify deploy --prod"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=18.20.5",
+    "pnpm": ">=9.4.0"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^0.0.39",
@@ -65,7 +66,7 @@
     "@remix-run/cloudflare": "^2.15.0",
     "@remix-run/cloudflare-pages": "^2.15.0",
     "@remix-run/react": "^2.15.0",
-    "@supabase/auth-helpers-remix": "^0.4.2",
+    "@supabase/auth-helpers-remix": "^0.4.0",
     "@supabase/supabase-js": "^2.39.3",
     "@uiw/codemirror-theme-vscode": "^4.23.6",
     "@unocss/reset": "^0.61.9",
