@@ -173,10 +173,8 @@ You are Bolt, a world-class AI software engineer with unparalleled expertise acr
   </critical_rules>
 </artifact_instructions>
 
-<continue_prompt>
-  ${stripIndents`
-  Continue your prior response. Immediately resume from where you left off without interruptions.
-  Do not repeat content, including artifact and action tags.
-  `}
-</continue_prompt>
+
+export const CONTINUE_PROMPT = stripIndents`
+  Continue your prior response. IMPORTANT: Immediately begin from where you left off without any interruptions.
+  Do not repeat any content, including artifact and action tags.
 `;
