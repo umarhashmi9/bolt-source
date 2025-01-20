@@ -30,6 +30,7 @@ export default {
   win: {
     icon: 'public/logo.ico', // Win icon
     target: ['nsis', 'portable'],
+    signAndEditExecutable: false,
   },
   linux: {
     icon: 'public/logo.png', // linux icon
