@@ -1,2 +1,2 @@
-import { loader } from './api.models';
-export { loader };
+import { action } from './api.models';
+export { action };
