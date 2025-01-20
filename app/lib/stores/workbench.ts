@@ -453,10 +453,12 @@ export class WorkbenchStore {
     const files: Record<string, FileEntry> = {};
 
     for (const [path, file] of Object.entries(filesMap)) {
-      files[path] = {
-        content: file.content,
-        isDirectory: file.type === 'directory'
-      };
+      if (file) {  
+        files[path] = {
+          content: file.type === 'file' ? file.content : '',
+          isDirectory: file.type === 'folder'
+        };
+      }
     }
 
     return { files };
