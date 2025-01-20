@@ -38,7 +38,7 @@ function getProviderInfo(llmManager: LLMManager) {
   return { providers: cachedProviders, defaultProvider: cachedDefaultProvider };
 }
 
-export async function action({ context, request, params }: ActionFunctionArgs): Promise<Response> {
+export async function loader({ context, request, params }: ActionFunctionArgs): Promise<Response> {
   const serverEnv: Record<string, string> = (context.cloudflare?.env as any) || {};
   const llmManager = LLMManager.getInstance(import.meta.env);
 
