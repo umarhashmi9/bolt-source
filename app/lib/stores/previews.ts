@@ -1,4 +1,4 @@
-import type { WebContainer, IFSWatcher } from '@webcontainer/api';
+import type { WebContainer } from '@webcontainer/api';
 import { atom } from 'nanostores';
 
 // Extend Window interface to include our custom property
@@ -142,89 +142,46 @@ export class PreviewsStore {
   async #init() {
     const webcontainer = await this.#webcontainer;
 
-    // Ensure we're in a browser environment
-    if (typeof window === 'undefined') return;
+    // Listen for server ready events
+    webcontainer.on('server-ready', (port, url) => {
+      console.log('[Preview] Server ready on port:', port, url);
+      this.broadcastUpdate(url);
 
-    // Broadcast initial state
-    this._broadcastStorageSync();
+      // Initial storage sync when preview is ready
+      this._broadcastStorageSync();
+    });
 
     try {
-      // Safer file watching mechanism
-      const watchFiles = async () => {
-        try {
-          // Use a more generic watch method
-          const watcher: ExtendedFSWatcher = await webcontainer.fs.watch('.', { 
-            persistent: true, 
-            recursive: true 
-          });
+      // Watch for file changes
+      const watcher = await webcontainer.fs.watch('**/*', { persistent: true });
 
-          // Try multiple event listening methods
-          if (typeof watcher.on === 'function') {
-            watcher.on('change', () => {
-              const previews = this.previews.get();
-              for (const preview of previews) {
-                const previewId = this.getPreviewId(preview.baseUrl);
-                if (previewId) {
-                  this.broadcastFileChange(previewId);
-                }
-              }
-            });
-          } else if (typeof watcher.addEventListener === 'function') {
-            watcher.addEventListener('change', () => {
-              const previews = this.previews.get();
-              for (const preview of previews) {
-                const previewId = this.getPreviewId(preview.baseUrl);
-                if (previewId) {
-                  this.broadcastFileChange(previewId);
-                }
-              }
-            });
-          } else {
-            // Fallback to polling mechanism
-            const pollInterval = setInterval(() => {
-              const previews = this.previews.get();
-              for (const preview of previews) {
-                const previewId = this.getPreviewId(preview.baseUrl);
-                if (previewId) {
-                  this.broadcastFileChange(previewId);
-                }
-              }
-            }, 5000); // Poll every 5 seconds
+      // Use the native watch events
+      (watcher as any).addEventListener('change', async () => {
+        const previews = this.previews.get();
 
-            // Store the interval to potentially clear it later
-            (watcher as any)._pollInterval = pollInterval;
+        for (const preview of previews) {
+          const previewId = this.getPreviewId(preview.baseUrl);
+
+          if (previewId) {
+            this.broadcastFileChange(previewId);
           }
-        } catch (watchError) {
-          console.warn('[Preview] Fallback to polling due to watch error:', watchError);
-          
-          // Fallback polling mechanism
-          const pollInterval = setInterval(() => {
-            const previews = this.previews.get();
-            for (const preview of previews) {
-              const previewId = this.getPreviewId(preview.baseUrl);
-              if (previewId) {
-                this.broadcastFileChange(previewId);
-              }
-            }
-          }, 5000); // Poll every 5 seconds
         }
-      };
-
-      // Attempt to watch files
-      await watchFiles();
+      });
 
       // Watch for DOM changes that might affect storage
-      const observer = new MutationObserver((_mutations) => {
-        // Broadcast storage changes when DOM changes
-        this._broadcastStorageSync();
-      });
+      if (typeof window !== 'undefined') {
+        const observer = new MutationObserver((_mutations) => {
+          // Broadcast storage changes when DOM changes
+          this._broadcastStorageSync();
+        });
 
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-      });
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+        });
+      }
     } catch (error) {
       console.error('[Preview] Error setting up watchers:', error);
     }
@@ -334,12 +291,6 @@ export class PreviewsStore {
 
     this.#refreshTimeouts.set(previewId, timeout);
   }
-}
-
-// Extend the IFSWatcher interface to include potential event methods
-interface ExtendedFSWatcher extends IFSWatcher {
-  on?(event: 'change', callback: () => void): void;
-  addEventListener?(event: 'change', callback: () => void): void;
 }
 
 // Create a singleton instance

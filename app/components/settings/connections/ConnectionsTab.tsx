@@ -17,13 +17,6 @@ interface SupabaseProjectResponse {
   region: string;
 }
 
-interface NetlifySite {
-  id: string;
-  name: string;
-  url: string;
-  // Add other relevant properties as needed
-}
-
 function GitHubConnectionSection() {
   const [githubUsername, setGithubUsername] = useState(Cookies.get('githubUsername') || '');
   const [githubToken, setGithubToken] = useState(Cookies.get('githubToken') || '');
@@ -565,7 +558,7 @@ function NetlifyConnectionSection() {
       });
 
       if (response.ok) {
-        const sites: NetlifySite[] = await response.json();
+        const sites = await response.json();
         console.log('[Netlify Connection] Verified successfully', { 
           sitesCount: sites.length 
         });

@@ -314,7 +314,7 @@ const handleSupabaseConnection = async (url?: string, anonKey?: string) => {
                   return false;
                 }
                 
-                const tableNames = data?.map((row: { table_name: string }) => row.table_name) || [];
+                const tableNames = data?.map(row => row.table_name) || [];
                 console.log('Discovered public tables', { 
                   tableCount: tableNames.length,
                   tableNames 
