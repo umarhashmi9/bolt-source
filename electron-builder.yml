@@ -1,10 +1,7 @@
 #
-# https://www.electron.build/configuration/configuration
+# https://www.electron.build/configuration
 #
-copyright: Copyright 2024 Derek X Wang
-asar: false
-
-appId: com.bolt.local
+appId: com.stackblitz.bolt.diy
 productName: Bolt Local
 directories:
   buildResources: build
@@ -29,7 +26,6 @@ mac:
   icon: icons/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
