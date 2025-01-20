@@ -14,7 +14,7 @@ const logger = createScopedLogger('select-context');
 
 export async function selectContext(props: {
   messages: Message[];
-  env: Env;
+  env?: Env;
   apiKeys?: Record<string, string>;
   files: FileMap;
   providerSettings?: Record<string, IProviderSetting>;

@@ -17,8 +17,8 @@ export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
 const logger = createScopedLogger('stream-text');
 
 export async function streamText(props: {
-  messages: Messages;
-  env: Env;
+  messages: Omit<Message, 'id'>[];
+  env?: Env;
   options?: StreamingOptions;
   apiKeys?: Record<string, string>;
   files?: FileMap;
@@ -140,7 +140,7 @@ ${props.summary}
 
   return await _streamText({
     model: provider.getModelInstance({
-      model: currentModel,
+      model: modelDetails.name,
       serverEnv,
       apiKeys,
       providerSettings,
