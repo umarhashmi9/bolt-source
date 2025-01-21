@@ -294,7 +294,7 @@ export const ChatImpl = memo(
 
       runAnimation();
 
-      if (!chatStarted && messageInput && autoSelectTemplate) {
+      if (!chatStarted && _input && autoSelectTemplate) {
         setFakeLoading(true);
         setMessages([
           {
@@ -316,7 +316,7 @@ export const ChatImpl = memo(
         // reload();
 
         const { template, title } = await selectStarterTemplate({
-          message: messageInput,
+          message: _input,
           model,
           provider,
         });
@@ -339,7 +339,7 @@ export const ChatImpl = memo(
               {
                 id: `${new Date().getTime()}`,
                 role: 'user',
-                content: messageInput,
+                content: _input,
 
                 // annotations: ['hidden'],
               },
