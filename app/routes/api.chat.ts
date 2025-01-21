@@ -7,6 +7,11 @@ import SwitchableStream from '~/lib/.server/llm/switchable-stream';
 import type { IProviderSetting } from '~/types/model';
 import { createScopedLogger } from '~/utils/logger';
 
+const CLAUDE_CACHE_TOKENS_MULTIPLIER = {
+  WRITE: 1.25,
+  READ: 0.1,
+};
+
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
 }
@@ -71,8 +76,8 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           cumulativeUsage.completionTokens += Math.round(usage.completionTokens || 0);
           cumulativeUsage.promptTokens += Math.round(
             (usage.promptTokens || 0) +
-              ((cacheUsage?.cacheCreationInputTokens as number) || 0) * 1.25 +
-              ((cacheUsage?.cacheReadInputTokens as number) || 0) * 0.1,
+              ((cacheUsage?.cacheCreationInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.WRITE +
+              ((cacheUsage?.cacheReadInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.READ,
           );
           cumulativeUsage.totalTokens = cumulativeUsage.completionTokens + cumulativeUsage.promptTokens;
         }
