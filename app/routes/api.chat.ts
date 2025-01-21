@@ -65,7 +65,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         console.debug({ cacheUsage });
 
         const isCacheHit = !!cacheUsage?.cacheReadInputTokens;
-        const isCacheMiss = !!cacheUsage && !isCacheHit;
+        const isCacheMiss = !!cacheUsage?.cacheCreationInputTokens && !isCacheHit;
 
         if (usage) {
           cumulativeUsage.completionTokens += Math.round(usage.completionTokens || 0);
