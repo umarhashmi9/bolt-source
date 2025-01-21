@@ -83,28 +83,41 @@ keys.forEach((key) => console.log(`${key}:`, app.getPath(key)));
 const store = new ElectronStore<any>({ encryptionKey: 'something' });
 
 /**
- * On app startup: read any existing `apiKeys` from store and set it as a cookie.
+ * On app startup: read any existing cookies from store and set it as a cookie.
  */
-async function initApiKeysCookie() {
-  const savedApiKeys = store.get('apiKeys');
+async function initCookies() {
+  await loadStoredCookies();
+}
 
-  if (!savedApiKeys) {
-    console.log('No saved "apiKeys" found in ElectronStore, skipping cookie init.');
-    return;
+// Function to store all cookies
+async function storeCookies() {
+  const cookies = await session.defaultSession.cookies.get({});
+
+  for (const cookie of cookies) {
+    store.set(`cookie:${cookie.name}`, cookie);
   }
+}
 
-  try {
-    console.log('Restoring cookie from ElectronStore, apiKeys:', savedApiKeys);
+// Function to load stored cookies
+async function loadStoredCookies() {
+  // Get all keys that start with 'cookie:'
+  const cookieKeys = store.store ? Object.keys(store.store).filter((key) => key.startsWith('cookie:')) : [];
 
-    // Set the cookie in the default Electron session
-    await session.defaultSession.cookies.set({
-      url: `http://localhost:${DEFAULT_PORT}`,
-      name: 'apiKeys',
-      value: savedApiKeys,
-      path: '/',
-    });
-  } catch (err) {
-    console.log('Failed to set session cookie from ElectronStore:', err);
+  for (const key of cookieKeys) {
+    const cookie = store.get(key);
+
+    if (cookie) {
+      try {
+        // Add default URL if not present
+        const cookieWithUrl = {
+          ...cookie,
+          url: cookie.url || `http://localhost:${DEFAULT_PORT}`,
+        };
+        await session.defaultSession.cookies.set(cookieWithUrl);
+      } catch (error) {
+        console.error(`Failed to set cookie ${key}:`, error);
+      }
+    }
   }
 }
 
@@ -195,8 +208,8 @@ async function loadServerBuild(): Promise<any> {
   await app.whenReady();
   console.log('App is ready');
 
-  // Load any existing apiKeys from ElectronStore, set as cookie
-  await initApiKeysCookie();
+  // Load any existing cookies from ElectronStore, set as cookie
+  await initCookies();
 
   const serverBuild = await loadServerBuild();
 
@@ -227,12 +240,14 @@ async function loadServerBuild(): Promise<any> {
         return res;
       }
 
-      // Forward cookies to remix server
-      const cookies = await session.defaultSession.cookies.get({ name: 'apiKeys' });
+      // Forward all cookies to remix server
+      const cookies = await session.defaultSession.cookies.get({});
 
       if (cookies.length > 0) {
         req.headers.set('Cookie', cookies.map((c) => `${c.name}=${c.value}`).join('; '));
-        store.set('apiKeys', cookies[0].value);
+
+        // Store all cookies
+        await storeCookies();
       }
 
       // Create request handler with the server build
