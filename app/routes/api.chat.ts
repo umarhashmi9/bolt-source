@@ -64,6 +64,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         const cacheUsage = experimental_providerMetadata?.anthropic;
         console.debug({ cacheUsage });
 
+        const isCacheHit = !!cacheUsage?.cacheReadInputTokens;
+        const isCacheMiss = !!cacheUsage && !isCacheHit;
+
         if (usage) {
           cumulativeUsage.completionTokens += Math.round(usage.completionTokens || 0);
           cumulativeUsage.promptTokens += Math.round(
@@ -84,6 +87,8 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
                   completionTokens: cumulativeUsage.completionTokens,
                   promptTokens: cumulativeUsage.promptTokens,
                   totalTokens: cumulativeUsage.totalTokens,
+                  isCacheHit,
+                  isCacheMiss,
                 },
               });
             },
