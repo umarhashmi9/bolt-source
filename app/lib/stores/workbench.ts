@@ -14,10 +14,11 @@ import { saveAs } from 'file-saver';
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import * as nodePath from 'node:path';
 import { extractRelativePath } from '~/utils/diff';
-import { description } from '~/lib/persistence';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
+import { db, getMessages } from '~/lib/persistence';
+import { toast } from 'react-toastify';
 
 export interface ArtifactState {
   id: string;
@@ -434,8 +435,20 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, githubUsername?: string, ghToken?: string) {
+  async pushToGitHub(chatId: string, commitMessage: string, githubUsername?: string, ghToken?: string) {
     try {
+      if (!db) {
+        toast.error('Chat persistence is not available');
+        return;
+      }
+
+      // Get chat details
+      const chat = await getMessages(db, chatId);
+
+      if (!chat.gitHubRepo) {
+        throw new Error('GitHub repo is not set in cookies or provided.');
+      }
+
       // Use cookies if username and token are not provided
       const githubToken = ghToken || Cookies.get('githubToken');
       const owner = githubUsername || Cookies.get('githubUsername');
@@ -450,14 +463,19 @@ export class WorkbenchStore {
       // Check if the repository already exists before creating it
       let repo: RestEndpointMethodTypes['repos']['get']['response']['data'];
 
+      let repoAlreadyExists = false;
+
       try {
-        const resp = await octokit.repos.get({ owner, repo: repoName });
+        const resp = await octokit.repos.get({ owner, repo: chat.gitHubRepo });
+
         repo = resp.data;
+
+        repoAlreadyExists = true;
       } catch (error) {
         if (error instanceof Error && 'status' in error && error.status === 404) {
           // Repository doesn't exist, so create a new one
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
-            name: repoName,
+            name: chat.gitHubRepo,
             private: false,
             auto_init: true,
           });
@@ -504,6 +522,7 @@ export class WorkbenchStore {
         repo: repo.name,
         ref: `heads/${repo.default_branch || 'main'}`, // Handle dynamic branch
       });
+
       const latestCommitSha = ref.object.sha;
 
       // Create a new tree
@@ -523,7 +542,7 @@ export class WorkbenchStore {
       const { data: newCommit } = await octokit.git.createCommit({
         owner: repo.owner.login,
         repo: repo.name,
-        message: 'Initial commit from your app',
+        message: commitMessage,
         tree: newTree.sha,
         parents: [latestCommitSha],
       });
@@ -536,9 +555,135 @@ export class WorkbenchStore {
         sha: newCommit.sha,
       });
 
-      alert(`Repository created and code pushed: ${repo.html_url}`);
+      alert(`${!repoAlreadyExists ? 'Repository created and c' : 'C'}ode pushed: ${repo.html_url}`);
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
+      throw error; // Rethrow the error for further handling
+    }
+  }
+
+  async pullFromGitHub(chatId: string, githubUsername?: string, ghToken?: string) {
+    try {
+      if (!db) {
+        toast.error('Chat persistence is not available');
+        return;
+      }
+
+      // Get chat details
+      const chat = await getMessages(db, chatId);
+
+      // Use cookies if username and token are not provided
+      const githubToken = ghToken || Cookies.get('githubToken');
+      const owner = githubUsername || Cookies.get('githubUsername');
+
+      if (!githubToken || !owner) {
+        throw new Error('GitHub token or username is not set in cookies or provided.');
+      }
+
+      // Initialize Octokit with the auth token
+      const octokit = new Octokit({ auth: githubToken });
+
+      // Helper function to fetch repository contents
+      const fetchRepoContents = async (path = '') => {
+        if (!chat.gitHubRepo) {
+          throw new Error('GitHub repository is not set in cookies or provided.');
+        }
+
+        const { data } = await octokit.repos.getContent({
+          owner,
+          repo: chat.gitHubRepo,
+          path,
+        });
+
+        return Array.isArray(data) ? data : [data]; // Normalize single file or folder response
+      };
+
+      // Helper function to determine if a file is binary
+      const isBinaryFile = (content: string): boolean => {
+        try {
+          return /[^\x09\x0A\x0D\x20-\x7E]/.test(atob(content)); // Check for non-printable characters
+        } catch {
+          // If decoding fails, assume binary
+          return true;
+        }
+      };
+
+      // Helper function to fetch file content safely
+      const fetchFileContent = async (url: string): Promise<string> => {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file content: ${response.statusText}`);
+        }
+
+        return await response.text();
+      };
+
+      // Helper function to safely fetch large files
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+      const fetchFileContentSafely = async (url: string): Promise<string> => {
+        const response = await fetch(url);
+
+        if (
+          response.headers.get('content-length') &&
+          parseInt(response.headers.get('content-length')!, 10) > MAX_FILE_SIZE
+        ) {
+          throw new Error('File size exceeds limit');
+        }
+
+        return await response.text();
+      };
+
+      // Recursively fetch files and folders
+      const fetchAllFiles = async (path = ''): Promise<FileMap> => {
+        const files: FileMap = {};
+        const contents = await fetchRepoContents(path);
+
+        for (const item of contents) {
+          if (item.type === 'file') {
+            const isReadme = item.path.toLowerCase().startsWith('readme');
+
+            if (item.download_url) {
+              const fileContent = isReadme
+                ? await fetchFileContent(item.download_url)
+                : await fetchFileContentSafely(item.download_url);
+
+              const isBinary = isReadme ? false : isBinaryFile(fileContent);
+
+              files[item.path] = {
+                type: 'file',
+                content: fileContent,
+                isBinary,
+              };
+            } else {
+              console.warn(`Download URL is null for item: ${item.path}`);
+            }
+          } else if (item.type === 'dir') {
+            files[item.path] = { type: 'folder' }; // Add folder to FileMap
+
+            const subFiles = await fetchAllFiles(item.path); // Recurse into the folder
+            Object.assign(files, subFiles);
+          }
+        }
+
+        return files;
+      };
+
+      // Fetch all files starting from the root directory
+      const repoFiles: FileMap = await fetchAllFiles();
+
+      if (Object.keys(repoFiles).length === 0) {
+        throw new Error('No files found in the repository');
+      }
+
+      // Store the files in your local storage or database
+      this.files.set(repoFiles);
+
+      toast.success('Repository files have been pulled successfully!');
+    } catch (error: any) {
+      console.error('Error pulling from GitHub:', error);
+      toast.error(`Error: ${error.message}`);
       throw error; // Rethrow the error for further handling
     }
   }

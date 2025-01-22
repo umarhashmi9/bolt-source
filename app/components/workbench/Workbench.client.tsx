@@ -18,6 +18,7 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import Cookies from 'js-cookie';
+import { chatId as chatIdStore, db, updateChatGitHubRepository } from '~/lib/persistence';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -57,6 +58,12 @@ const workbenchVariants = {
 export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => {
   renderLogger.trace('Workbench');
 
+  const chatIdFromStore = useStore(chatIdStore);
+
+  const [isPushing, setIsPushing] = useState(false);
+
+  const [isPulling, setIsPulling] = useState(false);
+
   const [isSyncing, setIsSyncing] = useState(false);
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
@@ -72,6 +79,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const setSelectedView = (view: WorkbenchViewType) => {
     workbenchStore.currentView.set(view);
   };
+
+  const [chatId, setChatId] = useState<string>();
+
+  useEffect(() => {
+    setChatId(chatIdFromStore);
+  }, [chatIdFromStore]);
 
   useEffect(() => {
     if (hasPreview) {
@@ -119,6 +132,113 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
       setIsSyncing(false);
     }
   }, []);
+
+  const handlePushToGitHub = useCallback(
+    async (db: IDBDatabase, id: string) => {
+      const getCredentials = (): { username: string; token: string } | null => {
+        const githubUsername = Cookies.get('githubUsername');
+        const githubToken = Cookies.get('githubToken');
+
+        if (githubUsername && githubToken) {
+          return { username: githubUsername, token: githubToken };
+        }
+
+        const username = prompt('Please enter your GitHub username:') || '';
+        const token = prompt('Please enter your GitHub personal access token:') || '';
+
+        if (!username || !token) {
+          alert('GitHub username and token are required. Push to GitHub cancelled.');
+          return null;
+        }
+
+        return { username, token };
+      };
+
+      const getCommitMessage = (): string | null => {
+        const commitMessage = prompt('Please enter your commit message:');
+
+        if (!commitMessage) {
+          alert('Commit message is required. Push to GitHub cancelled.');
+          return null;
+        }
+
+        return commitMessage;
+      };
+
+      try {
+        setIsPushing(true); // Start pushing immediately
+        await updateChatGitHubRepository(db, id);
+
+        const credentials = getCredentials();
+
+        if (!credentials) {
+          return;
+        }
+
+        const commitMessage = getCommitMessage();
+
+        if (!commitMessage) {
+          return;
+        }
+
+        await workbenchStore.pushToGitHub(id, commitMessage, credentials.username, credentials.token);
+
+        toast.success('Successfully pushed to GitHub');
+      } catch (error) {
+        toast.error('Failed to update GitHub repository');
+
+        console.error('Error updating GitHub repository:', error);
+      } finally {
+        setIsPushing(false); // Stop pushing
+      }
+    },
+    [setIsPushing],
+  );
+
+  const handlePullFromGitHub = useCallback(
+    async (db: IDBDatabase, id: string) => {
+      const getCredentials = (): { username: string; token: string } | null => {
+        const githubUsername = Cookies.get('githubUsername');
+        const githubToken = Cookies.get('githubToken');
+
+        if (githubUsername && githubToken) {
+          return { username: githubUsername, token: githubToken };
+        }
+
+        const username = prompt('Please enter your GitHub username:') || '';
+        const token = prompt('Please enter your GitHub personal access token:') || '';
+
+        if (!username || !token) {
+          alert('GitHub username and token are required. Pull from GitHub cancelled.');
+          return null;
+        }
+
+        return { username, token };
+      };
+
+      try {
+        setIsPulling(true); // Start pulling immediately
+        await updateChatGitHubRepository(db, id);
+
+        const credentials = getCredentials();
+
+        if (!credentials) {
+          return;
+        }
+
+        await workbenchStore.pullFromGitHub(id, credentials.username, credentials.token);
+
+        toast.success('Successfully pulled from GitHub');
+      } catch (error) {
+        toast.error('Failed to pull GitHub repository');
+
+        console.error('Error pulling GitHub repository:', error);
+      } finally {
+        setIsPulling(false); // Stop pulling
+      }
+    },
+    [setIsPulling],
+  );
 
   return (
     chatStarted && (
@@ -168,39 +288,51 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <div className="i-ph:terminal" />
                       Toggle Terminal
                     </PanelHeaderButton>
+
                     <PanelHeaderButton
                       className="mr-1 text-sm"
+                      disabled={isPulling}
                       onClick={() => {
-                        const repoName = prompt(
-                          'Please enter a name for your new GitHub repository:',
-                          'bolt-generated-project',
-                        );
-
-                        if (!repoName) {
-                          alert('Repository name is required. Push to GitHub cancelled.');
+                        if (!db) {
+                          toast.error('Chat persistence is not available');
                           return;
                         }
 
-                        const githubUsername = Cookies.get('githubUsername');
-                        const githubToken = Cookies.get('githubToken');
-
-                        if (!githubUsername || !githubToken) {
-                          const usernameInput = prompt('Please enter your GitHub username:');
-                          const tokenInput = prompt('Please enter your GitHub personal access token:');
-
-                          if (!usernameInput || !tokenInput) {
-                            alert('GitHub username and token are required. Push to GitHub cancelled.');
-                            return;
-                          }
-
-                          workbenchStore.pushToGitHub(repoName, usernameInput, tokenInput);
-                        } else {
-                          workbenchStore.pushToGitHub(repoName, githubUsername, githubToken);
+                        if (!chatId) {
+                          toast.error('Chat Id is not available');
+                          return;
                         }
+
+                        // Push changes to github repository
+                        handlePullFromGitHub(db, chatId);
                       }}
                     >
-                      <div className="i-ph:github-logo" />
-                      Push to GitHub
+                      {isPulling ? <div className="i-ph:spinner" /> : <div className="i-ph:git-pull-request" />}
+
+                      {isPulling ? 'Pulling...' : 'Pull from GitHub'}
+                    </PanelHeaderButton>
+
+                    <PanelHeaderButton
+                      className="mr-1 text-sm"
+                      disabled={isPushing}
+                      onClick={() => {
+                        if (!db) {
+                          toast.error('Chat persistence is not available');
+                          return;
+                        }
+
+                        if (!chatId) {
+                          toast.error('Chat Id is not available');
+                          return;
+                        }
+
+                        // Push changes to github repository
+                        handlePushToGitHub(db, chatId);
+                      }}
+                    >
+                      {isPushing ? <div className="i-ph:spinner" /> : <div className="i-ph:github-logo" />}
+
+                      {isPushing ? 'Pushing...' : 'Push to GitHub'}
                     </PanelHeaderButton>
                   </div>
                 )}

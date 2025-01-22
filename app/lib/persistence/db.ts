@@ -52,6 +52,7 @@ export async function setMessages(
   messages: Message[],
   urlId?: string,
   description?: string,
+  gitHubRepo?: string,
   timestamp?: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -68,6 +69,7 @@ export async function setMessages(
       messages,
       urlId,
       description,
+      gitHubRepo,
       timestamp: timestamp ?? new Date().toISOString(),
     });
 
@@ -230,5 +232,26 @@ export async function updateChatDescription(db: IDBDatabase, id: string, descrip
     throw new Error('Description cannot be empty');
   }
 
-  await setMessages(db, id, chat.messages, chat.urlId, description, chat.timestamp);
+  await setMessages(db, id, chat.messages, chat.urlId, description, chat.gitHubRepo, chat.timestamp);
+}
+
+export async function updateChatGitHubRepository(db: IDBDatabase, id: string): Promise<void> {
+  const chat = await getMessages(db, id);
+
+  if (!chat) {
+    throw new Error('Chat not found');
+  }
+
+  if (!chat.gitHubRepo) {
+    const repoName = prompt('Please enter a name for your new GitHub repository:', chat?.urlId);
+
+    if (!repoName) {
+      alert('Repository name is required. Push to GitHub cancelled.');
+      return;
+    }
+
+    await setMessages(db, id, chat.messages, chat.urlId, chat.description, repoName, chat.timestamp);
+  } else {
+    return;
+  }
 }

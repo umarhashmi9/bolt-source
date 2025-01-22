@@ -1,4 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import Cookies from 'js-cookie';
+import { useCallback, useState } from 'react';
+import { toast } from 'react-toastify';
+import { useGit } from '~/lib/hooks/useGit';
 import type { ActionAlert } from '~/types/actions';
 import { classNames } from '~/utils/classNames';
 
@@ -11,11 +15,64 @@ interface Props {
 export default function ChatAlert({ alert, clearAlert, postMessage }: Props) {
   const { description, content, source } = alert;
 
+  const [isReporting, setIsReporting] = useState(false);
+
+  const { gitReportIssue } = useGit();
+
   const isPreview = source === 'preview';
   const title = isPreview ? 'Preview Error' : 'Terminal Error';
   const message = isPreview
     ? 'We encountered an error while running the preview. Would you like Bolt to analyze and help resolve this issue?'
     : 'We encountered an error while running terminal commands. Would you like Bolt to analyze and help resolve this issue?';
+
+  const handleReportIssue = useCallback(async () => {
+    const getCredentials = (): { username: string; token: string } | null => {
+      const githubUsername = Cookies.get('githubUsername');
+      const githubToken = Cookies.get('githubToken');
+
+      if (githubUsername && githubToken) {
+        return { username: githubUsername, token: githubToken };
+      }
+
+      const username = prompt('Please enter your GitHub username:') || '';
+      const token = prompt('Please enter your GitHub personal access token:') || '';
+
+      if (!username || !token) {
+        window.alert('GitHub username and token are required. Report issue cancelled.');
+        return null;
+      }
+
+      return { username, token };
+    };
+
+    const getIssueTitle = (): string => {
+      return prompt('Please enter your issue title:') || 'Issue';
+    };
+
+    try {
+      setIsReporting(true); // Start loading immediately
+
+      const credentials = getCredentials();
+
+      if (!credentials) {
+        return;
+      }
+
+      const issueTitle = getIssueTitle();
+
+      const issueContent = `*Fix this ${isPreview ? 'preview' : 'terminal'} error* \n\`\`\`${isPreview ? 'js' : 'sh'}\n${content}\n\`\`\`\n`;
+
+      // TODO: The Repository Name should be resolved to something more generic than the repository name here
+      await gitReportIssue('basic-todo-list-app', issueTitle, credentials.username, credentials.token, issueContent);
+
+      toast.success('Issue reported successfully!');
+    } catch (error) {
+      console.error('Error reporting to GitHub:', error);
+      toast.error('Failed to report issue. Check the console for more details.');
+    } finally {
+      setIsReporting(false); // Stop loading
+    }
+  }, [setIsReporting, isPreview, content]);
 
   return (
     <AnimatePresence>
@@ -86,6 +143,24 @@ export default function ChatAlert({ alert, clearAlert, postMessage }: Props) {
                   <div className="i-ph:chat-circle-duotone"></div>
                   Ask Bolt
                 </button>
+
+                <button
+                  disabled={isReporting}
+                  onClick={handleReportIssue}
+                  className={classNames(
+                    `px-2 py-1.5 rounded-md text-sm font-medium`,
+                    'bg-bolt-elements-button-danger-background',
+                    'hover:bg-bolt-elements-button-danger-backgroundHover',
+                    'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-bolt-elements-button-danger-background',
+                    'text-bolt-elements-button-danger-text',
+                    'flex items-center gap-1.5',
+                  )}
+                >
+                  {isReporting ? <div className="i-ph:spinner" /> : <div className="i-ph:bug-duotone" />}
+
+                  {isReporting ? 'Reporting...' : 'Report'}
+                </button>
+
                 <button
                   onClick={clearAlert}
                   className={classNames(

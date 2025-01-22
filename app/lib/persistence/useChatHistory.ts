@@ -19,6 +19,7 @@ export interface ChatHistoryItem {
   id: string;
   urlId?: string;
   description?: string;
+  gitHubRepo?: string;
   messages: Message[];
   timestamp: string;
 }

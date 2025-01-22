@@ -5,6 +5,7 @@ import git, { type GitAuth, type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
+import { Octokit } from '@octokit/rest';
 
 const lookupSavedPassword = (url: string) => {
   const domain = url.split('/')[2];
@@ -113,7 +114,161 @@ export function useGit() {
     [webcontainer, fs, ready],
   );
 
-  return { ready, gitClone };
+  const gitPush = useCallback(
+    async (remote: string, branch: string) => {
+      if (!webcontainer || !fs || !ready) {
+        throw 'Webcontainer not initialized';
+      }
+
+      try {
+        await git.push({
+          fs,
+          http,
+          dir: webcontainer.workdir,
+          remote,
+          ref: branch,
+          corsProxy: 'https://cors.isomorphic-git.org',
+          onAuth: (url) => {
+            let auth = lookupSavedPassword(url);
+
+            if (auth) {
+              return auth;
+            }
+
+            if (confirm('This repo is password protected. Ready to enter a username & password?')) {
+              auth = {
+                username: prompt('Enter username'),
+                password: prompt('Enter password'),
+              };
+              return auth;
+            } else {
+              return { cancel: true };
+            }
+          },
+          onAuthFailure: (url, _auth) => {
+            toast.error(`Error Authenticating with ${url.split('/')[2]}`);
+          },
+          onAuthSuccess: (url, auth) => {
+            saveGitAuth(url, auth);
+          },
+        });
+
+        toast.success(`Successfully pushed to ${remote}/${branch}`);
+      } catch (error) {
+        console.error('Error during git push:', error);
+        toast.error('Failed to push changes. Check the console for more details.');
+        throw error;
+      }
+    },
+    [webcontainer, fs, ready],
+  );
+
+  const gitPull = useCallback(
+    async (url: string, branch: string = 'main') => {
+      if (!webcontainer || !fs || !ready) {
+        throw 'Webcontainer not initialized';
+      }
+
+      fileData.current = {};
+
+      try {
+        // Perform a pull operation
+        await git.pull({
+          fs,
+          http,
+          dir: webcontainer.workdir,
+          url,
+          ref: branch,
+          singleBranch: true,
+          fastForwardOnly: true,
+          corsProxy: 'https://cors.isomorphic-git.org',
+          onAuth: (url) => {
+            let auth = lookupSavedPassword(url);
+
+            if (auth) {
+              return auth;
+            }
+
+            if (confirm('This repo is password protected. Ready to enter a username & password?')) {
+              auth = {
+                username: prompt('Enter username'),
+                password: prompt('Enter password'),
+              };
+              return auth;
+            } else {
+              return { cancel: true };
+            }
+          },
+          onAuthFailure: (url, _auth) => {
+            toast.error(`Error Authenticating with ${url.split('/')[2]}`);
+          },
+          onAuthSuccess: (url, auth) => {
+            saveGitAuth(url, auth);
+          },
+        });
+
+        const data: Record<string, { data: any; encoding?: string }> = {};
+
+        for (const [key, value] of Object.entries(fileData.current)) {
+          data[key] = value;
+        }
+
+        return { workdir: webcontainer.workdir, data };
+      } catch (error) {
+        console.error('Error during git pull:', error);
+        throw error;
+      }
+    },
+    [webcontainer],
+  );
+
+  const gitReportIssue = useCallback(
+    async (repoName: string, issueTitle: string, githubUsername?: string, ghToken?: string, issueBody?: string) => {
+      if (!repoName) {
+        throw new Error('Repository name is required.');
+      }
+
+      try {
+        // Use cookies if username and token are not provided
+        let username = githubUsername || Cookies.get('githubUsername');
+        let token = ghToken || Cookies.get('githubToken');
+
+        if (!username || !token) {
+          username = prompt('Please enter your GitHub username:') || '';
+          token = prompt('Please enter your GitHub personal access token:') || '';
+
+          if (!username || !token) {
+            alert('GitHub username and token are required. Issue reporting cancelled.');
+            return null; // Explicitly return null for consistency
+          }
+        }
+
+        // Initialize Octokit with the auth token
+        const octokit = new Octokit({ auth: token });
+
+        // Create a new issue
+        const response = await octokit.issues.create({
+          owner: username,
+          repo: repoName,
+          title: issueTitle,
+          body: issueBody || 'No description provided.',
+          labels: ['bug'],
+        });
+
+        toast.success('Issue reported successfully!');
+
+        return response.data; // Return the created issue data
+      } catch (error) {
+        console.error('Error reporting to GitHub:', error);
+        toast.error('Failed to report issue. Check the console for more details.');
+
+        return null; // Consistently return null when an error occurs
+      }
+    },
+    [],
+  );
+
+  return { ready, gitClone, gitPush, gitPull, gitReportIssue };
 }
 
 const getFs = (
