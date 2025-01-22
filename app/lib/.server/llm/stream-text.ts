@@ -105,7 +105,7 @@ export async function streamText(props: {
     const filePaths = getFilePaths(files);
 
     systemPrompt = `${systemPrompt}
-Below are all the filespresent in the project:
+Below are all the files present in the project:
 ---
 ${filePaths.join('\n')}
 ---

@@ -85,9 +85,7 @@ export function createFilesContext(files: FileMap, useRelativePath?: boolean) {
       return `<file path="${filePath}">\n${codeWithLinesNumbers}\n</file>`;
     });
 
-  return `file content format:
-<codebase>${fileContexts.join('\n\n')}\n\n</codebase>
-`;
+  return `<codebase>${fileContexts.join('\n\n')}\n\n</codebase>`;
 }
 
 export function extractCurrentContext(messages: Message[]) {
