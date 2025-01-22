@@ -62,10 +62,14 @@ export default function ChatAlert({ alert, clearAlert, postMessage }: Props) {
 
       const issueContent = `*Fix this ${isPreview ? 'preview' : 'terminal'} error* \n\`\`\`${isPreview ? 'js' : 'sh'}\n${content}\n\`\`\`\n`;
 
-      // TODO: The Repository Name should be resolved to something more generic than the repository name here
-      await gitReportIssue('basic-todo-list-app', issueTitle, credentials.username, credentials.token, issueContent);
+      const repoName = prompt('Please enter a name for your new GitHub repository:');
 
-      toast.success('Issue reported successfully!');
+      if (!repoName) {
+        window.alert('Repository name is required. Push to GitHub cancelled.');
+        return;
+      }
+
+      await gitReportIssue(repoName, issueTitle, credentials.username, credentials.token, issueContent);
     } catch (error) {
       console.error('Error reporting to GitHub:', error);
       toast.error('Failed to report issue. Check the console for more details.');

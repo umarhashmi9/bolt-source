@@ -17,7 +17,7 @@ import { extractRelativePath } from '~/utils/diff';
 import Cookies from 'js-cookie';
 import { createSampler } from '~/utils/sampler';
 import type { ActionAlert } from '~/types/actions';
-import { db, getMessages } from '~/lib/persistence';
+import { db, description, getMessages } from '~/lib/persistence';
 import { toast } from 'react-toastify';
 
 export interface ArtifactState {
