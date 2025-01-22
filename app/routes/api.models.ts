@@ -1,4 +1,4 @@
-import { json } from '@remix-run/cloudflare';
+import { json, type ActionFunctionArgs } from '@remix-run/server-runtime';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { ProviderInfo } from '~/types/model';
@@ -38,13 +38,8 @@ function getProviderInfo(llmManager: LLMManager) {
   return { providers: cachedProviders, defaultProvider: cachedDefaultProvider };
 }
 
-export async function loader({
-  request,
-  params,
-}: {
-  request: Request;
-  params: { provider?: string };
-}): Promise<Response> {
+export async function loader({ context, request, params }: ActionFunctionArgs): Promise<Response> {
+  const serverEnv: Record<string, string> = (context.cloudflare?.env as any) || {};
   const llmManager = LLMManager.getInstance(import.meta.env);
 
   // Get client side maintained API keys and provider settings from cookies
@@ -63,7 +58,7 @@ export async function loader({
     if (provider) {
       const staticModels = provider.staticModels;
       const dynamicModels = provider.getDynamicModels
-        ? await provider.getDynamicModels(apiKeys, providerSettings, import.meta.env)
+        ? await provider.getDynamicModels(apiKeys, providerSettings, serverEnv)
         : [];
       modelList = [...staticModels, ...dynamicModels];
     }

@@ -1,4 +1,4 @@
-import { type ActionFunctionArgs } from '@remix-run/cloudflare';
+import { type ActionFunctionArgs } from '@remix-run/server-runtime';
 import { streamText } from '~/lib/.server/llm/stream-text';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { generateText } from 'ai';
@@ -63,7 +63,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
             content: `${message}`,
           },
         ],
-        env: context.cloudflare.env,
+        env: context.cloudflare?.env,
         apiKeys,
         providerSettings,
       });
@@ -91,7 +91,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
     }
   } else {
     try {
-      const models = await getModelList({ apiKeys, providerSettings, serverEnv: context.cloudflare.env as any });
+      const models = await getModelList({ apiKeys, providerSettings, serverEnv: context.cloudflare?.env as any });
       const modelDetails = models.find((m: ModelInfo) => m.name === model);
 
       if (!modelDetails) {
@@ -116,7 +116,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         ],
         model: providerInfo.getModelInstance({
           model: modelDetails.name,
-          serverEnv: context.cloudflare.env as any,
+          serverEnv: context.cloudflare?.env as any,
           apiKeys,
           providerSettings,
         }),
