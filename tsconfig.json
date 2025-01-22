@@ -27,7 +27,6 @@
     "**/.server/**/*.ts",
     "**/.server/**/*.tsx",
     "**/.client/**/*.ts",
-    "**/.client/**/*.tsx",
-    "electron/**/*.ts"
+    "**/.client/**/*.tsx"
   ]
 }

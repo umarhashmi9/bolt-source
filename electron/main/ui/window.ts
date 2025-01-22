@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
-import { isDev, __dirname } from './constants';
-import { store } from './store';
+import { isDev, __dirname } from '../utils/constants';
+import { store } from '../utils/store';
 
 export function createWindow(rendererURL: string) {
   console.log('Creating window with URL:', rendererURL);

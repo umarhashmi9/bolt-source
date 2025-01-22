@@ -10,9 +10,7 @@ export async function initCookies() {
 }
 
 // Function to store all cookies
-export async function storeCookies() {
-  const cookies = await session.defaultSession.cookies.get({});
-
+export async function storeCookies(cookies: Electron.Cookie[]) {
   for (const cookie of cookies) {
     store.set(`cookie:${cookie.name}`, cookie);
   }

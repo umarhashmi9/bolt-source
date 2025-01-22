@@ -4,6 +4,11 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [nodePolyfills()],
+  resolve: {
+    alias: {
+      '~': resolve(__dirname, '.'),
+    },
+  },
   build: {
     lib: {
       entry: resolve('electron/main/index.ts'),

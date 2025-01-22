@@ -3,16 +3,15 @@ import { createRequestHandler } from '@remix-run/node';
 import electron, { app, BrowserWindow, ipcMain, protocol, session } from 'electron';
 import log from 'electron-log';
 import path from 'node:path';
-// eslint-disable-next-line no-restricted-imports
 import * as pkg from '../../package.json';
-import { setupAutoUpdater } from './auto-update';
-import { isDev, DEFAULT_PORT, rendererClientPath } from './constants';
-import { initViteServer, viteServer } from './vite-server';
-import { setupMenu } from './menu';
-import { createWindow } from './window';
-import { initCookies, storeCookies } from './cookie';
-import { loadServerBuild, serveAsset } from './serve';
-import { reloadOnChange } from './reload';
+import { setupAutoUpdater } from './utils/auto-update';
+import { isDev, DEFAULT_PORT, rendererClientPath } from './utils/constants';
+import { initViteServer, viteServer } from './utils/vite-server';
+import { setupMenu } from './ui/menu';
+import { createWindow } from './ui/window';
+import { initCookies, storeCookies } from './utils/cookie';
+import { loadServerBuild, serveAsset } from './utils/serve';
+import { reloadOnChange } from './utils/reload';
 
 Object.assign(console, log.functions);
 
@@ -112,7 +111,7 @@ declare global {
         req.headers.set('Cookie', cookies.map((c) => `${c.name}=${c.value}`).join('; '));
 
         // Store all cookies
-        await storeCookies();
+        await storeCookies(cookies);
       }
 
       // Create request handler with the server build

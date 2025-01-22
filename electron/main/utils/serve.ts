@@ -5,8 +5,8 @@ import { createReadStream } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'url';
-import { isDev } from './constants';
 import { app } from 'electron';
+import { isDev } from './constants';
 
 export async function loadServerBuild(): Promise<any> {
   if (isDev) {
