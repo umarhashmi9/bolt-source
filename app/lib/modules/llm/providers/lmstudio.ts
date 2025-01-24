@@ -76,6 +76,7 @@ export default class LMStudioProvider extends BaseProvider {
     }
 
     const isDocker = process.env.RUNNING_IN_DOCKER === 'true' || serverEnv?.RUNNING_IN_DOCKER === 'true';
+
     if (typeof window === 'undefined') {
       baseUrl = isDocker ? baseUrl.replace('localhost', 'host.docker.internal') : baseUrl;
       baseUrl = isDocker ? baseUrl.replace('127.0.0.1', 'host.docker.internal') : baseUrl;

@@ -41,14 +41,14 @@ function getProviderInfo(llmManager: LLMManager) {
 export async function loader({
   request,
   params,
-  context
+  context,
 }: {
   request: Request;
   params: { provider?: string };
   context: {
     cloudflare?: {
-      env: Record<string, string>
-    }
+      env: Record<string, string>;
+    };
   };
 }): Promise<Response> {
   const llmManager = LLMManager.getInstance(context.cloudflare?.env);
