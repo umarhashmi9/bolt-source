@@ -84,7 +84,7 @@ export default class LMStudioProvider extends BaseProvider {
     logger.debug('LMStudio Base Url used: ', baseUrl);
 
     const lmstudio = createOpenAI({
-      baseURL: `${baseUrl}/v1`,
+      baseUrl: `${baseUrl}/v1`,
       apiKey: '',
     });
 
