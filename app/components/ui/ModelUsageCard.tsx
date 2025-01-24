@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MODEL_LIST } from '~/utils/constants';
 import { PROVIDER_ICONS } from '~/utils/provider-icons';
 import type { ModelUsage } from '~/types/token-usage';
+import type { ModelInfo } from '~/lib/modules/llm/types';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface ModelCardProps {
@@ -30,7 +31,7 @@ export function ModelUsageCard({ usage, totalTokens }: ModelCardProps) {
           </div>
           <div className="min-w-0">
             <div className="font-medium text-sm truncate">
-              {MODEL_LIST.find((m) => m.name === usage.model)?.label || usage.model}
+              {MODEL_LIST.find((m: ModelInfo) => m.name === usage.model)?.label || usage.model}
             </div>
             <div className="text-xs text-bolt-elements-textSecondary">{usage.provider}</div>
           </div>

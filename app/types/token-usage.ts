@@ -4,7 +4,18 @@ export interface TokenUsageStatsProps {
   messages: Message[];
 }
 
+interface TokenStats {
+  characterCount: number;
+  tokenCount: number;
+  inputCost?: number;
+  outputCost?: number;
+}
+
 export interface TokenUsage {
+  stats: {
+    input: TokenStats;
+    output: TokenStats;
+  };
   completionTokens: number;
   promptTokens: number;
   totalTokens: number;
@@ -13,6 +24,10 @@ export interface TokenUsage {
 }
 
 export interface ModelUsage {
+  stats: {
+    input: TokenStats;
+    output: TokenStats;
+  };
   model: string;
   provider: string;
   completionTokens: number;
