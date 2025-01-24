@@ -104,6 +104,39 @@ interface ExtendedStreamingOptions extends StreamingOptions {
   };
 }
 
+interface TokenStats {
+  characterCount: number;
+  tokenCount: number;
+  inputCost?: number;
+  outputCost?: number;
+}
+
+interface MessageContent {
+  type: string;
+  text?: string;
+}
+
+interface StreamResponse {
+  content?: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    stats?: {
+      input: TokenStats;
+      output: TokenStats;
+    };
+  };
+}
+
+// Define streaming options type
+interface ExtendedStreamingOptions extends StreamingOptions {
+  callbacks?: {
+    onCompletion?: (completion: string) => void;
+    onResponse?: (response: StreamResponse) => void;
+  };
+}
+
 export async function streamText(props: {
   messages: Messages;
   env: Env;
@@ -129,22 +162,32 @@ export async function streamText(props: {
       return { ...message, content };
     } else if (message.role === 'assistant') {
       const content = message.content;
+
       return { ...message, content };
     }
 
     return message;
   });
 
-  const modelDetails = MODEL_LIST.find((m: ModelInfo) => m.name === currentModel);
+  let modelDetails = MODEL_LIST.find((m: ModelInfo) => m.name === currentModel);
+
   const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
 
   if (!modelDetails) {
-    throw new Error(`Model ${currentModel} not found in provider ${provider.name}`);
+    logger.warn(`Model ${currentModel} not found in provider ${provider.name}, falling back to default model`);
+
+    const defaultModel = MODEL_LIST[0];
+
+    if (!defaultModel) {
+      throw new Error('No models available');
+    }
+
+    modelDetails = defaultModel;
   }
 
-  const dynamicMaxTokens = modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
-
   logger.info(`Using model ${modelDetails.name} from provider ${provider.name}`);
+
+  const dynamicMaxTokens = modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
   // Get system prompt
   let systemPrompt =

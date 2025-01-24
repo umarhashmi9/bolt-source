@@ -19,7 +19,7 @@ async function getModelList(options: {
   providerSettings?: Record<string, IProviderSetting>;
   serverEnv?: Record<string, string>;
 }) {
-  const llmManager = LLMManager.getInstance(import.meta.env);
+  const llmManager = LLMManager.getInstance(import.meta.env as unknown as Record<string, string>);
   return llmManager.updateModelList(options);
 }
 
