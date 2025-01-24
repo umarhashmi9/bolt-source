@@ -1,6 +1,7 @@
 import { getSystemPrompt } from './prompts/prompts';
 import optimized from './prompts/optimized';
 import deepseek from './prompts/deepseek';
+import gemini from './prompts/gemini';
 
 export interface PromptOptions {
   cwd: string;
@@ -29,6 +30,11 @@ export class PromptLibrary {
     },
     deepseek: {
       label: 'Deepseek Prompt (experimental)',
+      description: 'an Experimental version of the prompt for lower token usage',
+      get: (options) => deepseek(options),
+    },
+    gemini: {
+      label: 'Gemini Prompt (experimental)',
       description: 'an Experimental version of the prompt for lower token usage',
       get: (options) => deepseek(options),
     },
