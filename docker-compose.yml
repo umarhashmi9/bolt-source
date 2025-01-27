@@ -1,16 +1,37 @@
 version: '3.8'
+
+networks:
+  langflow-network:
+    name: langflow-network
+
 services:
   langflow:
     image: langflowai/langflow:latest
-    ports:
-      - "7862:7862"  # Main port
-      - "7860:7860"  # Additional port for MCP
+    container_name: langflow-1
+    restart: always
+    env_file:
+      - .env
     environment:
       - LANGFLOW_MCP_PORT=7862
       - MCP_SERVER_URL=http://localhost:7862/api/v1/mcp/sse
+    ports:
+      - "7862:7862"
+      - "7860:7860"
     volumes:
       - ./logs:/app/logs
       - ./src/utils/mcp:/app/src/utils/mcp
-networks:
-  default:
-    name: langflow-network
+    networks:
+      - langflow-network
+
+  custom-mcp-oauth:
+    container_name: custom-mcp-oauth
+    restart: always
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.oauth
+    env_file:
+      - .env
+    networks:
+      - langflow-network
+    ports:
+      - "3002:3002"
