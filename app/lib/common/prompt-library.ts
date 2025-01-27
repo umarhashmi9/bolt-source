@@ -36,7 +36,7 @@ export class PromptLibrary {
     gemini: {
       label: 'Gemini Prompt (experimental)',
       description: 'an Experimental version of the prompt for lower token usage',
-      get: (options) => deepseek(options),
+      get: (options) => gemini(options),
     },
   };
   static getList() {
