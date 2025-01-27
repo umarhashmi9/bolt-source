@@ -2,8 +2,8 @@ version: '3.8'
 
 services:
   langflow:
-    image: langflowai/langflow:latest
     container_name: langflow-1
+    image: langflowai/langflow:latest
     restart: always
     environment:
       - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
@@ -17,6 +17,19 @@ services:
       - ./data:/data
       - ./logs:/app/logs
       - ./flows:/app/flows
+      - .:/app/project
+    networks:
+      - langflow-network
+
+  bolt-new-any-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bolt-new-any-llm
+    volumes:
+      - .:/app
+    depends_on:
+      - langflow
     networks:
       - langflow-network
 
