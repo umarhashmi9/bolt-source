@@ -9,12 +9,14 @@ services:
       - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
       - ASTRA_DB_ENDPOINT=${ASTRA_DB_ENDPOINT}
       - LANGFLOW_MCP_PORT=7860
-      - MCP_SERVER_URL=http://localhost:7860/api/v1/mcp/sse
+      - MCP_SERVER_URL=http://127.0.0.1:7860/api/v1/mcp/sse
+      - LANGFLOW_DATABASE_URL=sqlite:///data/langflow.db
     ports:
       - "7860:7860"
     volumes:
+      - ./data:/data
       - ./logs:/app/logs
-      - ./src/utils/mcp:/app/src/utils/mcp
+      - ./flows:/app/flows
     networks:
       - langflow-network
 
