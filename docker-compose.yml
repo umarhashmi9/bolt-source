@@ -10,7 +10,7 @@ services:
     container_name: langflow-1
     restart: always
     env_file:
-      - .env
+      - /Users/supabowl/Documents/bolt.new-any-llm/.env
     environment:
       - LANGFLOW_MCP_PORT=7862
       - MCP_SERVER_URL=http://localhost:7862/api/v1/mcp/sse
@@ -30,7 +30,7 @@ services:
       context: .
       dockerfile: ./docker/Dockerfile.oauth
     env_file:
-      - .env
+      - /Users/supabowl/Documents/bolt.new-any-llm/.env
     networks:
       - langflow-network
     ports:
