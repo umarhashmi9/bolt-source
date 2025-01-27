@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  langflow:
+    image: langflowai/langflow:latest
+    ports:
+      - "7862:7862"  # Main port
+      - "7860:7860"  # Additional port for MCP
+    environment:
+      - LANGFLOW_MCP_PORT=7862
+      - MCP_SERVER_URL=http://localhost:7862/api/v1/mcp/sse
+    volumes:
+      - ./logs:/app/logs
+      - ./src/utils/mcp:/app/src/utils/mcp
+networks:
+  default:
+    name: langflow-network
