@@ -33,7 +33,11 @@ dist-ssr
 _worker.bundle
 
 Modelfile
+<<<<<<< HEAD
 modelfiles
 
 # docs ignore
 site
+=======
+.env
+>>>>>>> 309972f (Initial commit)
