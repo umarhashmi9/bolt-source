@@ -41,3 +41,4 @@ site
 =======
 .env
 >>>>>>> 309972f (Initial commit)
+*.env*
