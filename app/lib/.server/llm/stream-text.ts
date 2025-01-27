@@ -7,7 +7,7 @@ import { PromptLibrary } from '~/lib/common/prompt-library';
 import { allowedHTMLElements } from '~/utils/markdown';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import { createScopedLogger } from '~/utils/logger';
-import { createFilesContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
+import { createFilesContext, extractPropertiesFromMessage } from './utils';
 import { getFilePaths } from './select-context';
 
 export type Messages = Message[];
@@ -27,6 +27,7 @@ export async function streamText(props: {
   contextOptimization?: boolean;
   contextFiles?: FileMap;
   summary?: string;
+  messageSliceId?: number;
 }) {
   const {
     messages,
@@ -50,12 +51,7 @@ export async function streamText(props: {
 
       return { ...message, content };
     } else if (message.role == 'assistant') {
-      let content = message.content;
-
-      if (contextOptimization) {
-        content = simplifyBoltActions(content);
-      }
-
+      const content = message.content;
       return { ...message, content };
     }
 
@@ -126,10 +122,14 @@ ${props.summary}
 ---
 `;
 
-      const lastMessage = processedMessages.pop();
+      if (props.messageSliceId) {
+        processedMessages = processedMessages.slice(props.messageSliceId);
+      } else {
+        const lastMessage = processedMessages.pop();
 
-      if (lastMessage) {
-        processedMessages = [lastMessage];
+        if (lastMessage) {
+          processedMessages = [lastMessage];
+        }
       }
     }
   }

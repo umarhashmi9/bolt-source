@@ -10,6 +10,7 @@ import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
 import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
 import { WORK_DIR } from '~/utils/constants';
 import { createSummary } from '~/lib/.server/llm/create-summary';
+import { extractPropertiesFromMessage } from '~/lib/.server/llm/utils';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -68,6 +69,11 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         const filePaths = getFilePaths(files || {});
         let filteredFiles: FileMap | undefined = undefined;
         let summary: string | undefined = undefined;
+        let messageSliceId = 0;
+
+        if (messages.length > 3) {
+          messageSliceId = messages.length - 3;
+        }
 
         if (filePaths.length > 0 && contextOptimization) {
           dataStream.writeData('HI ');
@@ -193,8 +199,14 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
             logger.info(`Reached max token limit (${MAX_TOKENS}): Continuing message (${switchesLeft} switches left)`);
 
+            const lastUserMessage = messages.filter((x) => x.role == 'user').slice(-1)[0];
+            const { model, provider } = extractPropertiesFromMessage(lastUserMessage);
             messages.push({ id: generateId(), role: 'assistant', content });
-            messages.push({ id: generateId(), role: 'user', content: CONTINUE_PROMPT });
+            messages.push({
+              id: generateId(),
+              role: 'user',
+              content: `[Model: ${model}]\n\n[Provider: ${provider}]\n\n${CONTINUE_PROMPT}`,
+            });
 
             const result = await streamText({
               messages,
@@ -205,6 +217,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               providerSettings,
               promptId,
               contextOptimization,
+              contextFiles: filteredFiles,
+              summary,
+              messageSliceId,
             });
 
             result.mergeIntoDataStream(dataStream);
@@ -235,6 +250,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           contextOptimization,
           contextFiles: filteredFiles,
           summary,
+          messageSliceId,
         });
 
         (async () => {
