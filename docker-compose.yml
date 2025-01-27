@@ -1,9 +1,5 @@
 version: '3.8'
 
-networks:
-  langflow-network:
-    name: langflow-network
-
 services:
   langflow:
     image: langflowai/langflow:latest
@@ -12,19 +8,9 @@ services:
     environment:
       - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
       - ASTRA_DB_ENDPOINT=${ASTRA_DB_ENDPOINT}
-      - LANGFLOW_MCP_PORT=7862
-      - MCP_SERVER_URL=http://localhost:7862/api/v1/mcp/sse
-      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
-      - TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
-      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY}
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL}
+      - LANGFLOW_MCP_PORT=7860
+      - MCP_SERVER_URL=http://localhost:7860/api/v1/mcp/sse
     ports:
-      - "7862:7862"
       - "7860:7860"
     volumes:
       - ./logs:/app/logs
@@ -32,16 +18,6 @@ services:
     networks:
       - langflow-network
 
-  custom-mcp-oauth:
-    container_name: custom-mcp-oauth
-    restart: always
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile.oauth
-    environment:
-      - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
-      - ASTRA_DB_ENDPOINT=${ASTRA_DB_ENDPOINT}
-    networks:
-      - langflow-network
-    ports:
-      - "3002:3002"
+networks:
+  langflow-network:
+    name: langflow-network
