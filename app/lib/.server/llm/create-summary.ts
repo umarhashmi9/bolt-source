@@ -16,7 +16,7 @@ export async function createSummary(props: {
   contextOptimization?: boolean;
   onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
 }) {
-  const { messages, env: serverEnv, apiKeys, providerSettings, contextOptimization, onFinish } = props;
+  const { messages, env: serverEnv, apiKeys, providerSettings, onFinish } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
   const processedMessages = messages.map((message) => {
@@ -29,9 +29,8 @@ export async function createSummary(props: {
     } else if (message.role == 'assistant') {
       let content = message.content;
 
-      if (contextOptimization) {
-        content = simplifyBoltActions(content);
-      }
+      content = simplifyBoltActions(content);
+      content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
 
       return { ...message, content };
     }
@@ -92,6 +91,8 @@ ${summary.summary}`;
     }
   }
 
+  logger.debug('Sliced Messages:', slicedMessages.length);
+
   const extractTextContent = (message: Message) =>
     Array.isArray(message.content)
       ? (message.content.find((item) => item.type === 'text')?.text as string) || ''
@@ -100,85 +101,49 @@ ${summary.summary}`;
   // select files from the list of code file from the project that might be useful for the current request from the user
   const resp = await generateText({
     system: `
-        You are a software engineer. You are working on a project. tou need to summarize the work till now and provide a summary of the chat till now.
+        You are a software engineer. You are working on a project. you need to summarize the work till now and provide a summary of the chat till now.
 
         Please only use the following format to generate the summary:
 ---
-# Project Context
-- **Project Name**: {project_name}
+# Project Overview
+- **Project**: {project_name} - {brief_description}
 - **Current Phase**: {phase}
-- **Primary Goal**: {brief_description_of_main_objective}
+- **Tech Stack**: {languages}, {frameworks}, {key_dependencies}
+- **Environment**: {critical_env_details}
 
-# Conversation History Summary
-## Key Discussion Points
-- **Last Conversation Topic**: {main_topic_discussed}
-- **Decisions Made**: {key_decisions_from_chat}
-- **User Preferences**: {user_specified_preferences}
-- **Clarifications**: {important_clarifications_made}
+# Conversation Context
+- **Last Topic**: {main_discussion_point}
+- **Key Decisions**: {important_decisions_made}
+- **User Context**:
+  - Technical Level: {expertise_level}
+  - Preferences: {coding_style_preferences}
+  - Communication: {preferred_explanation_style}
 
-## Implementation Context
-- **Current Task**: {what_we_are_working_on}
-- **Previous Solutions**: {relevant_code_solutions_discussed}
-- **Failed Attempts**: {approaches_that_didn't_work}
-- **Successful Patterns**: {working_solutions_to_remember}
-
-## User-AI Interaction
-- **User's Expertise Level**: {user_technical_background}
-- **Communication Style**: {preferred_explanation_level}
-- **Special Requirements**: {specific_user_needs}
-- **Feedback History**: {what_worked_what_didn't}
-
-# Technical Stack & Environment
-- **Languages**: {languages_in_use}
-- **Frameworks/Libraries**: {key_dependencies}
-- **Development Environment**: {relevant_env_details}
-- **Special Configurations**: {any_specific_setup_requirements}
-
-# Current Implementation State
-## Active Development
-- **Current Feature**: {feature_being_implemented}
-- **Code State**: {current_code_status}
-- **Blockers**: {current_technical_challenges}
-- **Last Working Version**: {last_known_good_state}
+# Implementation Status
+## Current State
+- **Active Feature**: {feature_in_development}
+- **Progress**: {what_works_and_what_doesn't}
+- **Blockers**: {current_challenges}
 
 ## Code Evolution
-- **Recent Changes**: {latest_code_modifications}
-- **Pending Refactors**: {planned_code_improvements}
-- **API Changes**: {api_modifications}
-- **Schema Updates**: {data_structure_changes}
+- **Recent Changes**: {latest_modifications}
+- **Working Patterns**: {successful_approaches}
+- **Failed Approaches**: {attempted_solutions_that_failed}
 
-# Requirements & Constraints
-## Functional Requirements
-- **Implemented**: {list_of_implemented_requirements}
-- **In Progress**: {current_implementation_focus}
-- **Pending**: {upcoming_requirements}
+# Requirements
+- **Implemented**: {completed_features}
+- **In Progress**: {current_focus}
+- **Pending**: {upcoming_features}
+- **Technical Constraints**: {critical_constraints}
 
-## Technical Constraints
-- **Performance**: {performance_requirements}
-- **Security**: {security_considerations}
-- **Scalability**: {scalability_needs}
-- **Compatibility**: {compatibility_requirements}
+# Critical Memory
+- **Must Preserve**: {crucial_technical_context}
+- **User Requirements**: {specific_user_needs}
+- **Known Issues**: {documented_problems}
 
-# Testing & Validation
-- **Test Coverage**: {areas_tested}
-- **Known Issues**: {documented_bugs_or_limitations}
-- **Validation Status**: {current_testing_results}
-
-# Next Steps
-- **Immediate Tasks**: {next_implementation_priorities}
-- **Planned Changes**: {upcoming_modifications}
-- **Open Questions**: {unresolved_technical_questions}
-
-# Context Memory
-## Critical Information
-- **Must Remember**: {crucial_context_for_future_reference}
-- **User Preferences**: {specific_user_requirements_to_maintain}
-- **Technical Decisions**: {important_technical_choices_made}
-
-## Error Prevention
-- **Known Pitfalls**: {previously_encountered_issues}
-- **Avoided Approaches**: {solutions_already_ruled_out}
-- **Success Patterns**: {approaches_that_worked_well}
+# Next Actions
+- **Immediate**: {next_steps}
+- **Open Questions**: {unresolved_issues}
 
 ---
 Note:
@@ -190,21 +155,25 @@ Note:
         RULES:
         * Only provide the whole summary of the chat till now.
         * Do not provide any new information.
+        * DO not need to think too much just start writing imidiately
+        * do not write any thing other that the summary with with the provided structure
         `,
     prompt: `
 
 Here is the previous summary of the chat:
----
+<old_summary>
 ${summaryText} 
----
+</old_summary>
 
-Below is the latest chat:
+Below is the chat after that:
 ---
+<new_chats>
 ${slicedMessages
   .map((x) => {
     return `---\n[${x.role}] ${extractTextContent(x)}\n---`;
   })
   .join('\n')}
+</new_chats>
 ---
 
 Please provide a summary of the chat till now including the hitorical summary of the chat.

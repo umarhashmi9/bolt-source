@@ -51,7 +51,9 @@ export async function streamText(props: {
 
       return { ...message, content };
     } else if (message.role == 'assistant') {
-      const content = message.content;
+      let content = message.content;
+      content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
+
       return { ...message, content };
     }
 
@@ -106,7 +108,7 @@ Below are all the files present in the project:
 ${filePaths.join('\n')}
 ---
 
-Below is the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
+Below is the artifact containing the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
 CONTEXT BUFFER:
 ---
 ${codeContext}
