@@ -50,15 +50,23 @@ test('should be able to select provider and model', async ({ page }) => {
 });
 
 test('should show API key input when provider is selected', async ({ page }) => {
-  // navigate to the page with domcontentloaded wait strategy
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  // navigate to the page and wait for load
+  await page.goto('/', { waitUntil: 'load' });
   
-  // add initial delay
-  await page.waitForTimeout(5000);
+  // wait for the page to be ready and interactive
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('load');
+  
+  // wait for any provider combobox to be available, with a more specific selector
+  const providerSelector = '[role="combobox"], select';
+  await page.waitForSelector(providerSelector, { state: 'visible', timeout: 30000 });
 
   // select provider
   const providerCombobox = page.getByRole('combobox').first();
   await expect(providerCombobox).toBeVisible({ timeout: 15000 });
+  
+  // wait for the combobox to be enabled and interactable
+  await page.waitForSelector(`${providerSelector}:not([disabled])`, { timeout: 15000 });
   await providerCombobox.selectOption('AmazonBedrock');
 
   // check for API key label
