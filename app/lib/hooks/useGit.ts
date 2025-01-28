@@ -50,6 +50,18 @@ export function useGit() {
 
       fileData.current = {};
 
+      const headers: {
+        [x: string]: string;
+      } = {
+        'User-Agent': 'bolt.diy',
+      };
+
+      const auth = lookupSavedPassword(url);
+
+      if (auth) {
+        headers.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`;
+      }
+
       try {
         await git.clone({
           fs,
@@ -59,6 +71,8 @@ export function useGit() {
           depth: 1,
           singleBranch: true,
           corsProxy: '/api/git-proxy',
+          headers,
+
           onAuth: (url) => {
             let auth = lookupSavedPassword(url);
 
@@ -78,6 +92,7 @@ export function useGit() {
           },
           onAuthFailure: (url, _auth) => {
             toast.error(`Error Authenticating with ${url.split('/')[2]}`);
+            throw `Error Authenticating with ${url.split('/')[2]}`;
           },
           onAuthSuccess: (url, auth) => {
             saveGitAuth(url, auth);
@@ -93,6 +108,8 @@ export function useGit() {
         return { workdir: webcontainer.workdir, data };
       } catch (error) {
         console.error('Git clone error:', error);
+
+        // toast.error(`Git clone error ${(error as any).message||""}`);
         throw error;
       }
     },
