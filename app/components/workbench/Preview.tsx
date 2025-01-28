@@ -7,19 +7,23 @@ import { ScreenshotSelector } from './ScreenshotSelector';
 
 type ResizeSide = 'left' | 'right' | null;
 
-interface WindowSize {
-  name: string;
-  width: number;
-  height: number;
-  icon: string;
-}
+/*
+ * interface WindowSize {
+ * name: string;
+ * width: number;
+ * height: number;
+ * icon: string;
+ * }
+ */
 
-const WINDOW_SIZES: WindowSize[] = [
-  { name: 'Mobile', width: 375, height: 667, icon: 'i-ph:device-mobile' },
-  { name: 'Tablet', width: 768, height: 1024, icon: 'i-ph:device-tablet' },
-  { name: 'Laptop', width: 1366, height: 768, icon: 'i-ph:laptop' },
-  { name: 'Desktop', width: 1920, height: 1080, icon: 'i-ph:monitor' },
-];
+/*
+ * const WINDOW_SIZES: WindowSize[] = [
+ * { name: 'Mobile', width: 375, height: 667, icon: 'i-ph:device-mobile' },
+ * { name: 'Tablet', width: 768, height: 1024, icon: 'i-ph:device-tablet' },
+ * { name: 'Laptop', width: 1366, height: 768, icon: 'i-ph:laptop' },
+ * { name: 'Desktop', width: 1920, height: 1080, icon: 'i-ph:monitor' },
+ *];
+ */
 
 export const Preview = memo(() => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -54,8 +58,10 @@ export const Preview = memo(() => {
 
   const SCALING_FACTOR = 2;
 
-  const [isWindowSizeDropdownOpen, setIsWindowSizeDropdownOpen] = useState(false);
-  const [selectedWindowSize, setSelectedWindowSize] = useState<WindowSize>(WINDOW_SIZES[0]);
+  /*
+   * const [isWindowSizeDropdownOpen, setIsWindowSizeDropdownOpen] = useState(false);
+   * const [selectedWindowSize, setSelectedWindowSize] = useState<WindowSize>(WINDOW_SIZES[0]);
+   */
 
   useEffect(() => {
     if (!activePreview) {
@@ -220,27 +226,47 @@ export const Preview = memo(() => {
     </div>
   );
 
-  const openInNewWindow = (size: WindowSize) => {
-    if (activePreview?.baseUrl) {
-      const match = activePreview.baseUrl.match(/^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/);
+  /// NEW OFFICIAL METHOD OF OPEN IN NEW TAB AS SEEN IN BOLT.NEW///
+  const openInNewWindow = () => {
+    if (activePreview && activePreview.baseUrl) {
+      const url = activePreview.baseUrl;
 
-      if (match) {
-        const previewId = match[1];
-        const previewUrl = `/webcontainer/preview/${previewId}`;
-        const newWindow = window.open(
-          previewUrl,
-          '_blank',
-          `noopener,noreferrer,width=${size.width},height=${size.height},menubar=no,toolbar=no,location=no,status=no`,
-        );
+      const newWindow = window.open(url, '_blank');
 
-        if (newWindow) {
-          newWindow.focus();
-        }
-      } else {
-        console.warn('[Preview] Invalid WebContainer URL:', activePreview.baseUrl);
+      if (newWindow) {
+        newWindow.focus();
       }
+    } else {
+      console.warn('[Preview] Invalid WebContainer URL:', activePreview?.baseUrl);
     }
   };
+
+  /// OLD VERSION OF OPEN IN NEW TAB ///
+  {
+    /*
+     *const openInNewWindow = (size: WindowSize) => {
+     *if (activePreview?.baseUrl) {
+     *const match = activePreview.baseUrl.match(/^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/);
+     *
+     *if (match) {
+     *  const previewId = match[1];
+     *  const previewUrl = `/webcontainer/preview/${previewId}`;
+     *  const newWindow = window.open(
+     *    previewUrl,
+     *    '_blank',
+     *    `noopener,noreferrer,width=${size.width},height=${size.height},menubar=no,toolbar=no,location=no,status=no`,
+     *  );
+     *
+     *  if (newWindow) {
+     *    newWindow.focus();
+     *  }
+     *} else {
+     *  console.warn('[Preview] Invalid WebContainer URL:', activePreview.baseUrl);
+     *}
+     *}
+     *};
+     */
+  }
 
   return (
     <div
@@ -315,9 +341,10 @@ export const Preview = memo(() => {
           <div className="flex items-center relative">
             <IconButton
               icon="i-ph:arrow-square-out"
-              onClick={() => openInNewWindow(selectedWindowSize)}
-              title={`Open Preview in ${selectedWindowSize.name} Window`}
+              onClick={() => openInNewWindow()}
+              title={`Open Preview in new tab`}
             />
+            {/* Not Needed now that we can open in new tab using official methods
             <IconButton
               icon="i-ph:caret-down"
               onClick={() => setIsWindowSizeDropdownOpen(!isWindowSizeDropdownOpen)}
@@ -354,7 +381,7 @@ export const Preview = memo(() => {
                   ))}
                 </div>
               </>
-            )}
+            )}*/}
           </div>
         </div>
       </div>
