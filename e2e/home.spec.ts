@@ -59,7 +59,7 @@ test('should show API key input when provider is selected', async ({ page }) => 
   
   // wait for any provider combobox to be available, with a more specific selector
   const providerSelector = '[role="combobox"], select';
-  await page.waitForSelector(providerSelector, { state: 'visible', timeout: 30000 });
+  await page.waitForSelector(providerSelector, { state: 'visible', timeout: 15000 });
 
   // select provider
   const providerCombobox = page.getByRole('combobox').first();
