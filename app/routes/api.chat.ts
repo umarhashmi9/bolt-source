@@ -1,11 +1,15 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { createDataStream } from 'ai';
-import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS } from '~/lib/.server/llm/constants';
+import { createDataStream, generateId } from 'ai';
+import { MAX_RESPONSE_SEGMENTS, MAX_TOKENS, type FileMap } from '~/lib/.server/llm/constants';
 import { CONTINUE_PROMPT } from '~/lib/common/prompts/prompts';
 import { streamText, type Messages, type StreamingOptions } from '~/lib/.server/llm/stream-text';
 import SwitchableStream from '~/lib/.server/llm/switchable-stream';
 import type { IProviderSetting } from '~/types/model';
 import { createScopedLogger } from '~/utils/logger';
+import { getFilePaths, selectContext } from '~/lib/.server/llm/select-context';
+import type { ContextAnnotation, ProgressAnnotation } from '~/types/context';
+import { WORK_DIR } from '~/utils/constants';
+import { createSummary } from '~/lib/.server/llm/create-summary';
 
 const CLAUDE_CACHE_TOKENS_MULTIPLIER = {
   WRITE: 1.25,
@@ -58,34 +62,146 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     promptTokens: 0,
     totalTokens: 0,
   };
+  let isCacheHit = false;
+  let isCacheMiss = false;
+  const encoder: TextEncoder = new TextEncoder();
+  let progressCounter: number = 1;
 
   try {
-    const options: StreamingOptions = {
-      toolChoice: 'none',
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      onFinish: async ({ text: content, finishReason, usage, experimental_providerMetadata }) => {
-        logger.debug('usage', JSON.stringify(usage));
+    const totalMessageContent = messages.reduce((acc, message) => acc + message.content, '');
+    logger.debug(`Total message length: ${totalMessageContent.split(' ').length}, words`);
 
-        const cacheUsage = experimental_providerMetadata?.anthropic;
-        console.debug({ cacheUsage });
+    let lastChunk: string | undefined = undefined;
 
-        const isCacheHit = !!cacheUsage?.cacheReadInputTokens;
-        const isCacheMiss = !!cacheUsage?.cacheCreationInputTokens && !isCacheHit;
+    const dataStream = createDataStream({
+      async execute(dataStream) {
+        const filePaths = getFilePaths(files || {});
+        let filteredFiles: FileMap | undefined = undefined;
+        let summary: string | undefined = undefined;
 
-        if (usage) {
-          cumulativeUsage.completionTokens += Math.round(usage.completionTokens || 0);
-          cumulativeUsage.promptTokens += Math.round(
-            (usage.promptTokens || 0) +
-              ((cacheUsage?.cacheCreationInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.WRITE +
-              ((cacheUsage?.cacheReadInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.READ,
-          );
-          cumulativeUsage.totalTokens = cumulativeUsage.completionTokens + cumulativeUsage.promptTokens;
+        if (filePaths.length > 0 && contextOptimization) {
+          dataStream.writeData('HI ');
+          logger.debug('Generating Chat Summary');
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Generating Chat Summary',
+          } as ProgressAnnotation);
+
+          // Create a summary of the chat
+          console.log(`Messages count: ${messages.length}`);
+
+          summary = await createSummary({
+            messages: [...messages],
+            env: context.cloudflare?.env,
+            apiKeys,
+            providerSettings,
+            promptId,
+            contextOptimization,
+            onFinish(resp) {
+              if (resp.usage) {
+                logger.debug('createSummary token usage', JSON.stringify(resp.usage));
+                cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
+                cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
+                cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
+              }
+            },
+          });
+
+          dataStream.writeMessageAnnotation({
+            type: 'chatSummary',
+            summary,
+            chatId: messages.slice(-1)?.[0]?.id,
+          } as ContextAnnotation);
+
+          // Update context buffer
+          logger.debug('Updating Context Buffer');
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Updating Context Buffer',
+          } as ProgressAnnotation);
+
+          // Select context files
+          console.log(`Messages count: ${messages.length}`);
+          filteredFiles = await selectContext({
+            messages: [...messages],
+            env: context.cloudflare?.env,
+            apiKeys,
+            files,
+            providerSettings,
+            promptId,
+            contextOptimization,
+            summary,
+            onFinish(resp) {
+              const cacheUsage = resp?.experimental_providerMetadata?.anthropic;
+              console.debug({ cacheUsage });
+
+              isCacheHit = !!cacheUsage?.cacheReadInputTokens;
+              isCacheMiss = !!cacheUsage?.cacheCreationInputTokens && !isCacheHit;
+
+              if (resp.usage) {
+                logger.debug('selectContext token usage', JSON.stringify(resp.usage));
+                cumulativeUsage.completionTokens += Math.round(resp?.usage.completionTokens || 0);
+                cumulativeUsage.promptTokens += Math.round(
+                  (resp?.usage.promptTokens || 0) +
+                    ((cacheUsage?.cacheCreationInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.WRITE +
+                    ((cacheUsage?.cacheReadInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.READ,
+                );
+                cumulativeUsage.totalTokens = cumulativeUsage.completionTokens + cumulativeUsage.promptTokens;
+              }
+            },
+          });
+
+          if (filteredFiles) {
+            logger.debug(`files in context : ${JSON.stringify(Object.keys(filteredFiles))}`);
+          }
+
+          dataStream.writeMessageAnnotation({
+            type: 'codeContext',
+            files: Object.keys(filteredFiles).map((key) => {
+              let path = key;
+
+              if (path.startsWith(WORK_DIR)) {
+                path = path.replace(WORK_DIR, '');
+              }
+
+              return path;
+            }),
+          } as ContextAnnotation);
+
+          dataStream.writeMessageAnnotation({
+            type: 'progress',
+            value: progressCounter++,
+            message: 'Context Buffer Updated',
+          } as ProgressAnnotation);
+          logger.debug('Context Buffer Updated');
         }
 
-        if (finishReason !== 'length') {
-          const encoder = new TextEncoder();
-          const usageStream = createDataStream({
-            async execute(dataStream) {
+        // Stream the text
+        const options: StreamingOptions = {
+          toolChoice: 'none',
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          onFinish: async ({ text: content, finishReason, usage, experimental_providerMetadata }) => {
+            logger.debug('usage', JSON.stringify(usage));
+
+            const cacheUsage = experimental_providerMetadata?.anthropic;
+            console.debug({ cacheUsage });
+
+            isCacheHit = !!cacheUsage?.cacheReadInputTokens;
+            isCacheMiss = !!cacheUsage?.cacheCreationInputTokens && !isCacheHit;
+
+            if (usage) {
+              cumulativeUsage.completionTokens += Math.round(usage.completionTokens || 0);
+              cumulativeUsage.promptTokens += Math.round(
+                (usage.promptTokens || 0) +
+                  ((cacheUsage?.cacheCreationInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.WRITE +
+                  ((cacheUsage?.cacheReadInputTokens as number) || 0) * CLAUDE_CACHE_TOKENS_MULTIPLIER.READ,
+              );
+              cumulativeUsage.totalTokens = cumulativeUsage.completionTokens + cumulativeUsage.promptTokens;
+            }
+
+            if (finishReason !== 'length') {
               dataStream.writeMessageAnnotation({
                 type: 'usage',
                 value: {
@@ -96,82 +212,117 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
                   isCacheMiss,
                 },
               });
-            },
-            onError: (error: any) => `Custom error: ${error.message}`,
-          }).pipeThrough(
-            new TransformStream({
-              transform: (chunk, controller) => {
-                // Convert the string stream to a byte stream
-                const str = typeof chunk === 'string' ? chunk : JSON.stringify(chunk);
-                controller.enqueue(encoder.encode(str));
-              },
-            }),
-          );
-          await stream.switchSource(usageStream);
-          await new Promise((resolve) => setTimeout(resolve, 0));
-          stream.close();
+              await new Promise((resolve) => setTimeout(resolve, 0));
 
-          return;
-        }
+              // stream.close();
+              return;
+            }
 
-        if (stream.switches >= MAX_RESPONSE_SEGMENTS) {
-          throw Error('Cannot continue message: Maximum segments reached');
-        }
+            if (stream.switches >= MAX_RESPONSE_SEGMENTS) {
+              throw Error('Cannot continue message: Maximum segments reached');
+            }
 
-        const switchesLeft = MAX_RESPONSE_SEGMENTS - stream.switches;
+            const switchesLeft = MAX_RESPONSE_SEGMENTS - stream.switches;
 
-        logger.info(`Reached max token limit (${MAX_TOKENS}): Continuing message (${switchesLeft} switches left)`);
+            logger.info(`Reached max token limit (${MAX_TOKENS}): Continuing message (${switchesLeft} switches left)`);
 
-        messages.push({ role: 'assistant', content });
-        messages.push({ role: 'user', content: CONTINUE_PROMPT });
+            messages.push({ id: generateId(), role: 'assistant', content });
+            messages.push({ id: generateId(), role: 'user', content: CONTINUE_PROMPT });
+
+            const result = await streamText({
+              messages,
+              env: context.cloudflare?.env,
+              options,
+              apiKeys,
+              files,
+              providerSettings,
+              promptId,
+              contextOptimization,
+            });
+
+            result.mergeIntoDataStream(dataStream);
+
+            (async () => {
+              for await (const part of result.fullStream) {
+                if (part.type === 'error') {
+                  const error: any = part.error;
+                  logger.error(`${error}`);
+
+                  return;
+                }
+              }
+            })();
+
+            return;
+          },
+        };
 
         const result = await streamText({
           messages,
-          env: context.cloudflare.env,
+          env: context.cloudflare?.env,
           options,
           apiKeys,
           files,
           providerSettings,
           promptId,
           contextOptimization,
+          contextFiles: filteredFiles,
+          summary,
           isPromptCachingEnabled,
         });
 
-        stream.switchSource(result.toDataStream());
+        (async () => {
+          for await (const part of result.fullStream) {
+            if (part.type === 'error') {
+              const error: any = part.error;
+              logger.error(`${error}`);
 
-        return;
+              return;
+            }
+          }
+        })();
+        result.mergeIntoDataStream(dataStream);
       },
-    };
-    const totalMessageContent = messages.reduce((acc, message) => acc + message.content, '');
-    logger.debug(`Total message length: ${totalMessageContent.split(' ').length}, words`);
+      onError: (error: any) => `Custom error: ${error.message}`,
+    }).pipeThrough(
+      new TransformStream({
+        transform: (chunk, controller) => {
+          if (!lastChunk) {
+            lastChunk = ' ';
+          }
 
-    const result = await streamText({
-      messages,
-      env: context.cloudflare.env,
-      options,
-      apiKeys,
-      files,
-      providerSettings,
-      promptId,
-      contextOptimization,
-      isPromptCachingEnabled,
-    });
+          if (typeof chunk === 'string') {
+            if (chunk.startsWith('g') && !lastChunk.startsWith('g')) {
+              controller.enqueue(encoder.encode(`0: "<div class=\\"__boltThought__\\">"\n`));
+            }
 
-    (async () => {
-      for await (const part of result.fullStream) {
-        if (part.type === 'error') {
-          const error: any = part.error;
-          logger.error(`${error}`);
+            if (lastChunk.startsWith('g') && !chunk.startsWith('g')) {
+              controller.enqueue(encoder.encode(`0: "</div>\\n"\n`));
+            }
+          }
 
-          return;
-        }
-      }
-    })();
+          lastChunk = chunk;
 
-    stream.switchSource(result.toDataStream());
+          let transformedChunk = chunk;
 
-    // return createrespo
-    return new Response(stream.readable, {
+          if (typeof chunk === 'string' && chunk.startsWith('g')) {
+            let content = chunk.split(':').slice(1).join(':');
+
+            if (content.endsWith('\n')) {
+              content = content.slice(0, content.length - 1);
+            }
+
+            transformedChunk = `0:${content}\n`;
+          }
+
+          // Convert the string stream to a byte stream
+          const str = typeof transformedChunk === 'string' ? transformedChunk : JSON.stringify(transformedChunk);
+          controller.enqueue(encoder.encode(str));
+        },
+      }),
+    );
+
+    return new Response(dataStream, {
       status: 200,
       headers: {
         'Content-Type': 'text/event-stream; charset=utf-8',
