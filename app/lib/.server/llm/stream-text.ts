@@ -8,7 +8,7 @@ import { PromptLibrary } from '~/lib/common/prompt-library';
 import { allowedHTMLElements } from '~/utils/markdown';
 import { LLMManager } from '~/lib/modules/llm/manager';
 import { createScopedLogger } from '~/utils/logger';
-import { createFilesContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
+import { createFilesContext, extractPropertiesFromMessage } from './utils';
 import { getFilePaths } from './select-context';
 
 export type Messages = Message[];
@@ -44,6 +44,7 @@ export async function streamText(props: {
   isPromptCachingEnabled?: boolean;
   contextFiles?: FileMap;
   summary?: string;
+  messageSliceId?: number;
 }) {
   const {
     messages,
@@ -75,10 +76,8 @@ export async function streamText(props: {
       };
     } else if (message.role == 'assistant') {
       let content = message.content;
-
-      if (contextOptimization) {
-        content = simplifyBoltActions(content);
-      }
+      content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
+      content = content.replace(/<think>.*?<\/think>/s, '');
 
       return { ...message, content };
     }
@@ -134,7 +133,7 @@ Below are all the files present in the project:
 ${filePaths.join('\n')}
 ---
 
-Below is the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
+Below is the artifact containing the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
 CONTEXT BUFFER:
 ---
 ${codeContext}
@@ -150,10 +149,14 @@ ${props.summary}
 ---
 `;
 
-      const lastMessage = processedMessages.pop();
+      if (props.messageSliceId) {
+        processedMessages = processedMessages.slice(props.messageSliceId);
+      } else {
+        const lastMessage = processedMessages.pop();
 
-      if (lastMessage) {
-        processedMessages = [lastMessage];
+        if (lastMessage) {
+          processedMessages = [lastMessage];
+        }
       }
     }
   }
