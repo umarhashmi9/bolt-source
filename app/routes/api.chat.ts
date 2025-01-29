@@ -78,13 +78,14 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         }
 
         if (filePaths.length > 0 && contextOptimization) {
-          dataStream.writeData('HI ');
           logger.debug('Generating Chat Summary');
-          dataStream.writeMessageAnnotation({
+          dataStream.writeData({
             type: 'progress',
-            value: progressCounter++,
-            message: 'Generating Chat Summary',
-          } as ProgressAnnotation);
+            label: 'summary',
+            status: 'in-progress',
+            order: progressCounter++,
+            message: 'Analysing Request',
+          } satisfies ProgressAnnotation);
 
           // Create a summary of the chat
           console.log(`Messages count: ${messages.length}`);
@@ -105,6 +106,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               }
             },
           });
+          dataStream.writeData({
+            type: 'progress',
+            label: 'summary',
+            status: 'complete',
+            order: progressCounter++,
+            message: 'Analysis Complete',
+          } satisfies ProgressAnnotation);
 
           dataStream.writeMessageAnnotation({
             type: 'chatSummary',
@@ -114,11 +122,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
           // Update context buffer
           logger.debug('Updating Context Buffer');
-          dataStream.writeMessageAnnotation({
+          dataStream.writeData({
             type: 'progress',
-            value: progressCounter++,
-            message: 'Updating Context Buffer',
-          } as ProgressAnnotation);
+            label: 'context',
+            status: 'in-progress',
+            order: progressCounter++,
+            message: 'Determining Files to Read',
+          } satisfies ProgressAnnotation);
 
           // Select context files
           console.log(`Messages count: ${messages.length}`);
@@ -158,12 +168,15 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             }),
           } as ContextAnnotation);
 
-          dataStream.writeMessageAnnotation({
+          dataStream.writeData({
             type: 'progress',
-            value: progressCounter++,
-            message: 'Context Buffer Updated',
-          } as ProgressAnnotation);
-          logger.debug('Context Buffer Updated');
+            label: 'context',
+            status: 'complete',
+            order: progressCounter++,
+            message: 'Code Files Selected',
+          } satisfies ProgressAnnotation);
+
+          // logger.debug('Code Files Selected');
         }
 
         // Stream the text
@@ -187,6 +200,13 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
                   totalTokens: cumulativeUsage.totalTokens,
                 },
               });
+              dataStream.writeData({
+                type: 'progress',
+                label: 'response',
+                status: 'complete',
+                order: progressCounter++,
+                message: 'Response Generated',
+              } satisfies ProgressAnnotation);
               await new Promise((resolve) => setTimeout(resolve, 0));
 
               // stream.close();
@@ -240,6 +260,14 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             return;
           },
         };
+
+        dataStream.writeData({
+          type: 'progress',
+          label: 'response',
+          status: 'in-progress',
+          order: progressCounter++,
+          message: 'Generating Response',
+        } satisfies ProgressAnnotation);
 
         const result = await streamText({
           messages,

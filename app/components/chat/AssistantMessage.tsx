@@ -1,7 +1,6 @@
 import { memo } from 'react';
 import { Markdown } from './Markdown';
 import type { JSONValue } from 'ai';
-import type { ProgressAnnotation } from '~/types/context';
 import Popover from '~/components/ui/Popover';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { WORK_DIR } from '~/utils/constants';
@@ -40,11 +39,6 @@ export const AssistantMessage = memo(({ content, annotations }: AssistantMessage
     (annotation: JSONValue) => annotation && typeof annotation === 'object' && Object.keys(annotation).includes('type'),
   ) || []) as { type: string; value: any } & { [key: string]: any }[];
 
-  let progressAnnotation: ProgressAnnotation[] = filteredAnnotations.filter(
-    (annotation) => annotation.type === 'progress',
-  ) as ProgressAnnotation[];
-  progressAnnotation = progressAnnotation.sort((a, b) => b.value - a.value);
-
   let chatSummary: string | undefined = undefined;
 
   if (filteredAnnotations.find((annotation) => annotation.type === 'chatSummary')) {
@@ -67,13 +61,13 @@ export const AssistantMessage = memo(({ content, annotations }: AssistantMessage
     <div className="overflow-hidden w-full">
       <>
         <div className=" flex gap-2 items-center text-sm text-bolt-elements-textSecondary mb-2">
-          {progressAnnotation.length > 0 && (
+          {(codeContext || chatSummary) && (
             <Popover side="right" align="start" trigger={<div className="i-ph:info" />}>
               {chatSummary && (
-                <div>
+                <div className="max-w-chat">
                   <div className="summary max-h-96 flex flex-col">
                     <h2 className="border border-bolt-elements-borderColor rounded-md p4">Summary</h2>
-                    <div style={{ zoom: 0.6 }} className="overflow-y-auto m4">
+                    <div style={{ zoom: 0.7 }} className="overflow-y-auto m4">
                       <Markdown>{chatSummary}</Markdown>
                     </div>
                   </div>
