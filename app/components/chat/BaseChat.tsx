@@ -296,10 +296,13 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[16vh] max-w-chat mx-auto text-center px-4 lg:px-0">
                 <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                  Where ideas begin
+                  You can just fucking build things!
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Bring ideas to life in seconds or get help on existing projects.
+                stop being a lil bitch and start building. idk why you're sitting there waiting for the stars to align or for some divine sign to bless your mediocre existence. afaict, the universe doesn't give a shit about your excuses. it's just vibing, and you're over here like "but what if i fail?" bro, failure is just success in a trench coat. it's all part of the grind.
+                </p>
+                <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
+                so yeah, build the thing. or don't. but if you don't, you're basically letting your potential rot in the fridge next to that takeout you forgot about. be real, you're not gonna die if it sucks. you're just gonna cringe, learn, and maybe accidentally create something that makes someone else go "holy shit, this rules."
                 </p>
               </div>
             )}
@@ -576,7 +579,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   <GitCloneButton importChat={importChat} />
                 </div>
               )}
-              {!chatStarted &&
+              {/* {!chatStarted &&
                 ExamplePrompts((event, messageInput) => {
                   if (isStreaming) {
                     handleStop?.();
@@ -584,8 +587,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   }
 
                   handleSendMessage?.(event, messageInput);
-                })}
-              {!chatStarted && <StarterTemplates />}
+                })} */}
+              {/* {!chatStarted && <StarterTemplates />} */}
             </div>
           </div>
           <ClientOnly>{() => <Workbench chatStarted={chatStarted} isStreaming={isStreaming} />}</ClientOnly>
