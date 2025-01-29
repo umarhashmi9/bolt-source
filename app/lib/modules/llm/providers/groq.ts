@@ -5,14 +5,20 @@ import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { logger } from '~/utils/logger';
 
+// Define interface for Groq API model information based on the provided JSON response.
 interface GroqApiModelInfo {
-  id: string; // Model ID (e.g., 'llama-3.1-8b-instant')
-  // ... other fields from Groq API model response, if any
+  id: string;             // Model ID (e.g., 'llama-3.1-8b-instant')
+  object: string;         // Type of object, should be "model"
+  created: number;        // Timestamp of model creation
+  owned_by: string;       // Organization owning the model (e.g., "Meta", "Google")
+  active: boolean;        // Indicates if the model is currently active
+  context_window: number; // Maximum context window (tokens) for the model
+  public_apps: null;      //  Currently always null in the response
 }
 
 interface GroqListModelsResponse {
+  object: string;        // Type of object, should be "list"
   data: GroqApiModelInfo[]; // Array of model information objects
-  // ... other fields from Groq API model list response, if any (like pagination metadata)
 }
 
 
@@ -82,7 +88,7 @@ export default class GroqProvider extends BaseProvider {
             name: model.id, // Use model ID as name
             label: `${model.id} (Groq)`, // Create a label including provider name
             provider: this.name,
-            maxTokenAllowed: 8000, // Default max token limit, adjust if Groq API provides this info. If not, we might need to maintain a mapping or use a conservative default.
+            maxTokenAllowed: model.context_window, // Use context_window from Groq API response for maxTokenAllowed
           };
         });
       }
