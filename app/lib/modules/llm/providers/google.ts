@@ -8,9 +8,10 @@ import { logger } from '~/utils/logger';
 // Define interfaces to structure the Google API responses for model listing.
 interface GoogleListModelsResponse {
   models: GoogleApiModelInfo[]; // Array of model information objects.
-  nextPageToken?: string;      // Token for pagination if more models are available.
+  // nextPageToken?: string;      // Removed pagination for now, as the response seems to contain all models in one page
 }
 
+// Updated GoogleApiModelInfo interface to match the provided JSON response structure.
 interface GoogleApiModelInfo {
   name: string;             // Unique name of the model (e.g., 'models/gemini-pro').
   version: string;          // Version of the model.
@@ -18,7 +19,12 @@ interface GoogleApiModelInfo {
   description: string;      // Description of the model.
   inputTokenLimit: number;  // Maximum number of input tokens the model can handle.
   outputTokenLimit: number; // Maximum number of output tokens the model can generate.
-  // ... other fields from the Google API response that are not used here are omitted for brevity.
+  supportedGenerationMethods: string[]; // Array of supported generation methods.
+  // temperature?: number;     // Optional temperature parameter (some models have it, some don't).
+  // topP?: number;            // Optional topP parameter
+  // topK?: number;            // Optional topK parameter
+  // maxTemperature?: number;  // Optional maxTemperature parameter
+  // ... other fields from the Google API response that are used are included here.
 }
 
 
@@ -47,7 +53,7 @@ export default class GoogleProvider extends BaseProvider {
   ): Promise<ModelInfo[]> {
     try {
       // 1. Retrieve the API key using the helper function `getProviderBaseUrlAndKey`.
-      //    This function handles优先级 of API key sources: provider settings > apiKeys param > serverEnv.
+      //    This function handles priority of API key sources: provider settings > apiKeys param > serverEnv.
       const { apiKey } = this.getProviderBaseUrlAndKey({
         apiKeys,
         providerSettings: settings,
@@ -64,46 +70,37 @@ export default class GoogleProvider extends BaseProvider {
       // 3. Define the base URL for the Google Generative Language API.
       const baseUrl = 'https://generativelanguage.googleapis.com/v1beta'; // or 'https://generativelanguage.google.com/v1beta' - using the recommended one.
 
-      // 4. Initialize an array to store all fetched models and a variable for pagination token.
-      let allModels: GoogleApiModelInfo[] = [];
-      let nextPageToken: string | undefined;
+      // 4. Construct the API URL to list models. Includes API key.
+      const url = `${baseUrl}/models?key=${apiKey}`;
+      // Fetch data from the Google API.
+      const response = await fetch(url);
 
-      // 5. Implement pagination to fetch all models. Google API might return models in pages.
-      do {
-        // Construct the API URL to list models. Includes API key and pagination token if available.
-        const url = `${baseUrl}/models?key=${apiKey}${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
-        // Fetch data from the Google API.
-        const response = await fetch(url);
+      // 5. Handle potential errors during the API request.
+      if (!response.ok) {
+        logger.error(`Google API models fetch failed with status ${response.status}: ${response.statusText}`);
+        throw new Error(`Failed to fetch Google models: ${response.status} ${response.statusText}`);
+      }
 
-        // 6. Handle potential errors during the API request.
-        if (!response.ok) {
-          logger.error(`Google API models fetch failed with status ${response.status}: ${response.statusText}`);
-          throw new Error(`Failed to fetch Google models: ${response.status} ${response.statusText}`);
-        }
-
-        // 7. Parse the JSON response from the API.
-        const data: GoogleListModelsResponse = (await response.json()) as GoogleListModelsResponse;
-        // 8. If models are returned in the response, append them to the `allModels` array.
-        if (data.models) {
-          allModels = [...allModels, ...data.models];
-        }
-        // 9. Update the `nextPageToken` for the next iteration if more pages are available.
-        nextPageToken = data.nextPageToken;
-      } while (nextPageToken); // Continue fetching as long as there is a `nextPageToken`.
+      // 6. Parse the JSON response from the API.
+      const data: GoogleListModelsResponse = (await response.json()) as GoogleListModelsResponse;
 
 
-      // 10. Map the Google API model information to the application's `ModelInfo` format.
-      return allModels.map((model) => {
-        const modelName = model.name.replace('models/', ''); // Remove 'models/' prefix from the model name for cleaner usage in the application.
-        return {
-          name: modelName, // Use the cleaned model name.
-          label: model.displayName || modelName, // Use `displayName` if available, otherwise fallback to the model `name`.
-          provider: this.name, // Set the provider name to 'Google'.
-          maxTokenAllowed: model.inputTokenLimit, // Use the input token limit from the Google API response.
-        };
-      });
+      // 7. Map the Google API model information to the application's `ModelInfo` format.
+      if (data.models) {
+        return data.models.map((model) => {
+          const modelName = model.name.replace('models/', ''); // Remove 'models/' prefix from the model name for cleaner usage in the application.
+          return {
+            name: modelName, // Use the cleaned model name.
+            label: model.displayName || modelName, // Use `displayName` if available, otherwise fallback to the model `name`.
+            provider: this.name, // Set the provider name to 'Google'.
+            maxTokenAllowed: model.inputTokenLimit, // Use the input token limit from the Google API response.
+          };
+        });
+      }
+      return []; // Return empty array if no models are found in response
+
     } catch (error) {
-      // 11. Handle any errors during the model fetching process. Log the error and return an empty array to prevent application crashes.
+      // 8. Handle any errors during the model fetching process. Log the error and return an empty array to prevent application crashes.
       logger.error('Error fetching dynamic models from Google API:', error);
       return []; // Return empty array in case of error to avoid app crash
     }
