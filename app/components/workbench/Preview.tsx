@@ -318,7 +318,7 @@ export const Preview = memo(() => {
             title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
           />
 
-          <IconButton icon="i-ph:arrow-square-in" onClick={openInNewTab} title="Open Preview in New Tab" />
+          <IconButton icon="i-ph:arrow-square-in" onClick={openInNewTab} title="Open Preview In New Tab" />
 
           <div className="flex items-center relative">
             <IconButton
