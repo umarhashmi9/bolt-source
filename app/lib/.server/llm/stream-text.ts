@@ -53,6 +53,7 @@ export async function streamText(props: {
     } else if (message.role == 'assistant') {
       let content = message.content;
       content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
+      content = content.replace(/<think>.*?<\/think>/s, '');
 
       return { ...message, content };
     }
