@@ -1,69 +1,57 @@
-#
-# https://www.electron.build/configuration
-#
 appId: com.stackblitz.bolt.diy
 productName: Bolt Local
 directories:
   buildResources: build
-  # buildResources: resource
   output: dist
 files:
   - build/**/*
   - package.json
   - node_modules/**/*
+  - icons/**
 extraMetadata:
   main: build/electron/main/index.mjs
 asarUnpack:
   - resources/**
   - build/client/**/*
   - build/server/**/*
-nsis:
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
+
 mac:
   icon: icons/icon.icns
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
   target:
+    - dmg
     - zip
-    #- dmg
-    #- mas # not supported. Mac Application Store
   identity: null
-  publish: &publish
-    - provider: github
-      private: false
-      owner: Derek-X-Wang
-      repo: bolt.local.github.io
-dmg:
-  title: bolt.local
-  artifactName: ${name}-${version}.${ext}
+
 win:
-  executableName: bolt.local
+  icon: icons/icon.ico
   target:
-    - zip
     - nsis
-  publish: *publish
-linux:
-  maintainer: electronjs.org
-  category: Utility
-  target:
     - zip
-    - deb
-    #- rpm # not supported
-    #- snap # not supported
+  signDlls: false
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+
+linux:
+  icon: icons/icon.png
+  target:
     - AppImage
-  publish: *publish
-appImage:
-  artifactName: ${name}-${version}.${ext}
+    - deb
+  artifactName: ${name}-${version}-${os}-${arch}.${ext}
+  category: Development
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
+  artifactName: ${name}-${version}-${os}-${arch}-setup.${ext}
+
 npmRebuild: false
+
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  private: false
+  releaseType: release
+
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
