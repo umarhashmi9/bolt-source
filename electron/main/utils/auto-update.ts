@@ -1,67 +1,105 @@
 import logger from 'electron-log';
+import type { MessageBoxOptions } from 'electron';
+import { app, dialog } from 'electron';
 import type { AppUpdater, UpdateDownloadedEvent, UpdateInfo } from 'electron-updater';
+import path from 'node:path';
+import { __dirname } from './constants';
 
 // NOTE: workaround to use electron-updater.
 import * as electronUpdater from 'electron-updater';
 
 const autoUpdater: AppUpdater = (electronUpdater as any).default.autoUpdater;
 
-// const logger = console;
-
 export async function setupAutoUpdater() {
-  autoUpdater.on('checking-for-update', () => {
-    logger.info('checking-for-update...');
-  });
-  autoUpdater.on('update-available', (info: UpdateInfo) => {
-    logger.info('Update available.', info);
-  });
-  autoUpdater.on('update-not-available', (/* no arguments */) => {
-    logger.info('Update not available.');
-  });
-  autoUpdater.on('error', (err, msg) => {
-    logger.info('Error in auto-updater.', JSON.stringify(err), 'message:', JSON.stringify(msg));
-  });
-  autoUpdater.on('update-downloaded', (event: UpdateDownloadedEvent) => {
-    logger.info('Update downloaded.', formatUpdateDownloadedEvent(event));
-  });
-
+  // Configure logger
   logger.transports.file.level = 'debug';
   autoUpdater.logger = logger;
 
+  // Configure custom update config file
+  const resourcePath =
+    process.env.NODE_ENV === 'development'
+      ? path.join(process.cwd(), 'electron-update.yml')
+      : path.join(__dirname, '../../../../electron-update.yml');
+  logger.info('Update config path:', resourcePath);
+  autoUpdater.updateConfigPath = resourcePath;
+
+  // Disable auto download - we want to ask user first
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    logger.info('checking-for-update...');
+  });
+
+  autoUpdater.on('update-available', async (info: UpdateInfo) => {
+    logger.info('Update available.', info);
+
+    const dialogOpts: MessageBoxOptions = {
+      type: 'info' as const,
+      buttons: ['Update', 'Later'],
+      title: 'Application Update',
+      message: `Version ${info.version} is available.`,
+      detail: 'A new version is available. Would you like to update now?',
+    };
+
+    const response = await dialog.showMessageBox(dialogOpts);
+
+    if (response.response === 0) {
+      autoUpdater.downloadUpdate();
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    logger.info('Update not available.');
+  });
+
   /*
-   * autoUpdater.autoDownload = false;
-   * autoUpdater.autoInstallOnAppQuit = false;
+   * Uncomment this before we have any published updates on github releases.
+   * autoUpdater.on('error', (err) => {
+   *   logger.error('Error in auto-updater:', err);
+   *   dialog.showErrorBox('Error: ', err.message);
+   * });
    */
 
-  try {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      logger.info('catch err:', err);
-    });
+  autoUpdater.on('download-progress', (progressObj) => {
+    logger.info('Download progress:', progressObj);
+  });
 
-    const start = async () => {
-      logger.info('electron-updater: autoUpdater started.', autoUpdater.currentVersion.version);
-      logger.info('electron-updater: isUpdaterActive:', autoUpdater.isUpdaterActive());
+  autoUpdater.on('update-downloaded', async (event: UpdateDownloadedEvent) => {
+    logger.info('Update downloaded:', formatUpdateDownloadedEvent(event));
 
-      const updates = await autoUpdater.checkForUpdates();
-      logger.info('checkForUpdates:', updates);
-
-      if (!updates) {
-        logger.info('no found updates.');
-        return;
-      }
-
-      const dl = await autoUpdater.downloadUpdate();
-      logger.info('electron-updater: downloadUpdate:', dl);
+    const dialogOpts: MessageBoxOptions = {
+      type: 'info' as const,
+      buttons: ['Restart', 'Later'],
+      title: 'Application Update',
+      message: 'Update Downloaded',
+      detail: 'A new version has been downloaded. Restart the application to apply the updates.',
     };
-    start();
+
+    const response = await dialog.showMessageBox(dialogOpts);
+
+    if (response.response === 0) {
+      autoUpdater.quitAndInstall(false);
+    }
+  });
+
+  // Check for updates
+  try {
+    logger.info('Checking for updates. Current version:', app.getVersion());
+    await autoUpdater.checkForUpdates();
   } catch (err) {
-    logger.error('auto-updater:', err);
+    logger.error('Failed to check for updates:', err);
   }
 
-  autoUpdater.signals.login((i) => logger.info(i));
-  autoUpdater.signals.progress((i) => logger.info('signal progress:', i));
-  autoUpdater.signals.updateCancelled((i) => logger.info('signal updateCancelled:', i));
-  autoUpdater.signals.updateDownloaded((i) => logger.info('signal updateDownloaded:', i));
+  // Set up periodic update checks (every 4 hours)
+  setInterval(
+    () => {
+      autoUpdater.checkForUpdates().catch((err) => {
+        logger.error('Periodic update check failed:', err);
+      });
+    },
+    4 * 60 * 60 * 1000,
+  );
 }
 
 function formatUpdateDownloadedEvent(event: UpdateDownloadedEvent): string {

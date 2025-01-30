@@ -8,12 +8,14 @@ files:
   - package.json
   - node_modules/**/*
   - icons/**
+  - electron-update.yml
 extraMetadata:
   main: build/electron/main/index.mjs
 asarUnpack:
   - resources/**
   - build/client/**/*
   - build/server/**/*
+  - electron-update.yml
 
 mac:
   icon: icons/icon.icns
@@ -50,7 +52,9 @@ npmRebuild: false
 
 publish:
   provider: github
-  private: false
+  owner: Derek-X-Wang
+  repo: bolt.local
+  private: true
   releaseType: release
 
 electronDownload:
