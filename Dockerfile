@@ -19,6 +19,9 @@ COPY . .
 # Build da aplicação
 RUN pnpm run build
 
+# Debug - listar arquivos gerados
+RUN ls -la build/client
+
 # Estágio final com nginx
 FROM nginx:alpine
 
@@ -26,7 +29,7 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copiar build da aplicação
-COPY --from=builder /app/build/client /usr/share/nginx/html
+COPY --from=builder /app/build/client /usr/share/nginx/html/
 
 # Expor porta
 EXPOSE 80
