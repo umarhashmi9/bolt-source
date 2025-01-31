@@ -1,9 +1,10 @@
-FROM node:20.18.0 AS builder
+FROM node:20.18.0
 
 WORKDIR /app
 
-# Instalar pnpm
-RUN corepack enable pnpm
+# Instalar pnpm e wrangler
+RUN corepack enable pnpm && \
+    npm install -g wrangler
 
 # Copiar arquivos de dependências
 COPY package.json pnpm-lock.yaml ./
@@ -13,39 +14,23 @@ COPY package.json pnpm-lock.yaml ./
 #RUN corepack enable pnpm && pnpm install
 RUN npm install -g pnpm && pnpm install
 
-# Copiar código fonte
+# Copiar código fonte e scripts
 COPY . .
 
+# Garantir que o bindings.sh tem permissões de execução e formato correto
+RUN tr -d '\r' < bindings.sh > bindings.tmp && \
+    mv bindings.tmp bindings.sh && \
+    chmod +x bindings.sh
+
 # Build da aplicação
-RUN pnpm run build && \
-    echo "Conteúdo do diretório build:" && \
-    ls -la build && \
-    echo "Conteúdo do diretório build/client:" && \
-    ls -la build/client
-
-# Estágio final com nginx
-FROM nginx:alpine
-
-# Copiar configuração do nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copiar build da aplicação
-COPY --from=builder /app/build/client /usr/share/nginx/html/
-
-# Criar script de verificação
-RUN echo '#!/bin/sh\n\
-echo "Conteúdo de /usr/share/nginx/html:"\n\
-ls -la /usr/share/nginx/html\n\
-exec nginx -g "daemon off;"' > /docker-entrypoint.sh && \
-    chmod +x /docker-entrypoint.sh
+RUN pnpm run build
 
 # Expor porta
-EXPOSE 80
+EXPOSE 5173
 
-# Configurar variáveis de ambiente padrão
+# Configurar variáveis de ambiente
 ENV NODE_ENV=production \
-    RUNNING_IN_DOCKER=true \
-    WRANGLER_SEND_METRICS=false
+    RUNNING_IN_DOCKER=true
 
-# Comando para iniciar
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Comando para iniciar usando o script dockerstart
+CMD ["pnpm", "run", "dockerstart"]
