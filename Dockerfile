@@ -1,4 +1,4 @@
-FROM node:20.18.0 AS base
+FROM node:20.18.0 AS builder
 
 WORKDIR /app
 
@@ -19,8 +19,17 @@ COPY . .
 # Build da aplicação
 RUN pnpm run build
 
+# Estágio final com nginx
+FROM nginx:alpine
+
+# Copiar configuração do nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copiar build da aplicação
+COPY --from=builder /app/build/client /usr/share/nginx/html
+
 # Expor porta
-EXPOSE 5173
+EXPOSE 80
 
 # Configurar variáveis de ambiente padrão
 ENV NODE_ENV=production \
@@ -28,4 +37,4 @@ ENV NODE_ENV=production \
     WRANGLER_SEND_METRICS=false
 
 # Comando para iniciar
-CMD ["pnpm", "run", "dockerstart"]
+CMD ["nginx", "-g", "daemon off;"]
