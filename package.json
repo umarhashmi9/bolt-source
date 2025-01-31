@@ -6,6 +6,10 @@
   "sideEffects": false,
   "type": "module",
   "version": "0.0.5",
+  "author": {
+    "name": "bolt.diy team",
+    "email": "maintainers@bolt.diy"
+  },
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
     "build": "remix vite:build",
