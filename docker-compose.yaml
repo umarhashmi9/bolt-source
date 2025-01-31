@@ -1,17 +1,13 @@
 services:
-  app-prod:
-    image: bolt-ai:production
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: bolt-ai-production
     ports:
       - '5173:5173'
     env_file: '.env.local'
     environment:
       - NODE_ENV=production
-      - COMPOSE_PROFILES=production
-      # No strictly needed but serving as hints for Coolify
       - PORT=5173
       - GROQ_API_KEY=${GROQ_API_KEY}
       - HuggingFace_API_KEY=${HuggingFace_API_KEY}
