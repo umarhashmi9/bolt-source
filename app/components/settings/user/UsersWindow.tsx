@@ -1,17 +1,15 @@
-import * as RadixDialog from '@radix-ui/react-dialog';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { motion } from 'framer-motion';
-import React, { useState, useEffect, useMemo } from 'react';
-import { classNames } from '~/utils/classNames';
-import { DialogTitle } from '~/components/ui/Dialog';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Switch } from '~/components/ui/Switch';
-import type { TabType, TabVisibilityConfig } from '~/components/settings/settings.types';
-import { TAB_LABELS } from '~/components/settings/settings.types';
+import type { TabType } from '~/components/settings/settings.types';
+import { TAB_LABELS, TAB_CONFIGURATION } from '~/components/settings/settings.types';
 import { DeveloperWindow } from '~/components/settings/developer/DeveloperWindow';
 import { TabTile } from '~/components/settings/shared/TabTile';
 import { useStore } from '@nanostores/react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import type { DropResult } from 'react-beautiful-dnd';
+
+// Component imports
 import ProfileTab from '~/components/settings/profile/ProfileTab';
 import SettingsTab from '~/components/settings/settings/SettingsTab';
 import NotificationsTab from '~/components/settings/notifications/NotificationsTab';
@@ -37,85 +35,37 @@ import {
   developerModeStore,
   setDeveloperMode,
 } from '~/lib/stores/settings';
+import { UserDropdownMenu } from '~/components/settings/shared/UserDropdownMenu';
+import { WindowTransition } from '~/components/settings/shared/WindowTransition';
 
-interface DraggableTabTileProps {
-  tab: TabVisibilityConfig;
-  index: number;
-  moveTab: (dragIndex: number, hoverIndex: number) => void;
-  onClick: () => void;
-  isActive: boolean;
-  hasUpdate: boolean;
-  statusMessage: string;
+interface DraggableTab {
+  id: TabType;
+  label: string;
+  icon: string;
   description: string;
-  isLoading?: boolean;
+  defaultVisibility: {
+    user: boolean;
+    developer: boolean;
+  };
+  order: number;
+  visible: boolean;
+  window: 'user' | 'developer';
 }
 
 const TAB_DESCRIPTIONS: Record<TabType, string> = {
   profile: 'Manage your profile and account settings',
   settings: 'Configure application preferences',
   notifications: 'View and manage your notifications',
-  features: 'Explore new and upcoming features',
+  features: 'Manage application features',
   data: 'Manage your data and storage',
-  'cloud-providers': 'Configure cloud AI providers and models',
-  'local-providers': 'Configure local AI providers and models',
-  'service-status': 'Monitor cloud LLM service status',
-  connection: 'Check connection status and settings',
-  debug: 'Debug tools and system information',
-  'event-logs': 'View system events and logs',
-  update: 'Check for updates and release notes',
-  'task-manager': 'Monitor system resources and processes',
-};
-
-const DraggableTabTile = ({
-  tab,
-  index,
-  moveTab,
-  onClick,
-  isActive,
-  hasUpdate,
-  statusMessage,
-  description,
-  isLoading,
-}: DraggableTabTileProps) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'tab',
-    item: { index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
-
-  const [, drop] = useDrop({
-    accept: 'tab',
-    hover: (item: { index: number }) => {
-      if (item.index === index) {
-        return;
-      }
-
-      moveTab(item.index, index);
-      item.index = index;
-    },
-  });
-
-  const dragDropRef = (node: HTMLDivElement | null) => {
-    if (node) {
-      drag(drop(node));
-    }
-  };
-
-  return (
-    <div ref={dragDropRef} style={{ opacity: isDragging ? 0.5 : 1 }}>
-      <TabTile
-        tab={tab}
-        onClick={onClick}
-        isActive={isActive}
-        hasUpdate={hasUpdate}
-        statusMessage={statusMessage}
-        description={description}
-        isLoading={isLoading}
-      />
-    </div>
-  );
+  'cloud-providers': 'Configure cloud AI providers',
+  'local-providers': 'Configure local AI providers',
+  connection: 'View and manage connections',
+  debug: 'Debug application issues',
+  'event-logs': 'View application event logs',
+  update: 'Check for updates',
+  'task-manager': 'Manage running tasks',
+  'service-status': 'Monitor provider service health and status',
 };
 
 interface UsersWindowProps {
@@ -123,15 +73,22 @@ interface UsersWindowProps {
   onClose: () => void;
 }
 
-export const UsersWindow = ({ open, onClose }: UsersWindowProps) => {
+export function UsersWindow({ open, onClose }: UsersWindowProps) {
   const [activeTab, setActiveTab] = useState<TabType | null>(null);
   const [loadingTab, setLoadingTab] = useState<TabType | null>(null);
+  const [showDeveloperWindow, setShowDeveloperWindow] = useState(false);
   const tabConfiguration = useStore(tabConfigurationStore);
   const developerMode = useStore(developerModeStore);
-  const [showDeveloperWindow, setShowDeveloperWindow] = useState(false);
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('bolt_user_profile');
-    return saved ? JSON.parse(saved) : { avatar: null, notifications: true };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          avatar: null,
+          username: '',
+          bio: '',
+          notifications: true,
+        };
   });
 
   // Status hooks
@@ -173,169 +130,212 @@ export const UsersWindow = ({ open, onClose }: UsersWindowProps) => {
   // Ensure tab configuration is properly initialized
   useEffect(() => {
     if (!tabConfiguration || !tabConfiguration.userTabs || !tabConfiguration.developerTabs) {
-      console.warn('Tab configuration is invalid, resetting to defaults');
+      console.warn('Tab configuration is invalid in UsersWindow, resetting to defaults');
       resetTabConfiguration();
     } else {
       // Validate tab configuration structure
       const isValid =
-        tabConfiguration.userTabs.every(
-          (tab) =>
-            tab &&
-            typeof tab.id === 'string' &&
-            typeof tab.visible === 'boolean' &&
-            typeof tab.window === 'string' &&
-            typeof tab.order === 'number',
-        ) &&
-        tabConfiguration.developerTabs.every(
-          (tab) =>
-            tab &&
-            typeof tab.id === 'string' &&
-            typeof tab.visible === 'boolean' &&
-            typeof tab.window === 'string' &&
-            typeof tab.order === 'number',
-        );
+        tabConfiguration.userTabs.every((tabId) => {
+          const state = tabConfiguration.user[tabId];
+          return (
+            state &&
+            typeof state.visible === 'boolean' &&
+            typeof state.order === 'number' &&
+            typeof state.window === 'string'
+          );
+        }) &&
+        tabConfiguration.developerTabs.every((tabId) => {
+          const state = tabConfiguration.developer[tabId];
+          return (
+            state &&
+            typeof state.visible === 'boolean' &&
+            typeof state.order === 'number' &&
+            typeof state.window === 'string'
+          );
+        });
 
       if (!isValid) {
-        console.warn('Tab configuration is malformed, resetting to defaults');
+        console.warn('Tab configuration is malformed in UsersWindow, resetting to defaults');
         resetTabConfiguration();
       }
     }
   }, [tabConfiguration]);
 
-  // Handle developer mode changes
-  const handleDeveloperModeChange = (checked: boolean) => {
-    setDeveloperMode(checked);
-
-    if (checked) {
-      setShowDeveloperWindow(true);
+  // Reset state when window closes
+  useEffect(() => {
+    if (!open) {
+      setActiveTab(null);
+      setLoadingTab(null);
+      setShowDeveloperWindow(false);
+      setDeveloperMode(false);
     }
-  };
+  }, [open]);
+
+  // Handle developer mode toggle
+  const handleDeveloperModeChange = useCallback((checked: boolean) => {
+    if (checked) {
+      // First show developer window, then enable developer mode
+      setShowDeveloperWindow(true);
+      setDeveloperMode(true);
+      // Don't close the window, just hide user window content
+      setActiveTab(null);
+      setLoadingTab(null);
+    } else {
+      setDeveloperMode(false);
+      setShowDeveloperWindow(false);
+    }
+  }, []);
 
   // Handle developer window close
-  const handleDeveloperWindowClose = () => {
+  const handleDeveloperWindowClose = useCallback(() => {
+    setDeveloperMode(false);
+    setShowDeveloperWindow(false);
+  }, []);
+
+  // Handle window close
+  const handleClose = useCallback(() => {
+    setActiveTab(null);
+    setLoadingTab(null);
     setShowDeveloperWindow(false);
     setDeveloperMode(false);
-  };
+    onClose();
+  }, [onClose]);
 
-  const handleBack = () => {
+  // Handle back button with cleanup
+  const handleBack = useCallback(() => {
     setActiveTab(null);
-  };
+    setLoadingTab(null);
+  }, []);
 
-  // Only show tabs that are assigned to the user window AND are visible
-  const visibleUserTabs = useMemo(() => {
-    console.log('Filtering user tabs with configuration:', tabConfiguration);
+  // Handle tab click with loading state
+  const handleTabClick = useCallback(
+    async (tabId: TabType) => {
+      setLoadingTab(tabId);
+      setActiveTab(tabId);
 
-    if (!tabConfiguration?.userTabs || !Array.isArray(tabConfiguration.userTabs)) {
-      console.warn('Invalid tab configuration, using empty array');
+      try {
+        // Acknowledge the status based on tab type
+        switch (tabId) {
+          case 'update': {
+            await acknowledgeUpdate();
+            break;
+          }
+          case 'features': {
+            await acknowledgeAllFeatures();
+            break;
+          }
+          case 'notifications': {
+            await markAllAsRead();
+            break;
+          }
+          case 'connection': {
+            acknowledgeIssue();
+            break;
+          }
+          case 'debug': {
+            await acknowledgeAllIssues();
+            break;
+          }
+        }
+      } finally {
+        // Always clear loading state
+        setLoadingTab(null);
+      }
+    },
+    [acknowledgeUpdate, acknowledgeAllFeatures, markAllAsRead, acknowledgeIssue, acknowledgeAllIssues],
+  );
+
+  const getVisibleUserTabs = (): DraggableTab[] => {
+    if (!tabConfiguration?.user) {
       return [];
     }
 
-    return tabConfiguration.userTabs
-      .filter((tab) => {
-        if (!tab || typeof tab.id !== 'string') {
-          console.warn('Invalid tab entry:', tab);
-          return false;
-        }
+    return Object.entries(tabConfiguration.user)
+      .map(([id, state]) => {
+        const tabType = id as TabType;
+        const tabConfig = TAB_CONFIGURATION[tabType];
 
-        // Hide notifications tab if notifications are disabled
-        if (tab.id === 'notifications' && !profile.notifications) {
-          console.log('Hiding notifications tab due to disabled notifications');
-          return false;
-        }
-
-        // Ensure the tab has the required properties
-        if (typeof tab.visible !== 'boolean' || typeof tab.window !== 'string' || typeof tab.order !== 'number') {
-          console.warn('Tab missing required properties:', tab);
-          return false;
-        }
-
-        // Only show tabs that are explicitly visible and assigned to the user window
-        const isVisible = tab.visible && tab.window === 'user';
-        console.log(`Tab ${tab.id} visibility:`, isVisible);
-
-        return isVisible;
+        return {
+          id: tabType,
+          label: tabConfig.label,
+          icon: tabConfig.icon,
+          description: tabConfig.description,
+          defaultVisibility: tabConfig.defaultVisibility,
+          order: state.order,
+          visible: state.visible,
+          window: 'user' as const,
+        };
       })
-      .sort((a: TabVisibilityConfig, b: TabVisibilityConfig) => {
-        const orderA = typeof a.order === 'number' ? a.order : 0;
-        const orderB = typeof b.order === 'number' ? b.order : 0;
-
-        return orderA - orderB;
-      });
-  }, [tabConfiguration, profile.notifications]);
-
-  const moveTab = (dragIndex: number, hoverIndex: number) => {
-    const draggedTab = visibleUserTabs[dragIndex];
-    const targetTab = visibleUserTabs[hoverIndex];
-
-    console.log('Moving tab:', { draggedTab, targetTab });
-
-    // Update the order of the dragged and target tabs
-    const updatedDraggedTab = { ...draggedTab, order: targetTab.order };
-    const updatedTargetTab = { ...targetTab, order: draggedTab.order };
-
-    // Update both tabs in the store
-    updateTabConfiguration(updatedDraggedTab);
-    updateTabConfiguration(updatedTargetTab);
+      .filter((tab) => tab.visible)
+      .sort((a, b) => a.order - b.order);
   };
 
-  const handleTabClick = async (tabId: TabType) => {
-    setLoadingTab(tabId);
-    setActiveTab(tabId);
-
-    // Acknowledge the status based on tab type
-    switch (tabId) {
-      case 'update':
-        await acknowledgeUpdate();
-        break;
-      case 'features':
-        await acknowledgeAllFeatures();
-        break;
-      case 'notifications':
-        await markAllAsRead();
-        break;
-      case 'connection':
-        acknowledgeIssue();
-        break;
-      case 'debug':
-        await acknowledgeAllIssues();
-        break;
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) {
+      return;
     }
 
-    // Simulate loading time (remove this in production)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setLoadingTab(null);
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    const visibleTabs = getVisibleUserTabs();
+    const updatedTabs = [...visibleTabs];
+    const [draggedTab] = updatedTabs.splice(sourceIndex, 1);
+    updatedTabs.splice(destinationIndex, 0, draggedTab);
+
+    // Update order for all affected tabs
+    updatedTabs.forEach((tab, index) => {
+      updateTabConfiguration('user', tab.id, {
+        visible: true,
+        order: index,
+      });
+    });
   };
 
   const getTabComponent = () => {
     switch (activeTab) {
-      case 'profile':
+      case 'profile': {
         return <ProfileTab />;
-      case 'settings':
+      }
+      case 'settings': {
         return <SettingsTab />;
-      case 'notifications':
+      }
+      case 'notifications': {
         return <NotificationsTab />;
-      case 'features':
+      }
+      case 'features': {
         return <FeaturesTab />;
-      case 'data':
+      }
+      case 'data': {
         return <DataTab />;
-      case 'cloud-providers':
+      }
+      case 'cloud-providers': {
         return <CloudProvidersTab />;
-      case 'service-status':
+      }
+      case 'service-status': {
         return <ServiceStatusTab />;
-      case 'local-providers':
+      }
+      case 'local-providers': {
         return <LocalProvidersTab />;
-      case 'connection':
+      }
+      case 'connection': {
         return <ConnectionsTab />;
-      case 'debug':
+      }
+      case 'debug': {
         return <DebugTab />;
-      case 'event-logs':
+      }
+      case 'event-logs': {
         return <EventLogsTab />;
-      case 'update':
+      }
+      case 'update': {
         return <UpdateTab />;
-      case 'task-manager':
+      }
+      case 'task-manager': {
         return <TaskManagerTab />;
-      default:
+      }
+      default: {
         return null;
+      }
     }
   };
 
@@ -383,224 +383,99 @@ export const UsersWindow = ({ open, onClose }: UsersWindowProps) => {
 
   return (
     <>
-      <DeveloperWindow open={showDeveloperWindow} onClose={handleDeveloperWindowClose} />
-      <DndProvider backend={HTML5Backend}>
-        <RadixDialog.Root open={open}>
-          <RadixDialog.Portal>
-            <div className="fixed inset-0 flex items-center justify-center z-[100]">
-              <RadixDialog.Overlay asChild>
-                <motion.div
-                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                />
-              </RadixDialog.Overlay>
-              <RadixDialog.Content
-                aria-describedby={undefined}
-                onEscapeKeyDown={onClose}
-                onPointerDownOutside={onClose}
-                className="relative z-[101]"
-              >
-                <motion.div
-                  className={classNames(
-                    'relative',
-                    'w-[1200px] h-[90vh]',
-                    'bg-[#FAFAFA] dark:bg-[#0A0A0A]',
-                    'rounded-2xl shadow-2xl',
-                    'border border-[#E5E5E5] dark:border-[#1A1A1A]',
-                    'flex flex-col overflow-hidden',
-                    'z-[51]',
-                  )}
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  transition={{ duration: 0.2 }}
+      <DeveloperWindow open={showDeveloperWindow && developerMode} onClose={handleDeveloperWindowClose} />
+      <WindowTransition isOpen={open && (!showDeveloperWindow || !developerMode)} onClose={handleClose} type="user">
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-4">
+              {activeTab ? (
+                <button
+                  onClick={handleBack}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
                 >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center space-x-4">
-                      {activeTab ? (
-                        <button
-                          onClick={handleBack}
-                          className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
-                        >
-                          <div className="i-ph:arrow-left w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                        </button>
-                      ) : (
-                        <motion.div
-                          className="i-ph:lightning-fill w-5 h-5 text-purple-500"
-                          initial={{ rotate: -10 }}
-                          animate={{ rotate: 10 }}
-                          transition={{
-                            repeat: Infinity,
-                            repeatType: 'reverse',
-                            duration: 2,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                      )}
-                      <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {activeTab ? TAB_LABELS[activeTab] : 'Bolt Control Panel'}
-                      </DialogTitle>
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={developerMode}
-                          onCheckedChange={handleDeveloperModeChange}
-                          className="data-[state=checked]:bg-purple-500"
-                          aria-label="Toggle developer mode"
-                        />
-                        <label className="text-sm text-gray-500 dark:text-gray-400">Switch to Developer Mode</label>
-                      </div>
-
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger asChild>
-                          <button className="flex items-center justify-center w-8 h-8 rounded-full overflow-hidden hover:ring-2 ring-gray-300 dark:ring-gray-600 transition-all">
-                            {profile.avatar ? (
-                              <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                                <svg
-                                  className="w-5 h-5 text-gray-500 dark:text-gray-400"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-                          </button>
-                        </DropdownMenu.Trigger>
-
-                        <DropdownMenu.Portal>
-                          <DropdownMenu.Content
-                            className="min-w-[220px] bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-[200] animate-in fade-in-0 zoom-in-95"
-                            sideOffset={5}
-                            align="end"
-                          >
-                            <DropdownMenu.Item
-                              className="group flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer transition-colors"
-                              onSelect={() => handleTabClick('profile')}
-                            >
-                              <div className="mr-3 flex h-5 w-5 items-center justify-center">
-                                <div className="i-ph:user-circle w-[18px] h-[18px] text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                              </div>
-                              <span className="group-hover:text-purple-500 transition-colors">Profile</span>
-                            </DropdownMenu.Item>
-
-                            <DropdownMenu.Item
-                              className="group flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer transition-colors"
-                              onSelect={() => handleTabClick('settings')}
-                            >
-                              <div className="mr-3 flex h-5 w-5 items-center justify-center">
-                                <div className="i-ph:gear w-[18px] h-[18px] text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                              </div>
-                              <span className="group-hover:text-purple-500 transition-colors">Settings</span>
-                            </DropdownMenu.Item>
-
-                            {profile.notifications && (
-                              <>
-                                <DropdownMenu.Item
-                                  className="group flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer transition-colors"
-                                  onSelect={() => handleTabClick('notifications')}
-                                >
-                                  <div className="mr-3 flex h-5 w-5 items-center justify-center">
-                                    <div className="i-ph:bell w-[18px] h-[18px] text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                                  </div>
-                                  <span className="group-hover:text-purple-500 transition-colors">
-                                    Notifications
-                                    {hasUnreadNotifications && (
-                                      <span className="ml-2 px-1.5 py-0.5 text-xs bg-purple-500 text-white rounded-full">
-                                        {unreadNotifications.length}
-                                      </span>
-                                    )}
-                                  </span>
-                                </DropdownMenu.Item>
-
-                                <DropdownMenu.Separator className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
-                              </>
-                            )}
-
-                            <DropdownMenu.Item
-                              className="group flex items-center px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 cursor-pointer transition-colors"
-                              onSelect={onClose}
-                            >
-                              <div className="mr-3 flex h-5 w-5 items-center justify-center">
-                                <div className="i-ph:sign-out w-[18px] h-[18px] text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                              </div>
-                              <span className="group-hover:text-purple-500 transition-colors">Close</span>
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Portal>
-                      </DropdownMenu.Root>
-
-                      <button
-                        onClick={onClose}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
-                      >
-                        <div className="i-ph:x w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div
-                    className={classNames(
-                      'flex-1',
-                      'overflow-y-auto',
-                      'hover:overflow-y-auto',
-                      'scrollbar scrollbar-w-2',
-                      'scrollbar-track-transparent',
-                      'scrollbar-thumb-[#E5E5E5] hover:scrollbar-thumb-[#CCCCCC]',
-                      'dark:scrollbar-thumb-[#333333] dark:hover:scrollbar-thumb-[#444444]',
-                      'will-change-scroll',
-                      'touch-auto',
-                    )}
-                  >
-                    <motion.div
-                      key={activeTab || 'home'}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-6"
-                    >
-                      {activeTab ? (
-                        getTabComponent()
-                      ) : (
-                        <div className="grid grid-cols-4 gap-4">
-                          {visibleUserTabs.map((tab: TabVisibilityConfig, index: number) => (
-                            <DraggableTabTile
-                              key={tab.id}
-                              tab={tab}
-                              index={index}
-                              moveTab={moveTab}
-                              onClick={() => handleTabClick(tab.id)}
-                              isActive={activeTab === tab.id}
-                              hasUpdate={getTabUpdateStatus(tab.id)}
-                              statusMessage={getStatusMessage(tab.id)}
-                              description={TAB_DESCRIPTIONS[tab.id]}
-                              isLoading={loadingTab === tab.id}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </RadixDialog.Content>
+                  <div className="i-ph:arrow-left w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
+                </button>
+              ) : (
+                <motion.div
+                  className="i-ph:lightning-fill w-5 h-5 text-purple-500"
+                  initial={{ rotate: -10 }}
+                  animate={{ rotate: 10 }}
+                  transition={{
+                    repeat: Infinity,
+                    repeatType: 'reverse',
+                    duration: 2,
+                    ease: 'easeInOut',
+                  }}
+                />
+              )}
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {activeTab ? TAB_LABELS[activeTab] : 'Bolt Control Panel'}
+              </h2>
             </div>
-          </RadixDialog.Portal>
-        </RadixDialog.Root>
-      </DndProvider>
+
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={developerMode}
+                  onCheckedChange={handleDeveloperModeChange}
+                  className="data-[state=checked]:bg-purple-500"
+                  aria-label="Toggle developer mode"
+                />
+                <label className="text-sm text-gray-500 dark:text-gray-400">Switch to Developer Mode</label>
+              </div>
+
+              <UserDropdownMenu
+                onNavigate={handleTabClick}
+                onClose={handleClose}
+                hasUnreadNotifications={hasUnreadNotifications}
+                unreadNotificationsCount={unreadNotifications.length}
+                avatarUrl={profile.avatar}
+                _windowType="user"
+              />
+
+              <button
+                onClick={handleClose}
+                className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
+              >
+                <div className="i-ph:x w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {activeTab ? (
+              getTabComponent()
+            ) : (
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="user-tabs">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps} className="grid grid-cols-4 gap-4">
+                      {getVisibleUserTabs().map((tab, index) => (
+                        <Draggable key={tab.id} draggableId={tab.id} index={index}>
+                          {(provided) => (
+                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                              <TabTile
+                                tab={tab}
+                                onClick={() => handleTabClick(tab.id)}
+                                isActive={activeTab === tab.id}
+                                hasUpdate={getTabUpdateStatus(tab.id)}
+                                _statusMessage={getStatusMessage(tab.id)}
+                                description={TAB_DESCRIPTIONS[tab.id]}
+                                isLoading={loadingTab === tab.id}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+          </div>
+        </div>
+      </WindowTransition>
     </>
   );
-};
+}

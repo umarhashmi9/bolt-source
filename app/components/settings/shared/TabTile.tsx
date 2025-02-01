@@ -1,45 +1,43 @@
 import { motion } from 'framer-motion';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { classNames } from '~/utils/classNames';
-import type { TabVisibilityConfig } from '~/components/settings/settings.types';
-import { TAB_LABELS } from '~/components/settings/settings.types';
+import type { TabType, TabState } from '~/components/settings/settings.types';
 
-const TAB_ICONS = {
+const TAB_ICONS: Record<TabType, string> = {
   profile: 'i-ph:user',
   settings: 'i-ph:gear',
   notifications: 'i-ph:bell',
   features: 'i-ph:star',
   data: 'i-ph:database',
-  providers: 'i-ph:plug',
+  'cloud-providers': 'i-ph:cloud',
+  'local-providers': 'i-ph:desktop',
   connection: 'i-ph:wifi-high',
   debug: 'i-ph:bug',
   'event-logs': 'i-ph:list-bullets',
   update: 'i-ph:arrow-clockwise',
   'task-manager': 'i-ph:activity',
-  'cloud-providers': 'i-ph:cloud',
-  'local-providers': 'i-ph:desktop',
   'service-status': 'i-ph:activity-bold',
 };
 
 interface TabTileProps {
-  tab: TabVisibilityConfig;
+  tab: TabState & {
+    label: string;
+    icon: string;
+    description: string;
+    defaultVisibility: {
+      user: boolean;
+      developer: boolean;
+    };
+  };
   onClick: () => void;
-  isActive?: boolean;
+  isActive: boolean;
   hasUpdate?: boolean;
-  statusMessage?: string;
+  _statusMessage?: string;
   description?: string;
   isLoading?: boolean;
 }
 
-export const TabTile = ({
-  tab,
-  onClick,
-  isActive = false,
-  hasUpdate = false,
-  statusMessage,
-  description,
-  isLoading = false,
-}: TabTileProps) => {
+export function TabTile({ tab, onClick, isActive, hasUpdate, _statusMessage, description, isLoading }: TabTileProps) {
   return (
     <Tooltip.Provider delayDuration={200}>
       <Tooltip.Root>
@@ -180,7 +178,7 @@ export const TabTile = ({
                   isActive ? 'text-purple-500 dark:text-purple-400' : '',
                 )}
               >
-                {TAB_LABELS[tab.id]}
+                {tab.label}
               </div>
               {description && (
                 <div
@@ -224,11 +222,11 @@ export const TabTile = ({
             side="top"
             sideOffset={5}
           >
-            {statusMessage || TAB_LABELS[tab.id]}
+            {tab.label}
             <Tooltip.Arrow className="fill-[#18181B]" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>
     </Tooltip.Provider>
   );
-};
+}

@@ -23,9 +23,9 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import Cookies from 'js-cookie';
 import type { IProviderSetting, ProviderInfo, IProviderConfig } from '~/types/model';
-import type { TabWindowConfig, TabVisibilityConfig } from '~/components/settings/settings.types';
 import { logStore } from '~/lib/stores/logs';
 import { getLocalStorage, setLocalStorage } from '~/lib/persistence';
+import type { TabsState, TabType } from '~/components/settings/settings.types';
 
 export interface Settings {
   theme: 'light' | 'dark' | 'system';
@@ -33,10 +33,10 @@ export interface Settings {
   notifications: boolean;
   eventLogs: boolean;
   timezone: string;
-  tabConfiguration: TabWindowConfig;
+  tabConfiguration: TabsState;
 }
 
-export interface UseSettingsReturn {
+export interface UseSettingsReturn extends Settings {
   // Theme and UI settings
   setTheme: (theme: Settings['theme']) => void;
   setLanguage: (language: string) => void;
@@ -66,8 +66,12 @@ export interface UseSettingsReturn {
   enableContextOptimization: (enabled: boolean) => void;
 
   // Tab configuration
-  tabConfiguration: TabWindowConfig;
-  updateTabConfiguration: (config: TabVisibilityConfig) => void;
+  tabConfiguration: TabsState;
+  updateTabConfiguration: (
+    windowType: 'user' | 'developer',
+    tabId: TabType,
+    config: { visible?: boolean; order?: number },
+  ) => void;
   resetTabConfiguration: () => void;
 }
 

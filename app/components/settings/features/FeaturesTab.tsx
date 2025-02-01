@@ -14,7 +14,6 @@ interface FeatureToggle {
   icon: string;
   enabled: boolean;
   beta?: boolean;
-  experimental?: boolean;
   tooltip?: string;
 }
 
@@ -50,11 +49,6 @@ const FeatureCard = memo(
               <h4 className="font-medium text-bolt-elements-textPrimary">{feature.title}</h4>
               {feature.beta && (
                 <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-500 font-medium">Beta</span>
-              )}
-              {feature.experimental && (
-                <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/10 text-orange-500 font-medium">
-                  Experimental
-                </span>
               )}
             </div>
           </div>
@@ -111,44 +105,66 @@ export default function FeaturesTab() {
     isLatestBranch,
     contextOptimizationEnabled,
     eventLogs,
-    isLocalModel,
     setAutoSelectTemplate,
     enableLatestBranch,
     enableContextOptimization,
     setEventLogs,
-    enableLocalModels,
     setPromptId,
     promptId,
   } = useSettings();
 
+  // Enable features by default on first load
+  React.useEffect(() => {
+    // Only enable if they haven't been explicitly set before
+    if (isLatestBranch === undefined) {
+      enableLatestBranch(true);
+    }
+
+    if (contextOptimizationEnabled === undefined) {
+      enableContextOptimization(true);
+    }
+
+    if (autoSelectTemplate === undefined) {
+      setAutoSelectTemplate(true);
+    }
+
+    if (eventLogs === undefined) {
+      setEventLogs(true);
+    }
+  }, []); // Only run once on component mount
+
   const handleToggleFeature = useCallback(
     (id: string, enabled: boolean) => {
       switch (id) {
-        case 'latestBranch':
+        case 'latestBranch': {
           enableLatestBranch(enabled);
           toast.success(`Main branch updates ${enabled ? 'enabled' : 'disabled'}`);
           break;
-        case 'autoSelectTemplate':
+        }
+
+        case 'autoSelectTemplate': {
           setAutoSelectTemplate(enabled);
           toast.success(`Auto select template ${enabled ? 'enabled' : 'disabled'}`);
           break;
-        case 'contextOptimization':
+        }
+
+        case 'contextOptimization': {
           enableContextOptimization(enabled);
           toast.success(`Context optimization ${enabled ? 'enabled' : 'disabled'}`);
           break;
-        case 'eventLogs':
+        }
+
+        case 'eventLogs': {
           setEventLogs(enabled);
           toast.success(`Event logging ${enabled ? 'enabled' : 'disabled'}`);
           break;
-        case 'localModels':
-          enableLocalModels(enabled);
-          toast.success(`Experimental providers ${enabled ? 'enabled' : 'disabled'}`);
-          break;
+        }
+
         default:
           break;
       }
     },
-    [enableLatestBranch, setAutoSelectTemplate, enableContextOptimization, setEventLogs, enableLocalModels],
+    [enableLatestBranch, setAutoSelectTemplate, enableContextOptimization, setEventLogs],
   );
 
   const features = {
@@ -159,7 +175,7 @@ export default function FeaturesTab() {
         description: 'Get the latest updates from the main branch',
         icon: 'i-ph:git-branch',
         enabled: isLatestBranch,
-        tooltip: 'Enable to receive updates from the main development branch',
+        tooltip: 'Enabled by default to receive updates from the main development branch',
       },
       {
         id: 'autoSelectTemplate',
@@ -167,7 +183,7 @@ export default function FeaturesTab() {
         description: 'Automatically select starter template',
         icon: 'i-ph:selection',
         enabled: autoSelectTemplate,
-        tooltip: 'Automatically select the most appropriate starter template',
+        tooltip: 'Enabled by default to automatically select the most appropriate starter template',
       },
       {
         id: 'contextOptimization',
@@ -175,7 +191,7 @@ export default function FeaturesTab() {
         description: 'Optimize context for better responses',
         icon: 'i-ph:brain',
         enabled: contextOptimizationEnabled,
-        tooltip: 'Enable context optimization for improved AI responses',
+        tooltip: 'Enabled by default for improved AI responses',
       },
       {
         id: 'eventLogs',
@@ -183,30 +199,19 @@ export default function FeaturesTab() {
         description: 'Enable detailed event logging and history',
         icon: 'i-ph:list-bullets',
         enabled: eventLogs,
-        tooltip: 'Record detailed logs of system events and user actions',
+        tooltip: 'Enabled by default to record detailed logs of system events and user actions',
       },
     ],
     beta: [],
-    experimental: [
-      {
-        id: 'localModels',
-        title: 'Experimental Providers',
-        description: 'Enable experimental providers like Ollama, LMStudio, and OpenAILike',
-        icon: 'i-ph:robot',
-        enabled: isLocalModel,
-        experimental: true,
-        tooltip: 'Try out new AI providers and models in development',
-      },
-    ],
   };
 
   return (
     <div className="flex flex-col gap-8">
       <FeatureSection
-        title="Stable Features"
+        title="Core Features"
         features={features.stable}
         icon="i-ph:check-circle"
-        description="Production-ready features that have been thoroughly tested"
+        description="Essential features that are enabled by default for optimal performance"
         onToggleFeature={handleToggleFeature}
       />
 
@@ -216,16 +221,6 @@ export default function FeaturesTab() {
           features={features.beta}
           icon="i-ph:test-tube"
           description="New features that are ready for testing but may have some rough edges"
-          onToggleFeature={handleToggleFeature}
-        />
-      )}
-
-      {features.experimental.length > 0 && (
-        <FeatureSection
-          title="Experimental Features"
-          features={features.experimental}
-          icon="i-ph:flask"
-          description="Features in early development that may be unstable or require additional setup"
           onToggleFeature={handleToggleFeature}
         />
       )}

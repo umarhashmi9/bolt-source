@@ -1,27 +1,23 @@
 import React, { useState, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { classNames } from '~/utils/classNames';
-import type { UserProfile } from '~/components/settings/settings.types';
 import { motion } from 'framer-motion';
+import { UserCircle } from 'lucide-react';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
-const MIN_PASSWORD_LENGTH = 8;
 
 export default function ProfileTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>(() => {
+  const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('bolt_user_profile');
     return saved
       ? JSON.parse(saved)
       : {
-          name: '',
-          email: '',
-          password: '',
+          avatar: null,
+          username: '',
           bio: '',
+          notifications: true,
         };
   });
 
@@ -48,8 +44,17 @@ export default function ProfileTab() {
       const reader = new FileReader();
 
       reader.onloadend = () => {
-        setProfile((prev) => ({ ...prev, avatar: reader.result as string }));
+        const updatedProfile = { ...profile, avatar: reader.result as string };
+        setProfile(updatedProfile);
+        localStorage.setItem('bolt_user_profile', JSON.stringify(updatedProfile));
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'bolt_user_profile',
+            newValue: JSON.stringify(updatedProfile),
+          }),
+        );
         setIsLoading(false);
+        toast.success('Avatar updated successfully');
       };
       reader.readAsDataURL(file);
     } catch (error) {
@@ -59,219 +64,95 @@ export default function ProfileTab() {
     }
   };
 
-  const handleSave = async () => {
-    if (!profile.name.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-
-    if (!profile.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    if (profile.password && profile.password.length < MIN_PASSWORD_LENGTH) {
-      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
-      return;
-    }
-
-    setIsLoading(true);
-
+  const handleSave = () => {
     try {
-      // Get existing profile data to preserve settings
-      const existingProfile = JSON.parse(localStorage.getItem('bolt_user_profile') || '{}');
-
-      // Merge with new profile data
-      const updatedProfile = {
-        ...existingProfile,
-        name: profile.name,
-        email: profile.email,
-        password: profile.password,
-        bio: profile.bio,
-        avatar: profile.avatar,
-      };
-
-      localStorage.setItem('bolt_user_profile', JSON.stringify(updatedProfile));
-
-      // Dispatch a storage event to notify other components
+      localStorage.setItem('bolt_user_profile', JSON.stringify(profile));
       window.dispatchEvent(
         new StorageEvent('storage', {
           key: 'bolt_user_profile',
-          newValue: JSON.stringify(updatedProfile),
+          newValue: JSON.stringify(profile),
         }),
       );
-
-      toast.success('Profile settings saved successfully');
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error saving profile:', error);
-      toast.error('Failed to save profile settings');
-    } finally {
-      setIsLoading(false);
+      toast.error('Failed to update profile');
     }
   };
 
   return (
-    <div
-      className={classNames(
-        'rounded-lg border bg-bolt-elements-background text-bolt-elements-textPrimary shadow-sm p-4',
-        'hover:bg-bolt-elements-background-depth-2',
-        'transition-all duration-200',
-      )}
-    >
-      {/* Profile Information */}
-      <motion.div
-        className="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-sm dark:shadow-none"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-          <div className="i-ph:user-circle-fill w-4 h-4 text-purple-500" />
-          <span className="text-sm font-medium text-bolt-elements-textPrimary">Personal Information</span>
-        </div>
-        <div className="flex items-start gap-4 p-4">
-          {/* Avatar */}
-          <div className="relative group">
-            <div className="w-12 h-12 rounded-lg bg-[#F5F5F5] dark:bg-[#1A1A1A] flex items-center justify-center overflow-hidden">
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  <div className="i-ph:spinner-gap-bold animate-spin text-purple-500" />
-                ) : profile.avatar ? (
-                  <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="i-ph:user-circle-fill text-bolt-elements-textSecondary" />
-                )}
-              </AnimatePresence>
-            </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-            >
-              <div className="i-ph:camera-fill text-white" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ALLOWED_FILE_TYPES.join(',')}
-              onChange={handleAvatarUpload}
-              className="hidden"
-            />
+    <div className="space-y-6 p-4 bg-[#FAFAFA] dark:bg-[#0A0A0A] rounded-lg">
+      <div className="flex items-center gap-4">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+            {profile.avatar ? (
+              <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <UserCircle className="w-10 h-10 text-gray-400 dark:text-gray-500" />
+              </div>
+            )}
           </div>
-
-          {/* Profile Fields */}
-          <div className="flex-1 space-y-3">
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                <div className="i-ph:user-fill w-4 h-4 text-bolt-elements-textTertiary" />
-              </div>
-              <input
-                type="text"
-                value={profile.name}
-                onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter your name"
-                className={classNames(
-                  'w-full px-3 py-1.5 rounded-lg text-sm',
-                  'pl-10',
-                  'bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333333]',
-                  'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                  'focus:outline-none focus:ring-1 focus:ring-purple-500',
-                )}
-              />
-            </div>
-
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                <div className="i-ph:envelope-fill w-4 h-4 text-bolt-elements-textTertiary" />
-              </div>
-              <input
-                type="email"
-                value={profile.email}
-                onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))}
-                placeholder="Enter your email"
-                className={classNames(
-                  'w-full px-3 py-1.5 rounded-lg text-sm',
-                  'pl-10',
-                  'bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333333]',
-                  'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                  'focus:outline-none focus:ring-1 focus:ring-purple-500',
-                )}
-              />
-            </div>
-
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={profile.password}
-                onChange={(e) => setProfile((prev) => ({ ...prev, password: e.target.value }))}
-                placeholder="Enter new password"
-                className={classNames(
-                  'w-full px-3 py-1.5 rounded-lg text-sm',
-                  'bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333333]',
-                  'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                  'focus:outline-none focus:ring-1 focus:ring-purple-500',
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className={classNames(
-                  'absolute right-3 top-1/2 -translate-y-1/2',
-                  'flex items-center justify-center',
-                  'w-6 h-6 rounded-md',
-                  'text-bolt-elements-textSecondary',
-                  'hover:text-bolt-elements-item-contentActive',
-                  'hover:bg-bolt-elements-item-backgroundActive',
-                  'transition-colors',
-                )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept={ALLOWED_FILE_TYPES.join(',')}
+            onChange={handleAvatarUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="absolute bottom-0 right-0 p-1 rounded-full bg-purple-500 text-white hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <motion.div
+                className="w-4 h-4"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               >
-                <div className={classNames(showPassword ? 'i-ph:eye-slash-fill' : 'i-ph:eye-fill', 'w-4 h-4')} />
-              </button>
-            </div>
-
-            <div className="relative">
-              <textarea
-                value={profile.bio}
-                onChange={(e) => setProfile((prev) => ({ ...prev, bio: e.target.value }))}
-                placeholder="Tell us about yourself"
-                rows={3}
-                className={classNames(
-                  'w-full px-3 py-2 rounded-lg text-sm',
-                  'bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333333]',
-                  'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                  'focus:outline-none focus:ring-1 focus:ring-purple-500',
-                  'resize-none',
-                )}
-              />
-            </div>
-          </div>
+                <div className="i-ph:spinner" />
+              </motion.div>
+            ) : (
+              <div className="i-ph:pencil-simple w-4 h-4" />
+            )}
+          </button>
         </div>
-      </motion.div>
 
-      {/* Save Button */}
-      <div className="flex justify-end mt-6">
+        <div className="flex-1 space-y-3">
+          <input
+            type="text"
+            placeholder="Username"
+            value={profile.username}
+            onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+            className="w-full px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
+          />
+          <textarea
+            placeholder="Bio"
+            value={profile.bio}
+            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+            className="w-full px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors resize-none"
+            rows={3}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={profile.notifications}
+            onChange={(e) => setProfile({ ...profile, notifications: e.target.checked })}
+            className="form-checkbox h-4 w-4 text-purple-500 rounded border-gray-300 dark:border-gray-600"
+          />
+          <span className="text-sm text-gray-600 dark:text-gray-300">Enable notifications</span>
+        </label>
+
         <button
           onClick={handleSave}
-          disabled={isLoading}
-          className={classNames(
-            'rounded-md px-4 py-2 text-sm',
-            'bg-purple-500 text-white',
-            'hover:bg-purple-600',
-            'dark:bg-purple-500 dark:hover:bg-purple-600',
-            'transition-all duration-200',
-          )}
+          className="px-4 py-2 rounded-md bg-purple-500 text-white hover:bg-purple-600 transition-colors"
         >
-          {isLoading ? (
-            <>
-              <div className="i-ph:spinner-gap-bold animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <div className="i-ph:check-circle-fill" />
-              Save Changes
-            </>
-          )}
+          Save Changes
         </button>
       </div>
     </div>

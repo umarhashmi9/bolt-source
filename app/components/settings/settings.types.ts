@@ -43,17 +43,173 @@ export interface SettingItem {
   keywords?: string[];
 }
 
-export interface TabVisibilityConfig {
+export interface TabConfig {
   id: TabType;
-  visible: boolean;
-  window: 'user' | 'developer';
+  label: string;
+  icon: string;
+  description: string;
+  defaultVisibility: {
+    user: boolean;
+    developer: boolean;
+  };
   order: number;
   locked?: boolean;
 }
 
-export interface TabWindowConfig {
-  userTabs: TabVisibilityConfig[];
-  developerTabs: TabVisibilityConfig[];
+// Define the base configuration for all tabs
+export const TAB_CONFIGURATION: Record<TabType, TabConfig> = {
+  profile: {
+    id: 'profile',
+    label: 'Profile',
+    icon: 'i-ph:user-circle-fill',
+    description: 'Manage your profile and account settings',
+    defaultVisibility: { user: false, developer: true },
+    order: 0,
+  },
+  settings: {
+    id: 'settings',
+    label: 'Settings',
+    icon: 'i-ph:gear-fill',
+    description: 'Configure application preferences',
+    defaultVisibility: { user: false, developer: true },
+    order: 1,
+  },
+  notifications: {
+    id: 'notifications',
+    label: 'Notifications',
+    icon: 'i-ph:bell-fill',
+    description: 'View and manage your notifications',
+    defaultVisibility: { user: false, developer: true },
+    order: 2,
+  },
+  features: {
+    id: 'features',
+    label: 'Features',
+    icon: 'i-ph:star-fill',
+    description: 'Manage application features',
+    defaultVisibility: { user: true, developer: true },
+    order: 3,
+  },
+  data: {
+    id: 'data',
+    label: 'Data',
+    icon: 'i-ph:database-fill',
+    description: 'Manage your data and storage',
+    defaultVisibility: { user: true, developer: true },
+    order: 4,
+  },
+  'cloud-providers': {
+    id: 'cloud-providers',
+    label: 'Cloud Providers',
+    icon: 'i-ph:cloud-fill',
+    description: 'Configure cloud AI providers',
+    defaultVisibility: { user: true, developer: true },
+    order: 5,
+  },
+  'local-providers': {
+    id: 'local-providers',
+    label: 'Local Providers',
+    icon: 'i-ph:desktop-fill',
+    description: 'Configure local AI providers',
+    defaultVisibility: { user: true, developer: true },
+    order: 6,
+  },
+  connection: {
+    id: 'connection',
+    label: 'Connection',
+    icon: 'i-ph:plug-fill',
+    description: 'View and manage connections',
+    defaultVisibility: { user: true, developer: true },
+    order: 7,
+  },
+  debug: {
+    id: 'debug',
+    label: 'Debug',
+    icon: 'i-ph:bug-fill',
+    description: 'Debug application issues',
+    defaultVisibility: { user: true, developer: true },
+    order: 8,
+  },
+  'event-logs': {
+    id: 'event-logs',
+    label: 'Event Logs',
+    icon: 'i-ph:list-fill',
+    description: 'View application event logs',
+    defaultVisibility: { user: false, developer: true },
+    order: 9,
+  },
+  update: {
+    id: 'update',
+    label: 'Update',
+    icon: 'i-ph:arrow-clockwise-fill',
+    description: 'Check for updates',
+    defaultVisibility: { user: false, developer: true },
+    order: 10,
+  },
+  'task-manager': {
+    id: 'task-manager',
+    label: 'Task Manager',
+    icon: 'i-ph:activity-fill',
+    description: 'Manage running tasks',
+    defaultVisibility: { user: false, developer: true },
+    order: 11,
+  },
+  'service-status': {
+    id: 'service-status',
+    label: 'Service Status',
+    icon: 'i-ph:heartbeat-fill',
+    description: 'Monitor provider service health and status',
+    defaultVisibility: { user: false, developer: true },
+    order: 12,
+  },
+};
+
+// Define window-specific configurations
+export const DEFAULT_USER_TABS: TabType[] = [
+  'features',
+  'data',
+  'cloud-providers',
+  'local-providers',
+  'connection',
+  'debug',
+];
+
+export const DEFAULT_DEVELOPER_TABS: TabType[] = [
+  'profile',
+  'settings',
+  'notifications',
+  'features',
+  'data',
+  'cloud-providers',
+  'local-providers',
+  'connection',
+  'debug',
+  'event-logs',
+  'update',
+  'task-manager',
+  'service-status',
+];
+
+export interface TabState {
+  visible: boolean;
+  order: number;
+  id: TabType;
+  window: 'user' | 'developer';
+}
+
+export interface TabVisibilityConfig {
+  id: TabType;
+  label: string;
+  icon: string;
+  description: string;
+  defaultVisibility: {
+    user: boolean;
+    developer: boolean;
+  };
+  order: number;
+  visible: boolean;
+  window: 'user' | 'developer';
+  locked?: boolean;
 }
 
 export const TAB_LABELS: Record<TabType, string> = {
@@ -72,39 +228,20 @@ export const TAB_LABELS: Record<TabType, string> = {
   'service-status': 'Service Status',
 };
 
-export const DEFAULT_TAB_CONFIG: TabVisibilityConfig[] = [
-  // User Window Tabs (Visible by default)
-  { id: 'features', visible: true, window: 'user', order: 0 },
-  { id: 'data', visible: true, window: 'user', order: 1 },
-  { id: 'cloud-providers', visible: true, window: 'user', order: 2 },
-  { id: 'service-status', visible: true, window: 'user', order: 3 },
-  { id: 'local-providers', visible: true, window: 'user', order: 4 },
-  { id: 'connection', visible: true, window: 'user', order: 5 },
-  { id: 'debug', visible: true, window: 'user', order: 6 },
+export interface TabsState {
+  user: Record<TabType, TabState>;
+  developer: Record<TabType, TabState>;
+  userTabs: TabType[];
+  developerTabs: TabType[];
+}
 
-  // User Window Tabs (Hidden by default)
-  { id: 'profile', visible: false, window: 'user', order: 7 },
-  { id: 'settings', visible: false, window: 'user', order: 8 },
-  { id: 'notifications', visible: false, window: 'user', order: 9 },
-  { id: 'event-logs', visible: false, window: 'user', order: 10 },
-  { id: 'update', visible: false, window: 'user', order: 11 },
-  { id: 'task-manager', visible: false, window: 'user', order: 12 },
+export interface TabWindowConfig {
+  visible: boolean;
+  order: number;
+  window: 'user' | 'developer';
+}
 
-  // Developer Window Tabs (All visible by default)
-  { id: 'profile', visible: true, window: 'developer', order: 0 },
-  { id: 'settings', visible: true, window: 'developer', order: 1 },
-  { id: 'notifications', visible: true, window: 'developer', order: 2 },
-  { id: 'features', visible: true, window: 'developer', order: 3 },
-  { id: 'data', visible: true, window: 'developer', order: 4 },
-  { id: 'cloud-providers', visible: true, window: 'developer', order: 5 },
-  { id: 'local-providers', visible: true, window: 'developer', order: 6 },
-  { id: 'connection', visible: true, window: 'developer', order: 7 },
-  { id: 'debug', visible: true, window: 'developer', order: 8 },
-  { id: 'event-logs', visible: true, window: 'developer', order: 9 },
-  { id: 'update', visible: true, window: 'developer', order: 10 },
-  { id: 'task-manager', visible: true, window: 'developer', order: 11 },
-  { id: 'service-status', visible: true, window: 'developer', order: 12 },
-];
+export const DEFAULT_TAB_CONFIG: Record<TabType, TabConfig> = TAB_CONFIGURATION;
 
 export const categoryLabels: Record<SettingCategory, string> = {
   profile: 'Profile & Account',

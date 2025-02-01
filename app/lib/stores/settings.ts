@@ -2,9 +2,8 @@ import { atom, map } from 'nanostores';
 import { workbenchStore } from './workbench';
 import { PROVIDER_LIST } from '~/utils/constants';
 import type { IProviderConfig } from '~/types/model';
-import type { TabVisibilityConfig, TabWindowConfig } from '~/components/settings/settings.types';
-import { DEFAULT_TAB_CONFIG } from '~/components/settings/settings.types';
-import Cookies from 'js-cookie';
+import type { TabType, TabsState, TabState } from '~/components/settings/settings.types';
+import { DEFAULT_TAB_CONFIG, DEFAULT_USER_TABS, DEFAULT_DEVELOPER_TABS } from '~/components/settings/settings.types';
 import { toggleTheme } from './theme';
 import { chatStore } from './chat';
 
@@ -196,120 +195,113 @@ export const updatePromptId = (id: string) => {
   localStorage.setItem(SETTINGS_KEYS.PROMPT_ID, id);
 };
 
-// Initialize tab configuration from cookie or default
-const savedTabConfig = Cookies.get('tabConfiguration');
-console.log('Saved tab configuration:', savedTabConfig);
+// Initialize tab configuration store with all required tabs
+const createInitialTabState = (): TabsState => {
+  // Create a complete record of all possible tabs
+  const createTabStateRecord = (tabs: TabType[], defaultVisible: boolean): Record<TabType, TabState> => {
+    const record: Partial<Record<TabType, TabState>> = {};
 
-let initialTabConfig: TabWindowConfig;
-
-try {
-  if (savedTabConfig) {
-    const parsedConfig = JSON.parse(savedTabConfig);
-
-    // Validate the parsed configuration
-    if (
-      parsedConfig &&
-      Array.isArray(parsedConfig.userTabs) &&
-      Array.isArray(parsedConfig.developerTabs) &&
-      parsedConfig.userTabs.every(
-        (tab: any) =>
-          tab &&
-          typeof tab.id === 'string' &&
-          typeof tab.visible === 'boolean' &&
-          typeof tab.window === 'string' &&
-          typeof tab.order === 'number',
-      ) &&
-      parsedConfig.developerTabs.every(
-        (tab: any) =>
-          tab &&
-          typeof tab.id === 'string' &&
-          typeof tab.visible === 'boolean' &&
-          typeof tab.window === 'string' &&
-          typeof tab.order === 'number',
-      )
-    ) {
-      initialTabConfig = parsedConfig;
-      console.log('Using saved tab configuration');
-    } else {
-      console.warn('Invalid saved tab configuration, using defaults');
-      initialTabConfig = {
-        userTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'user'),
-        developerTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'developer'),
+    // Initialize all tabs as hidden first
+    Object.keys(DEFAULT_TAB_CONFIG).forEach((tabId) => {
+      const id = tabId as TabType;
+      record[id] = {
+        visible: false,
+        order: 0,
+        id,
+        window: defaultVisible ? 'user' : 'developer',
       };
-    }
-  } else {
-    console.log('No saved tab configuration found, using defaults');
-    initialTabConfig = {
-      userTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'user'),
-      developerTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'developer'),
-    };
-  }
-} catch (error) {
-  console.error('Error loading tab configuration:', error);
-  initialTabConfig = {
-    userTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'user'),
-    developerTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'developer'),
-  };
-}
+    });
 
-console.log('Initial tab configuration:', initialTabConfig);
+    // Then set the specified tabs as visible with proper order
+    tabs.forEach((tabId, index) => {
+      record[tabId] = {
+        visible: defaultVisible,
+        order: index,
+        id: tabId,
+        window: defaultVisible ? 'user' : 'developer',
+      };
+    });
 
-export const tabConfigurationStore = map<TabWindowConfig>(initialTabConfig);
-
-// Helper function to update tab configuration
-export const updateTabConfiguration = (config: TabVisibilityConfig) => {
-  const currentConfig = tabConfigurationStore.get();
-  console.log('Current tab configuration before update:', currentConfig);
-
-  const isUserTab = config.window === 'user';
-  const targetArray = isUserTab ? 'userTabs' : 'developerTabs';
-
-  // Only update the tab in its respective window
-  const updatedTabs = currentConfig[targetArray].map((tab) => (tab.id === config.id ? { ...config } : tab));
-
-  // If tab doesn't exist in this window yet, add it
-  if (!updatedTabs.find((tab) => tab.id === config.id)) {
-    updatedTabs.push(config);
-  }
-
-  // Create new config, only updating the target window's tabs
-  const newConfig: TabWindowConfig = {
-    ...currentConfig,
-    [targetArray]: updatedTabs,
+    return record as Record<TabType, TabState>;
   };
 
-  console.log('New tab configuration after update:', newConfig);
-
-  tabConfigurationStore.set(newConfig);
-  Cookies.set('tabConfiguration', JSON.stringify(newConfig), {
-    expires: 365, // Set cookie to expire in 1 year
-    path: '/',
-    sameSite: 'strict',
-  });
+  return {
+    user: createTabStateRecord(DEFAULT_USER_TABS, true),
+    developer: createTabStateRecord(DEFAULT_DEVELOPER_TABS, true),
+    userTabs: DEFAULT_USER_TABS,
+    developerTabs: DEFAULT_DEVELOPER_TABS,
+  };
 };
 
-// Helper function to reset tab configuration
-export const resetTabConfiguration = () => {
-  console.log('Resetting tab configuration to defaults');
+const initialTabState = createInitialTabState();
 
-  const defaultConfig: TabWindowConfig = {
-    userTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'user'),
-    developerTabs: DEFAULT_TAB_CONFIG.filter((tab) => tab.window === 'developer'),
-  };
-
-  console.log('Default tab configuration:', defaultConfig);
-
-  tabConfigurationStore.set(defaultConfig);
-  Cookies.set('tabConfiguration', JSON.stringify(defaultConfig), {
-    expires: 365, // Set cookie to expire in 1 year
-    path: '/',
-    sameSite: 'strict',
-  });
-};
+export const tabConfigurationStore = map<TabsState>(initialTabState);
 
 // Developer mode store
 export const developerModeStore = atom<boolean>(false);
+export const setDeveloperMode = (value: boolean) => developerModeStore.set(value);
 
-export const setDeveloperMode = (value: boolean) => {
-  developerModeStore.set(value);
+// Tab configuration actions
+export const updateTabConfiguration = (
+  windowType: 'user' | 'developer',
+  tabId: TabType,
+  config: { visible?: boolean; order?: number },
+) => {
+  const current = tabConfigurationStore.get();
+
+  // Create a shallow copy of the window tabs
+  const windowTabs = { ...current[windowType] };
+
+  // Update the specific tab
+  windowTabs[tabId] = {
+    ...windowTabs[tabId],
+    ...config,
+    id: tabId,
+    window: windowType,
+  };
+
+  // Get visible tabs without recomputing the entire state
+  const visibleTabs = Object.entries(windowTabs)
+    .filter(([_, state]) => state.visible)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([id]) => id as TabType);
+
+  // Update only the necessary parts of the state
+  const newState = {
+    ...current,
+    [windowType]: windowTabs,
+  };
+
+  // Update the visible tabs arrays only for the affected window
+  if (windowType === 'user') {
+    newState.userTabs = visibleTabs;
+  } else {
+    newState.developerTabs = visibleTabs;
+  }
+
+  // Set the new state in a single update
+  tabConfigurationStore.set(newState);
+};
+
+export const resetTabConfiguration = () => {
+  tabConfigurationStore.set(initialTabState);
+};
+
+// Helper functions
+export const getVisibleTabs = (windowType: 'user' | 'developer'): TabType[] => {
+  const config = tabConfigurationStore.get();
+  return Object.entries(config[windowType])
+    .filter(([_, tabState]) => tabState.visible)
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([tabId]) => tabId as TabType);
+};
+
+export const isTabVisible = (windowType: 'user' | 'developer', tabId: TabType): boolean => {
+  const config = tabConfigurationStore.get();
+  return config[windowType][tabId]?.visible ?? false;
+};
+
+export const getTabOrder = (windowType: 'user' | 'developer', tabId: TabType): number => {
+  const config = tabConfigurationStore.get();
+  return config[windowType][tabId]?.order ?? 0;
 };
