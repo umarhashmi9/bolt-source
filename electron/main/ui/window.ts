@@ -18,7 +18,7 @@ export function createWindow(rendererURL: string) {
     vibrancy: 'under-window',
     visualEffectState: 'active',
     webPreferences: {
-      preload: path.join(__dirname, '../../preload/index.cjs'),
+      preload: path.join(__dirname, '..', '..', 'preload', 'index.cjs'),
     },
   });
 

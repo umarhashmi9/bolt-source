@@ -1,8 +1,7 @@
 import { createReadableStreamFromReadable } from '@remix-run/node';
 import type { ServerBuild } from '@remix-run/node';
 import mime from 'mime';
-import { createReadStream } from 'node:fs';
-import { promises as fs } from 'node:fs';
+import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'url';
 import { app } from 'electron';
@@ -14,7 +13,7 @@ export async function loadServerBuild(): Promise<any> {
     return;
   }
 
-  const serverBuildPath = path.join(app.getAppPath(), 'build/server/index.js');
+  const serverBuildPath = path.join(app.getAppPath(), 'build', 'server', 'index.js');
   console.log(`Loading server build... path is ${serverBuildPath}`);
 
   try {

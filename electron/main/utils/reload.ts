@@ -10,7 +10,7 @@ const abort = new AbortController();
 const { signal } = abort;
 
 export async function reloadOnChange() {
-  const dir = path.join(__dirname, '../../build/electron');
+  const dir = path.join(__dirname, '..', '..', 'build', 'electron');
 
   try {
     const watcher = fs.watch(dir, { signal, recursive: true });

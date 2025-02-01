@@ -19,7 +19,7 @@ export async function setupAutoUpdater() {
   const resourcePath =
     process.env.NODE_ENV === 'development'
       ? path.join(process.cwd(), 'electron-update.yml')
-      : path.join(__dirname, '../../../../electron-update.yml');
+      : path.join(__dirname, '..', '..', '..', '..', 'electron-update.yml');
   logger.info('Update config path:', resourcePath);
   autoUpdater.updateConfigPath = resourcePath;
 

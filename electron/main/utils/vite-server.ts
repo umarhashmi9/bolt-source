@@ -11,7 +11,7 @@ export async function initViteServer() {
     const vite = await import('vite');
     viteServer = await vite.createServer({
       root: '.',
-      envDir: path.join(__dirname, '../../..'), // load .env files from the root directory.
+      envDir: path.join(__dirname, '..', '..', '..'), // load .env files from the root directory.
     });
   }
 }

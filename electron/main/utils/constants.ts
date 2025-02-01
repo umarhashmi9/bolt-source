@@ -8,5 +8,5 @@ export const isDev = !(global.process.env.NODE_ENV === 'production' || app.isPac
 export const DEFAULT_PORT = 5173;
 
 export const rendererClientPath = isDev
-  ? path.join(__dirname, '../../client')
-  : path.join(app.getAppPath(), 'build/client');
+  ? path.join(__dirname, '..', '..', 'client')
+  : path.join(app.getAppPath(), 'build', 'client');

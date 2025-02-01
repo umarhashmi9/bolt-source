@@ -54,7 +54,7 @@ process.on('unhandledRejection', async (error) => {
     app.setPath(key, path.join(root, val));
   }
 
-  app.setAppLogsPath(path.join(root, `${subdirName}/Logs`));
+  app.setAppLogsPath(path.join(root, subdirName, 'Logs'));
 })();
 
 console.log('appPath:', app.getAppPath());
