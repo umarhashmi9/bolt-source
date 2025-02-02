@@ -19,6 +19,8 @@ import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import Cookies from 'js-cookie';
 import { chatMetadata, useChatHistory } from '~/lib/persistence';
+import { DiffView } from './DiffView';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -31,6 +33,10 @@ const sliderOptions: SliderOptions<WorkbenchViewType> = {
   left: {
     value: 'code',
     text: 'Code',
+  },
+  middle: {
+    value: 'diff',
+    text: 'Diff',
   },
   right: {
     value: 'preview',
@@ -69,6 +75,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const selectedView = useStore(workbenchStore.currentView);
   const metadata = useStore(chatMetadata);
   const { updateChatMestaData } = useChatHistory();
+  const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
 
   const isSmallViewport = useViewport(1024);
 
@@ -123,6 +130,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
+  const handleFileSelect = (filePath: string) => {
+    workbenchStore.setSelectedFile(filePath);
+    workbenchStore.currentView.set('diff');
+  };
+
   return (
     chatStarted && (
       <motion.div
@@ -148,6 +160,140 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
+                  <div className="flex overflow-y-auto">
+                    <PanelHeaderButton
+                      className="mr-1 text-sm"
+                      onClick={() => {
+                        workbenchStore.downloadZip();
+                      }}
+                    >
+                      <div className="i-ph:code" />
+                      Download Code
+                    </PanelHeaderButton>
+                    <PanelHeaderButton className="mr-1 text-sm" onClick={handleSyncFiles} disabled={isSyncing}>
+                      {isSyncing ? <div className="i-ph:spinner" /> : <div className="i-ph:cloud-arrow-down" />}
+                      {isSyncing ? 'Syncing...' : 'Sync Files'}
+                    </PanelHeaderButton>
+                    <PanelHeaderButton
+                      className="mr-1 text-sm"
+                      onClick={() => {
+                        workbenchStore.toggleTerminal(!workbenchStore.showTerminal.get());
+                      }}
+                    >
+                      <div className="i-ph:terminal" />
+                      Toggle Terminal
+                    </PanelHeaderButton>
+                    <PanelHeaderButton
+                      className="mr-1 text-sm"
+                      onClick={() => {
+                        let repoName = metadata?.gitUrl?.split('/').slice(-1)[0]?.replace('.git', '') || null;
+                        let repoConfirmed: boolean = true;
+
+                        if (repoName) {
+                          repoConfirmed = confirm(`Do you want to push to the repository ${repoName}?`);
+                        }
+
+                        if (!repoName || !repoConfirmed) {
+                          repoName = prompt(
+                            'Please enter a name for your new GitHub repository:',
+                            'bolt-generated-project',
+                          );
+                        } else {
+                        }
+
+                        if (!repoName) {
+                          alert('Repository name is required. Push to GitHub cancelled.');
+                          return;
+                        }
+
+                        let githubUsername = Cookies.get('githubUsername');
+                        let githubToken = Cookies.get('githubToken');
+
+                        if (!githubUsername || !githubToken) {
+                          const usernameInput = prompt('Please enter your GitHub username:');
+                          const tokenInput = prompt('Please enter your GitHub personal access token:');
+
+                          if (!usernameInput || !tokenInput) {
+                            alert('GitHub username and token are required. Push to GitHub cancelled.');
+                            return;
+                          }
+
+                          githubUsername = usernameInput;
+                          githubToken = tokenInput;
+
+                          Cookies.set('githubUsername', usernameInput);
+                          Cookies.set('githubToken', tokenInput);
+                          Cookies.set(
+                            'git:github.com',
+                            JSON.stringify({ username: tokenInput, password: 'x-oauth-basic' }),
+                          );
+                        }
+
+                        const commitMessage =
+                          prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
+                        workbenchStore.pushToGitHub(repoName, commitMessage, githubUsername, githubToken);
+
+                        if (!metadata?.gitUrl) {
+                          updateChatMestaData({
+                            ...(metadata || {}),
+                            gitUrl: `https://github.com/${githubUsername}/${repoName}.git`,
+                          });
+                        }
+                      }}
+                    >
+                      <div className="i-ph:github-logo" />
+                      Push to GitHub
+                    </PanelHeaderButton>
+                  </div>
+                )}
+                {selectedView === 'diff' && (
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <PanelHeaderButton className="mr-1 text-sm">
+                        <div className="i-ph:git-diff" />
+                        View Changes
+                        {modifiedFiles.length > 0 ? (
+                          <span className="ml-1 text-xs bg-orange-500 text-white rounded-full px-1.5">
+                            {modifiedFiles.length}
+                          </span>
+                        ) : <></>}
+                        <div className="i-ph:caret-down ml-1" />
+                      </PanelHeaderButton>
+                    </DropdownMenu.Trigger>
+
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="z-50 min-w-[220px] bg-bolt-elements-background-depth-1 rounded-md p-1 shadow-lg border border-bolt-elements-borderColor"
+                        sideOffset={5}
+                        align="end"
+                      >
+                        {modifiedFiles.length > 0 ? (
+                          modifiedFiles.map((filePath: string) => (
+                            <DropdownMenu.Item
+                              key={filePath}
+                              className={classNames(
+                                'flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer outline-none',
+                                'text-bolt-elements-textPrimary hover:bg-bolt-elements-background-depth-2',
+                                'focus:bg-bolt-elements-background-depth-2'
+                              )}
+                              onClick={() => handleFileSelect(filePath)}
+                            >
+                              <div className="i-ph:file-duotone" />
+                              <span className="truncate">
+                                {filePath.replace(/^.*[\\\/]/, '')}
+                              </span>
+                            </DropdownMenu.Item>
+                          ))
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-bolt-elements-textTertiary">
+                            No modified files
+                          </div>
+                        )}
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                )}
+                {selectedView === 'preview' && (
                   <div className="flex overflow-y-auto">
                     <PanelHeaderButton
                       className="mr-1 text-sm"
@@ -261,6 +407,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     onFileReset={onFileReset}
                   />
                 </View>
+                
+                <View
+                  initial={{ x: selectedView === 'diff' ? 0 : '100%' }}
+                  animate={{ x: selectedView === 'diff' ? 0 : '100%' }}
+                >
+                  <DiffView />
+                </View>
+                
                 <View
                   initial={{ x: selectedView === 'preview' ? 0 : '100%' }}
                   animate={{ x: selectedView === 'preview' ? 0 : '100%' }}
