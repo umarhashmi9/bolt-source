@@ -1,5 +1,4 @@
 import { memo } from 'react';
-import { classNames } from '~/utils/classNames';
 
 interface CodeComparisonProps {
   beforeCode: string;
@@ -49,4 +48,4 @@ export const CodeComparison = memo(({
       </div>
     </div>
   );
-}); 
+});
