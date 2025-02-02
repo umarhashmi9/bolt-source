@@ -27,7 +27,7 @@ export default defineConfig((config) => {
     },
     plugins: [
       nodePolyfills({
-        include: ['path', 'buffer'],
+        include: ['path', 'buffer', 'process'],
       }),
       remixVitePlugin({
         future: {
