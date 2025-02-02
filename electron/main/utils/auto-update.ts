@@ -3,10 +3,10 @@ import type { MessageBoxOptions } from 'electron';
 import { app, dialog } from 'electron';
 import type { AppUpdater, UpdateDownloadedEvent, UpdateInfo } from 'electron-updater';
 import path from 'node:path';
-import { __dirname } from './constants';
 
 // NOTE: workaround to use electron-updater.
 import * as electronUpdater from 'electron-updater';
+import { isDev } from './constants';
 
 const autoUpdater: AppUpdater = (electronUpdater as any).default.autoUpdater;
 
@@ -16,10 +16,9 @@ export async function setupAutoUpdater() {
   autoUpdater.logger = logger;
 
   // Configure custom update config file
-  const resourcePath =
-    process.env.NODE_ENV === 'development'
-      ? path.join(process.cwd(), 'electron-update.yml')
-      : path.join(__dirname, '..', '..', '..', '..', 'electron-update.yml');
+  const resourcePath = isDev
+    ? path.join(process.cwd(), 'electron-update.yml')
+    : path.join(app.getAppPath(), 'electron-update.yml');
   logger.info('Update config path:', resourcePath);
   autoUpdater.updateConfigPath = resourcePath;
 

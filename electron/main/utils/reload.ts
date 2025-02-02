@@ -1,7 +1,6 @@
 import { app } from 'electron';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { __dirname } from './constants';
 
 // Reload on change.
 let isQuited = false;
@@ -10,7 +9,7 @@ const abort = new AbortController();
 const { signal } = abort;
 
 export async function reloadOnChange() {
-  const dir = path.join(__dirname, '..', '..', 'build', 'electron');
+  const dir = path.join(app.getAppPath(), 'build', 'electron');
 
   try {
     const watcher = fs.watch(dir, { signal, recursive: true });

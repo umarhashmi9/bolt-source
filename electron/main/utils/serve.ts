@@ -3,7 +3,7 @@ import type { ServerBuild } from '@remix-run/node';
 import mime from 'mime';
 import { createReadStream, promises as fs } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'url';
+import { pathToFileURL } from 'node:url';
 import { app } from 'electron';
 import { isDev } from './constants';
 

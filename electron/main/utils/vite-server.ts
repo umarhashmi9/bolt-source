@@ -1,7 +1,5 @@
 import { app } from 'electron';
-import path from 'node:path';
 import type { ViteDevServer } from 'vite';
-import { __dirname } from './constants';
 
 let viteServer: ViteDevServer | undefined;
 
@@ -11,7 +9,7 @@ export async function initViteServer() {
     const vite = await import('vite');
     viteServer = await vite.createServer({
       root: '.',
-      envDir: path.join(__dirname, '..', '..', '..'), // load .env files from the root directory.
+      envDir: process.cwd(), // load .env files from the root directory.
     });
   }
 }

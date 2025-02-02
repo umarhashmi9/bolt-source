@@ -5,7 +5,7 @@ import log from 'electron-log';
 import path from 'node:path';
 import * as pkg from '../../package.json';
 import { setupAutoUpdater } from './utils/auto-update';
-import { isDev, DEFAULT_PORT, rendererClientPath } from './utils/constants';
+import { isDev, DEFAULT_PORT } from './utils/constants';
 import { initViteServer, viteServer } from './utils/vite-server';
 import { setupMenu } from './ui/menu';
 import { createWindow } from './ui/window';
@@ -22,11 +22,11 @@ console.log('isPackaged:', app.isPackaged);
 
 // Log unhandled errors
 process.on('uncaughtException', async (error) => {
-  await console.log('Uncaught Exception:', error);
+  console.log('Uncaught Exception:', error);
 });
 
 process.on('unhandledRejection', async (error) => {
-  await console.log('Unhandled Rejection:', error);
+  console.log('Unhandled Rejection:', error);
 });
 
 (() => {
@@ -97,7 +97,8 @@ declare global {
       }
 
       // Always try to serve asset first
-      const res = await serveAsset(req, rendererClientPath);
+      const assetPath = path.join(app.getAppPath(), 'build', 'client');
+      const res = await serveAsset(req, assetPath);
 
       if (res) {
         console.log('Served asset:', req.url);

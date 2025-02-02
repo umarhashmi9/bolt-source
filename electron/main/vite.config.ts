@@ -1,14 +1,7 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
-  plugins: [nodePolyfills()],
-  resolve: {
-    alias: {
-      '~': resolve(__dirname, '.'),
-    },
-  },
   build: {
     lib: {
       entry: resolve('electron/main/index.ts'),
@@ -25,7 +18,14 @@ export default defineConfig({
           'fs',
           'util',
         ],
-        'node:fs', // without this, fs becomes null when imported. `import fs from "node:path"`
+
+        // Add all Node.js built-in modules as external
+        'node:fs',
+        'node:path',
+        'node:url',
+        'node:util',
+        'node:stream',
+        'node:events',
         'electron-store',
         '@remix-run/node',
 

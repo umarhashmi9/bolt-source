@@ -1,6 +1,6 @@
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import { isDev, __dirname } from '../utils/constants';
+import { isDev } from '../utils/constants';
 import { store } from '../utils/store';
 
 export function createWindow(rendererURL: string) {
@@ -18,7 +18,7 @@ export function createWindow(rendererURL: string) {
     vibrancy: 'under-window',
     visualEffectState: 'active',
     webPreferences: {
-      preload: path.join(__dirname, '..', '..', 'preload', 'index.cjs'),
+      preload: path.join(app.getAppPath(), 'build', 'electron', 'preload', 'index.cjs'),
     },
   });
 
