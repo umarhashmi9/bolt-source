@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { useStore } from '@nanostores/react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import type { FileMap } from '~/lib/stores/files';
@@ -7,7 +7,6 @@ import { diffLines, type Change } from 'diff';
 import { getHighlighter } from 'shiki';
 import Cookies from 'js-cookie';
 import '~/styles/diff-view.css';
-import { Popover, Transition } from '@headlessui/react'
 
 interface CodeComparisonProps {
   beforeCode: string;

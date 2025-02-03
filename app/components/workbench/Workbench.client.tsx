@@ -20,7 +20,6 @@ import useViewport from '~/lib/hooks';
 import Cookies from 'js-cookie';
 import { chatMetadata, useChatHistory } from '~/lib/persistence';
 import { DiffView } from './DiffView';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Popover, Transition } from '@headlessui/react'
 import { type Change } from 'diff';
 import { formatDistanceToNow as formatDistance } from 'date-fns';
