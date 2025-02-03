@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState, useEffect, useCallback } from 'react';
 import { useStore } from '@nanostores/react';
 import { workbenchStore } from '~/lib/stores/workbench';
 import type { FileMap } from '~/lib/stores/files';
@@ -6,7 +6,8 @@ import type { EditorDocument } from '~/components/editor/codemirror/CodeMirrorEd
 import { diffLines, type Change } from 'diff';
 import { getHighlighter } from 'shiki';
 import Cookies from 'js-cookie';
-import { classNames } from '~/utils/classNames';
+import '~/styles/diff-view.css';
+import { Popover, Transition } from '@headlessui/react'
 
 interface CodeComparisonProps {
   beforeCode: string;
@@ -26,65 +27,44 @@ interface DiffBlock {
 
 const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: CodeComparisonProps) => {
   const [highlighter, setHighlighter] = useState<any>(null);
-  const [expandedLeft, setExpandedLeft] = useState(false);
-  const [expandedRight, setExpandedRight] = useState(false);
   
-  const { beforeBlocks, afterBlocks, hasChanges } = useMemo(() => {
-    const differences = diffLines(beforeCode, afterCode);
-    const before: DiffBlock[] = [];
-    const after: DiffBlock[] = [];
-    let beforeLine = 1;
-    let afterLine = 1;
+  const { unifiedBlocks, hasChanges } = useMemo(() => {
+    const normalizeText = (text: string) => text
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map(line => line.trimEnd())
+      .join('\n');
+
+    const normalizedBefore = normalizeText(beforeCode);
+    const normalizedAfter = normalizeText(afterCode);
+    
+    const differences = diffLines(normalizedBefore, normalizedAfter, {
+      ignoreWhitespace: false,
+      newlineIsToken: true
+    });
+
+    const blocks: DiffBlock[] = [];
+    let lineNumber = 1;
     let hasModifications = false;
 
     differences.forEach((part: Change) => {
       const lines = part.value.split('\n').filter(line => line !== '');
       
-      if (part.added) {
-        lines.forEach(line => {
-          after.push({
-            lineNumber: afterLine++,
-            content: line,
-            type: 'added',
-            correspondingLine: beforeLine - 1
-          });
-        });
-      } else if (part.removed) {
-        lines.forEach(line => {
-          before.push({
-            lineNumber: beforeLine++,
-            content: line,
-            type: 'removed',
-            correspondingLine: afterLine - 1
-          });
-        });
-      } else {
-        lines.forEach(line => {
-          const currentBefore = beforeLine++;
-          const currentAfter = afterLine++;
-          before.push({
-            lineNumber: currentBefore,
-            content: line,
-            type: 'unchanged',
-            correspondingLine: currentAfter
-          });
-          after.push({
-            lineNumber: currentAfter,
-            content: line,
-            type: 'unchanged',
-            correspondingLine: currentBefore
-          });
-        });
-      }
-
       if (part.added || part.removed) {
         hasModifications = true;
       }
+
+      lines.forEach(line => {
+        blocks.push({
+          lineNumber: lineNumber++,
+          content: line,
+          type: part.added ? 'added' : part.removed ? 'removed' : 'unchanged'
+        });
+      });
     });
 
     return { 
-      beforeBlocks: before, 
-      afterBlocks: after,
+      unifiedBlocks: blocks,
       hasChanges: hasModifications 
     };
   }, [beforeCode, afterCode]);
@@ -98,9 +78,9 @@ const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: Code
 
   const renderDiffBlock = (block: DiffBlock) => {
     const bgColor = {
-      added: 'bg-bolt-elements-background-depth-1 border-l-4 border-green-400 text-bolt-elements-textPrimary',
-      removed: 'bg-bolt-elements-background-depth-1 border-l-4 border-red-400 text-bolt-elements-textPrimary',
-      unchanged: 'text-bolt-elements-textPrimary'
+      added: 'bg-green-500/20 border-l-4 border-green-500',
+      removed: 'bg-red-500/20 border-l-4 border-red-500',
+      unchanged: ''
     }[block.type];
 
     const highlightedCode = highlighter ? 
@@ -112,7 +92,7 @@ const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: Code
         <div className="w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1">
           {block.lineNumber}
         </div>
-        <div className={`${bgColor} px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2`}>
+        <div className={`${bgColor} px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary`}>
           <span className="mr-2 text-bolt-elements-textTertiary">
             {block.type === 'added' && '+'}
             {block.type === 'removed' && '-'}
@@ -131,69 +111,21 @@ const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: Code
   return (
     <div className="mx-auto w-full">
       <div className="relative w-full overflow-hidden rounded-xl border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2">
-        <div className={classNames(
-          "relative grid transition-all duration-200",
-          expandedLeft ? "md:grid-cols-[1fr,0fr]" : 
-          expandedRight ? "md:grid-cols-[0fr,1fr]" : 
-          "md:grid-cols-2",
-          "md:divide-x md:divide-bolt-elements-borderColor"
-        )}>
-          <div className={classNames(
-            "flex flex-col min-w-0",
-            expandedRight ? "md:hidden" : "md:block"
-          )}>
-            <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
-              <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
-              <span className="truncate">{filename}</span>
-              <span className="ml-auto text-red-400 shrink-0">Original</span>
-              <button 
-                onClick={() => setExpandedLeft(!expandedLeft)}
-                className={classNames(
-                  "ml-2 p-1 rounded transition-colors shrink-0",
-                  "bg-bolt-elements-background-depth-1 hover:bg-bolt-elements-background-depth-2",
-                  "text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
-                )}
-              >
-                <div className={classNames(
-                  "w-4 h-4 transition-transform",
-                  expandedLeft ? "i-ph:arrows-in" : "i-ph:arrows-out"
-                )} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <div className="overflow-x-auto">
-                {beforeBlocks.map(renderDiffBlock)}
-              </div>
-            </div>
+        <div className="flex flex-col">
+          <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
+            <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate">{filename}</span>
+            <span className="ml-auto shrink-0">
+              {hasChanges ? (
+                <span className="text-yellow-400">Modified</span>
+              ) : (
+                <span className="text-green-400">No Changes</span>
+              )}
+            </span>
           </div>
-          <div className={classNames(
-            "flex flex-col min-w-0",
-            expandedLeft ? "md:hidden" : "md:block"
-          )}>
-            <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
-              <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
-              <span className="truncate">{filename}</span>
-              <span className="ml-auto text-green-400 shrink-0">
-                {hasChanges ? 'Modified' : 'No Changes'}
-              </span>
-              <button 
-                onClick={() => setExpandedRight(!expandedRight)}
-                className={classNames(
-                  "ml-2 p-1 rounded transition-colors shrink-0",
-                  "bg-bolt-elements-background-depth-1 hover:bg-bolt-elements-background-depth-2",
-                  "text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
-                )}
-              >
-                <div className={classNames(
-                  "w-4 h-4 transition-transform",
-                  expandedRight ? "i-ph:arrows-in" : "i-ph:arrows-out"
-                )} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <div className="overflow-x-auto">
-                {afterBlocks.map(renderDiffBlock)}
-              </div>
+          <div className="flex-1 overflow-auto diff-panel-content">
+            <div className="overflow-x-auto">
+              {unifiedBlocks.map(renderDiffBlock)}
             </div>
           </div>
         </div>
@@ -219,13 +151,17 @@ interface FileHistory {
   originalContent: string;
   lastModified: number;
   changes: Change[];
+  saveCount: number;
+  versions: {
+    timestamp: number;
+    content: string;
+  }[];
 }
 
-// Usar cookies em vez de localStorage
 const saveFileHistory = (filePath: string, history: FileHistory) => {
   try {
     const key = `diff_history_${filePath.replace(/\//g, '_')}`;
-    Cookies.set(key, JSON.stringify(history), { expires: 7 }); // Expira em 7 dias
+    Cookies.set(key, JSON.stringify(history), { expires: 7 });
   } catch (e) {
     console.error('Error saving diff history:', e);
   }
@@ -242,13 +178,17 @@ const loadFileHistory = (filePath: string): FileHistory | null => {
   }
 };
 
-export const DiffView = memo(() => {
+interface DiffViewProps {
+  fileHistory: Record<string, FileHistory>;
+  setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
+}
+
+export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) => {
   const files = useStore(workbenchStore.files) as FileMap;
   const selectedFile = useStore(workbenchStore.selectedFile);
   const currentDocument = useStore(workbenchStore.currentDocument) as EditorDocument;
-  const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
+  const unsavedFiles = useStore(workbenchStore.unsavedFiles);
 
-  // Carregar histórico ao montar o componente
   useEffect(() => {
     if (selectedFile) {
       const history = loadFileHistory(selectedFile);
@@ -256,35 +196,37 @@ export const DiffView = memo(() => {
         setFileHistory(prev => ({ ...prev, [selectedFile]: history }));
       }
     }
-  }, [selectedFile]);
+  }, [selectedFile, setFileHistory]);
 
-  // Monitorar mudanças no documento atual
   useEffect(() => {
     if (selectedFile && currentDocument) {
       const file = files[selectedFile];
       if (!file || !('content' in file)) return;
 
-      const originalContent = file.content;
-      const currentContent = currentDocument.value;
-      
-      // Calcular diferenças
-      const changes = diffLines(originalContent, currentContent);
-      
-      // Verificar se houve mudanças reais
-      const hasRealChanges = changes.some(change => change.added || change.removed);
-      
-      if (hasRealChanges) {
+      const isUnsaved = unsavedFiles.has(selectedFile);
+      if (!isUnsaved) {
+        const existingHistory = fileHistory[selectedFile];
+        const currentContent = currentDocument.value;
+        
         const newHistory: FileHistory = {
-          originalContent,
+          originalContent: existingHistory?.originalContent || file.content,
           lastModified: Date.now(),
-          changes
+          changes: existingHistory?.changes || [],
+          saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
+          versions: [
+            ...(existingHistory?.versions || []),
+            {
+              timestamp: Date.now(),
+              content: currentContent
+            }
+          ]
         };
         
         setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
         saveFileHistory(selectedFile, newHistory);
       }
     }
-  }, [selectedFile, currentDocument?.value, files]);
+  }, [selectedFile, unsavedFiles, currentDocument?.value, files, setFileHistory]);
 
   if (!selectedFile || !currentDocument) {
     return (
@@ -298,7 +240,6 @@ export const DiffView = memo(() => {
   const originalContent = file && 'content' in file ? file.content : '';
   const currentContent = currentDocument.value;
 
-  // Usar o histórico se disponível
   const history = fileHistory[selectedFile];
   const effectiveOriginalContent = history?.originalContent || originalContent;
 
