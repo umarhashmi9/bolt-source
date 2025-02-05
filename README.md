@@ -347,13 +347,18 @@ Remember to always commit your local changes or stash them before pulling update
    pnpm install
    ```
 
-3. **Build and Deploy**:
+3. **Build the Project**:
+   ```bash
+   pnpm run build
+   ```
+
+4. **Deploy to Cloudflare Pages**:
    ```bash
    pnpm run deploy
    ```
-   This command will build the project and deploy it to Cloudflare Pages.
+   This command will deploy the built project to Cloudflare Pages.
 
-4. **Configure API Keys**:
+5. **Configure API Keys**:
    After deployment, you'll need to configure your API keys through the Bolt interface:
    1. Open your deployed site
    2. Select your desired provider from the dropdown menu
