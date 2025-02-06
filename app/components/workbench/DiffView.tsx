@@ -5,7 +5,6 @@ import type { FileMap } from '~/lib/stores/files';
 import type { EditorDocument } from '~/components/editor/codemirror/CodeMirrorEditor';
 import { diffLines, type Change } from 'diff';
 import { getHighlighter } from 'shiki';
-import Cookies from 'js-cookie';
 import '~/styles/diff-view.css';
 
 interface CodeComparisonProps {
@@ -24,7 +23,7 @@ interface DiffBlock {
   correspondingLine?: number;
 }
 
-const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: CodeComparisonProps) => {
+const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, lightTheme, darkTheme }: CodeComparisonProps) => {
   const [highlighter, setHighlighter] = useState<any>(null);
   
   const { unifiedBlocks, hasChanges } = useMemo(() => {
@@ -133,18 +132,42 @@ const CodeComparison = memo(({ beforeCode, afterCode, filename, language }: Code
   );
 });
 
-const getLanguageFromExtension = (ext: string) => {
-  const map: Record<string, string> = {
-    'js': 'javascript',
-    'jsx': 'jsx',
-    'ts': 'typescript',
-    'tsx': 'tsx',
-    'json': 'json',
-    'html': 'html',
-    'css': 'css'
-  };
-  return map[ext] || 'typescript';
-};
+const SideBySideComparison = memo(({
+  beforeCode,
+  afterCode,
+  language,
+  filename,
+  lightTheme,
+  darkTheme,
+}: CodeComparisonProps) => {
+  return (
+    <div className="mx-auto w-full">
+      <div className="relative w-full overflow-hidden rounded-xl border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2">
+        <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
+          <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
+          <span className="truncate">{filename}</span>
+          <span className="ml-auto shrink-0">Side by Side</span>
+        </div>
+        <div className="flex-1 overflow-auto diff-panel-content">
+          <div className="grid md:grid-cols-2">
+            <div className="p-4">
+              <div className="mb-2 text-xs font-bold text-bolt-elements-textTertiary">Original</div>
+              <pre className="overflow-auto break-all font-mono text-xs bg-bolt-elements-background-depth-1 p-4">
+                {beforeCode}
+              </pre>
+            </div>
+            <div className="p-4">
+              <div className="mb-2 text-xs font-bold text-bolt-elements-textTertiary">Modified</div>
+              <pre className="overflow-auto break-all font-mono text-xs bg-bolt-elements-background-depth-1 p-4">
+                {afterCode}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 interface FileHistory {
   originalContent: string;
@@ -160,7 +183,7 @@ interface FileHistory {
 const saveFileHistory = (filePath: string, history: FileHistory) => {
   try {
     const key = `diff_history_${filePath.replace(/\//g, '_')}`;
-    Cookies.set(key, JSON.stringify(history), { expires: 7 });
+    localStorage.setItem(key, JSON.stringify(history));
   } catch (e) {
     console.error('Error saving diff history:', e);
   }
@@ -169,7 +192,7 @@ const saveFileHistory = (filePath: string, history: FileHistory) => {
 const loadFileHistory = (filePath: string): FileHistory | null => {
   try {
     const key = `diff_history_${filePath.replace(/\//g, '_')}`;
-    const saved = Cookies.get(key);
+    const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : null;
   } catch (e) {
     console.error('Error loading diff history:', e);
@@ -180,9 +203,10 @@ const loadFileHistory = (filePath: string): FileHistory | null => {
 interface DiffViewProps {
   fileHistory: Record<string, FileHistory>;
   setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
+  diffViewMode: 'inline' | 'side';
 }
 
-export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) => {
+export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode }: DiffViewProps) => {
   const files = useStore(workbenchStore.files) as FileMap;
   const selectedFile = useStore(workbenchStore.selectedFile);
   const currentDocument = useStore(workbenchStore.currentDocument) as EditorDocument;
@@ -241,17 +265,54 @@ export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) =>
 
   const history = fileHistory[selectedFile];
   const effectiveOriginalContent = history?.originalContent || originalContent;
+  const language = getLanguageFromExtension(selectedFile.split('.').pop() || '');
 
   return (
     <div className="h-full overflow-auto p-4">
-      <CodeComparison
-        beforeCode={effectiveOriginalContent}
-        afterCode={currentContent}
-        language={getLanguageFromExtension(selectedFile.split('.').pop() || '')}
-        filename={selectedFile}
-        lightTheme="github-light"
-        darkTheme="github-dark"
-      />
+      {diffViewMode === 'inline' ? (
+        <InlineDiffComparison
+          beforeCode={effectiveOriginalContent}
+          afterCode={currentContent}
+          language={language}
+          filename={selectedFile}
+          lightTheme="github-light"
+          darkTheme="github-dark"
+        />
+      ) : (
+        <SideBySideComparison
+          beforeCode={effectiveOriginalContent}
+          afterCode={currentContent}
+          language={language}
+          filename={selectedFile}
+          lightTheme="github-light"
+          darkTheme="github-dark"
+        />
+      )}
     </div>
   );
-}); 
+});
+
+const getLanguageFromExtension = (ext: string) => {
+  const map: Record<string, string> = {
+    'js': 'javascript',
+    'jsx': 'jsx',
+    'ts': 'typescript',
+    'tsx': 'tsx',
+    'json': 'json',
+    'html': 'html',
+    'css': 'css',
+    'py': 'python',
+    'java': 'java',
+    'rb': 'ruby',
+    'cpp': 'cpp',
+    'c': 'c',
+    'cs': 'csharp',
+    'go': 'go',
+    'rs': 'rust',
+    'php': 'php',
+    'swift': 'swift',
+    'md': 'markdown',
+    'sh': 'bash'
+  };
+  return map[ext] || 'typescript';
+}; 
