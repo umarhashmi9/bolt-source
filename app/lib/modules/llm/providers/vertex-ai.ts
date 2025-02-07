@@ -2,7 +2,9 @@ import { BaseProvider } from '~/lib/modules/llm/base-provider';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1, LanguageModelV1CallOptions } from 'ai';
-import { VertexAI } from '@google-cloud/vertexai';
+
+
+// ... rest of the code remains the same ...
 
 export default class VertexAIProvider extends BaseProvider {
   name = 'VertexAI';
@@ -40,13 +42,14 @@ export default class VertexAIProvider extends BaseProvider {
     _settings?: IProviderSetting,
     _serverEnv: Record<string, string> = {},
   ): Promise<ModelInfo[]> {
-    // Vertex AI doesn't have a public API to fetch models dynamically
-    // Return static models instead
+    /*
+     * Vertex AI doesn't have a public API to fetch models dynamically
+     * Return static models instead
+     */
     return this.staticModels;
   }
 
-
-getModelInstance(options: {
+  getModelInstance(options: {
     model: string;
     serverEnv?: any;
     apiKeys?: Record<string, string>;
@@ -54,7 +57,7 @@ getModelInstance(options: {
   }): LanguageModelV1 {
     const { model, serverEnv = {}, apiKeys, providerSettings } = options;
 
-    const { projectId, location } = this.getVertexAIConfig({
+    const { projectId, location } = this._getVertexAIConfig({
       apiKeys,
       providerSettings: providerSettings?.[this.name],
       serverEnv,
@@ -64,21 +67,6 @@ getModelInstance(options: {
       throw new Error(`Missing configuration for ${this.name} provider`);
     }
 
-    const vertexai = new VertexAI({
-      project: projectId,
-      location: location,
-    });
-
-    const generativeModel = vertexai.preview.getGenerativeModel({
-      model: model,
-      generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.9,
-        topP: 1,
-      },
-    });
-
-    // Wrap the Vertex AI model to conform to LanguageModelV1 interface
     const instance: LanguageModelV1 = {
       specificationVersion: 'v1',
       provider: this.name,
@@ -86,44 +74,58 @@ getModelInstance(options: {
       defaultObjectGenerationMode: undefined,
 
       async doGenerate(options: LanguageModelV1CallOptions) {
-        const messages = options.prompt.map(msg => {
-          switch (msg.role) {
-            case 'system':
-              return {
-                role: 'system',
-                parts: [{ text: msg.content }]
-              };
-            
-            case 'user':
-            case 'assistant':
-            case 'tool':
-              return {
-                role: msg.role,
-                parts: Array.isArray(msg.content) ? msg.content.map(part => {
-                  if ('text' in part) {
-                    return { text: part.text };
-                  }
-                  throw new Error(`Unsupported content type for Vertex AI`);
-                }) : [{ text: msg.content }]
-              };
-            
-            
-          }
+        const messages = options.prompt.map((msg) => ({
+          role: msg.role,
+          parts: Array.isArray(msg.content)
+            ? msg.content.map((part) => {
+                if ('text' in part) {
+                  return { text: part.text };
+                }
+                throw new Error(`Unsupported content type for Vertex AI`);
+              })
+            : [{ text: msg.content }],
+        }));
+
+        const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKeys?.GOOGLE_ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify({
+            contents: messages,
+            generationConfig: {
+              maxOutputTokens: 2048,
+              temperature: 0.9,
+              topP: 1,
+            },
+          }),
         });
-      
-        const response = await generativeModel.generateContent({
-          contents: messages,
-        });
-      
-        if (!response.response?.candidates?.[0]?.content) {
+
+        if (!response.ok) {
+          const error = await response.json() as { error?: { message?: string } };
+          throw new Error(`Vertex AI API error: ${error.error?.message || 'Unknown error'}`);
+        }
+
+        const data = await response.json() as {
+          candidates?: Array<{
+            content: {
+              parts: Array<{ text: string }>;
+            };
+          }>;
+        };
+
+        if (!data.candidates?.[0]?.content) {
           throw new Error('No response generated from Vertex AI');
         }
-      
+
         return {
-          text: response.response.candidates[0].content.parts[0].text,
+          text: data.candidates[0].content.parts[0].text,
           finishReason: 'stop',
           usage: {
-            promptTokens: 0,  // Add actual token counts if available from Vertex AI
+            promptTokens: 0,
             completionTokens: 0,
           },
           rawCall: {
@@ -133,15 +135,15 @@ getModelInstance(options: {
         };
       },
 
-      async doStream(options: LanguageModelV1CallOptions) {
+      async doStream(_options: LanguageModelV1CallOptions) {
         throw new Error('Streaming not implemented for Vertex AI');
       },
     };
 
     return instance;
   }
-  
-  private getVertexAIConfig({
+
+  private _getVertexAIConfig({
     apiKeys,
     providerSettings,
     serverEnv,
@@ -150,17 +152,11 @@ getModelInstance(options: {
     providerSettings?: IProviderSetting;
     serverEnv: Record<string, string>;
   }) {
-    const projectId =
-      apiKeys?.GOOGLE_PROJECT_ID ||
-      providerSettings?.projectId ||
-      serverEnv[this.config.projectIdKey];
+    const projectId = apiKeys?.GOOGLE_PROJECT_ID || providerSettings?.projectId || serverEnv[this.config.projectIdKey];
 
     const location =
-      apiKeys?.GOOGLE_LOCATION ||
-      providerSettings?.location ||
-      serverEnv[this.config.locationKey] ||
-      'us-central1';
+      apiKeys?.GOOGLE_LOCATION || providerSettings?.location || serverEnv[this.config.locationKey] || 'us-central1';
 
     return { projectId, location };
   }
-} 
+}
