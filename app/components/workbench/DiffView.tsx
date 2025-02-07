@@ -6,6 +6,8 @@ import type { EditorDocument } from '~/components/editor/codemirror/CodeMirrorEd
 import { diffLines, type Change } from 'diff';
 import { getHighlighter } from 'shiki';
 import '~/styles/diff-view.css';
+import { diffFiles, extractRelativePath } from '~/utils/diff';
+import { ActionRunner } from '~/lib/runtime/action-runner';
 
 interface CodeComparisonProps {
   beforeCode: string;
@@ -50,6 +52,136 @@ const FullscreenOverlay = memo(({ isFullscreen, children }: { isFullscreen: bool
   );
 });
 
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const BINARY_REGEX = /[\x00-\x08\x0E-\x1F]/;
+
+const isBinaryFile = (content: string) => {
+  return content.length > MAX_FILE_SIZE || BINARY_REGEX.test(content);
+};
+
+const processChanges = (beforeCode: string, afterCode: string) => {
+  try {
+    if (isBinaryFile(beforeCode) || isBinaryFile(afterCode)) {
+      return {
+        beforeLines: [],
+        afterLines: [],
+        hasChanges: false,
+        lineChanges: { before: new Set(), after: new Set() },
+        unifiedBlocks: [],
+        isBinary: true
+      };
+    }
+
+    // Normalizar quebras de linha para evitar falsos positivos
+    const normalizedBefore = beforeCode.replace(/\r\n/g, '\n').trim();
+    const normalizedAfter = afterCode.replace(/\r\n/g, '\n').trim();
+
+    // Se os conteúdos são idênticos após normalização, não há mudanças
+    if (normalizedBefore === normalizedAfter) {
+      return {
+        beforeLines: normalizedBefore.split('\n'),
+        afterLines: normalizedAfter.split('\n'),
+        hasChanges: false,
+        lineChanges: { before: new Set(), after: new Set() },
+        unifiedBlocks: []
+      };
+    }
+
+    // Processar as diferenças com configurações mais precisas
+    const changes = diffLines(normalizedBefore, normalizedAfter, {
+      newlineIsToken: true,
+      ignoreWhitespace: false,
+      ignoreCase: false
+    });
+
+    // Mapear as mudanças com mais precisão
+    const beforeLines = normalizedBefore.split('\n');
+    const afterLines = normalizedAfter.split('\n');
+    const lineChanges = {
+      before: new Set<number>(),
+      after: new Set<number>()
+    };
+
+    let beforeLineNumber = 0;
+    let afterLineNumber = 0;
+
+    const unifiedBlocks = changes.map(change => {
+      const lines = change.value.split('\n').filter(line => line.length > 0);
+      
+      if (change.added) {
+        lines.forEach((_, i) => lineChanges.after.add(afterLineNumber + i));
+        const block = lines.map((line, i) => ({
+          lineNumber: afterLineNumber + i,
+          content: line,
+          type: 'added' as const
+        }));
+        afterLineNumber += lines.length;
+        return block;
+      }
+
+      if (change.removed) {
+        lines.forEach((_, i) => lineChanges.before.add(beforeLineNumber + i));
+        const block = lines.map((line, i) => ({
+          lineNumber: beforeLineNumber + i,
+          content: line,
+          type: 'removed' as const
+        }));
+        beforeLineNumber += lines.length;
+        return block;
+      }
+
+      const block = lines.map((line, i) => ({
+        lineNumber: afterLineNumber + i,
+        content: line,
+        type: 'unchanged' as const,
+        correspondingLine: beforeLineNumber + i
+      }));
+      beforeLineNumber += lines.length;
+      afterLineNumber += lines.length;
+      return block;
+    }).flat();
+
+    return {
+      beforeLines,
+      afterLines,
+      hasChanges: lineChanges.before.size > 0 || lineChanges.after.size > 0,
+      lineChanges,
+      unifiedBlocks,
+      isBinary: false
+    };
+  } catch (error) {
+    console.error('Error processing changes:', error);
+    return {
+      beforeLines: [],
+      afterLines: [],
+      hasChanges: false,
+      lineChanges: { before: new Set(), after: new Set() },
+      unifiedBlocks: [],
+      error: true,
+      isBinary: false
+    };
+  }
+};
+
+const lineNumberStyles = "w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1";
+const lineContentStyles = "px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary";
+
+const renderContentWarning = (type: 'binary' | 'error') => (
+  <div className="h-full flex items-center justify-center p-4">
+    <div className="text-center text-bolt-elements-textTertiary">
+      <div className={`i-ph:${type === 'binary' ? 'file-x' : 'warning-circle'} text-4xl text-red-400 mb-2 mx-auto`} />
+      <p className="font-medium text-bolt-elements-textPrimary">
+        {type === 'binary' ? 'Binary file detected' : 'Error processing file'}
+      </p>
+      <p className="text-sm mt-1">
+        {type === 'binary' 
+          ? 'Diff view is not available for binary files'
+          : 'Could not generate diff preview'}
+      </p>
+    </div>
+  </div>
+);
+
 const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, lightTheme, darkTheme }: CodeComparisonProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [highlighter, setHighlighter] = useState<any>(null);
@@ -58,46 +190,7 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
     setIsFullscreen(prev => !prev);
   }, []);
 
-  const { unifiedBlocks, hasChanges } = useMemo(() => {
-    const normalizeText = (text: string) => text
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .map(line => line.trimEnd())
-      .join('\n');
-
-    const normalizedBefore = normalizeText(beforeCode);
-    const normalizedAfter = normalizeText(afterCode);
-    
-    const differences = diffLines(normalizedBefore, normalizedAfter, {
-      ignoreWhitespace: false,
-      newlineIsToken: true
-    });
-
-    const blocks: DiffBlock[] = [];
-    let lineNumber = 1;
-    let hasModifications = false;
-
-    differences.forEach((part: Change) => {
-      const lines = part.value.split('\n').filter(line => line !== '');
-      
-      if (part.added || part.removed) {
-        hasModifications = true;
-      }
-
-      lines.forEach(line => {
-        blocks.push({
-          lineNumber: lineNumber++,
-          content: line,
-          type: part.added ? 'added' : part.removed ? 'removed' : 'unchanged'
-        });
-      });
-    });
-
-    return { 
-      unifiedBlocks: blocks,
-      hasChanges: hasModifications 
-    };
-  }, [beforeCode, afterCode]);
+  const { unifiedBlocks, hasChanges, isBinary, error } = useMemo(() => processChanges(beforeCode, afterCode), [beforeCode, afterCode]);
 
   useEffect(() => {
     getHighlighter({
@@ -105,6 +198,8 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
       langs: ['typescript', 'javascript', 'json', 'html', 'css', 'jsx', 'tsx']
     }).then(setHighlighter);
   }, []);
+
+  if (isBinary || error) return renderContentWarning(isBinary ? 'binary' : 'error');
 
   const renderDiffBlock = (block: DiffBlock) => {
     const bgColor = {
@@ -119,10 +214,10 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
 
     return (
       <div key={block.lineNumber} className="flex group min-w-fit">
-        <div className="w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1">
-          {block.lineNumber}
+        <div className={lineNumberStyles}>
+          {block.type === 'added' ? ' ' : block.lineNumber}
         </div>
-        <div className={`${bgColor} px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary`}>
+        <div className={`${lineContentStyles} ${bgColor}`}>
           <span className="mr-2 text-bolt-elements-textTertiary">
             {block.type === 'added' && '+'}
             {block.type === 'removed' && '-'}
@@ -141,24 +236,32 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
   return (
     <FullscreenOverlay isFullscreen={isFullscreen}>
       <div className="w-full h-full flex flex-col">
-        <div className="flex flex-col">
-          <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
-            <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
-            <span className="truncate">{filename}</span>
-            <span className="ml-auto shrink-0 flex items-center">
-              {hasChanges ? (
-                <span className="text-yellow-400">Modified</span>
-              ) : (
-                <span className="text-green-400">No Changes</span>
-              )}
-              <FullscreenButton onClick={toggleFullscreen} isFullscreen={isFullscreen} />
-            </span>
-          </div>
-          <div className="flex-1 overflow-auto diff-panel-content">
+        <div className="flex items-center bg-bolt-elements-background-depth-1 p-2 text-sm text-bolt-elements-textPrimary shrink-0">
+          <div className="i-ph:file mr-2 h-4 w-4 shrink-0" />
+          <span className="truncate">{filename}</span>
+          <span className="ml-auto shrink-0 flex items-center">
+            {hasChanges ? (
+              <span className="text-yellow-400">Modified</span>
+            ) : (
+              <span className="text-green-400">No Changes</span>
+            )}
+            <FullscreenButton onClick={toggleFullscreen} isFullscreen={isFullscreen} />
+          </span>
+        </div>
+        <div className="flex-1 overflow-auto diff-panel-content">
+          {hasChanges ? (
             <div className="overflow-x-auto">
               {unifiedBlocks.map(renderDiffBlock)}
             </div>
-          </div>
+          ) : (
+            <div className="h-full flex items-center justify-center p-4">
+              <div className="text-center text-bolt-elements-textTertiary">
+                <div className="i-ph:check-circle text-4xl text-green-400 mb-2 mx-auto" />
+                <p className="font-medium text-bolt-elements-textPrimary">No changes detected</p>
+                <p className="text-sm mt-1">The file content is identical to the original version</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </FullscreenOverlay>
@@ -180,60 +283,7 @@ const SideBySideComparison = memo(({
     setIsFullscreen(prev => !prev);
   }, []);
 
-  const { beforeLines, afterLines, hasChanges, lineChanges } = useMemo(() => {
-    const normalizeText = (text: string) => text
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .map(line => line.trimEnd());
-
-    const beforeLines = normalizeText(beforeCode);
-    const afterLines = normalizeText(afterCode);
-    
-    const differences = diffLines(beforeLines.join('\n'), afterLines.join('\n'), {
-      ignoreWhitespace: false,
-      newlineIsToken: true
-    });
-
-    let hasModifications = false;
-    const lineChanges = {
-      before: new Set<number>(),
-      after: new Set<number>()
-    };
-
-    let beforeLineNum = 0;
-    let afterLineNum = 0;
-
-    differences.forEach((part: Change) => {
-      const lines = part.value.split('\n').filter(line => line !== '');
-
-      if (part.added || part.removed) {
-        hasModifications = true;
-        if (part.removed) {
-          lines.forEach(() => {
-            lineChanges.before.add(beforeLineNum);
-            beforeLineNum++;
-          });
-        } else if (part.added) {
-          lines.forEach(() => {
-            lineChanges.after.add(afterLineNum);
-            afterLineNum++;
-          });
-        }
-      } else {
-        lines.forEach(() => {
-          beforeLineNum++;
-          afterLineNum++;
-        });
-      }
-    });
-
-    return { 
-      beforeLines,
-      afterLines,
-      hasChanges: hasModifications,
-      lineChanges
-    };
-  }, [beforeCode, afterCode]);
+  const { beforeLines, afterLines, hasChanges, lineChanges, isBinary, error } = useMemo(() => processChanges(beforeCode, afterCode), [beforeCode, afterCode]);
 
   useEffect(() => {
     getHighlighter({
@@ -241,6 +291,8 @@ const SideBySideComparison = memo(({
       langs: ['typescript', 'javascript', 'json', 'html', 'css', 'jsx', 'tsx']
     }).then(setHighlighter);
   }, []);
+
+  if (isBinary || error) return renderContentWarning(isBinary ? 'binary' : 'error');
 
   const renderCode = (code: string) => {
     if (!highlighter) return code;
@@ -267,55 +319,77 @@ const SideBySideComparison = memo(({
           </span>
         </div>
         <div className="flex-1 overflow-auto diff-panel-content">
-          <div className="grid md:grid-cols-2 divide-x divide-bolt-elements-borderColor relative h-full">
-            <div className="overflow-auto">
-              <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
-                Original
+          {hasChanges ? (
+            <div className="grid md:grid-cols-2 divide-x divide-bolt-elements-borderColor relative h-full">
+              <div className="overflow-auto">
+                <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
+                  Original
+                </div>
+                <div className="overflow-x-auto">
+                  {beforeLines.map((line, index) => (
+                    <div key={`before-${index}`} className="flex group min-w-fit">
+                      <div className={lineNumberStyles}>{index + 1}</div>
+                      <div className={`${lineContentStyles} ${
+                        lineChanges.before.has(index) ? 'bg-red-500/20 border-l-4 border-red-500' : ''
+                      }`}>
+                        <span className="mr-2 text-bolt-elements-textTertiary">
+                          {lineChanges.before.has(index) ? '-' : ' '}
+                        </span>
+                        <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                {beforeLines.map((line, index) => (
-                  <div key={`before-${index}`} className="flex group min-w-fit">
-                    <div className="w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1">
-                      {index + 1}
-                    </div>
-                    <div className={`px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary ${
-                      lineChanges.before.has(index) ? 'bg-red-500/20 border-l-4 border-red-500' : ''
-                    }`}>
-                      <span className="mr-2 text-bolt-elements-textTertiary">
-                        {lineChanges.before.has(index) ? '-' : ' '}
-                      </span>
-                      <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
-                    </div>
-                  </div>
-                ))}
+              <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md bg-bolt-elements-background-depth-2 text-xs text-bolt-elements-textTertiary border border-bolt-elements-borderColor z-10">
+                VS
               </div>
-            </div>
-            <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md bg-bolt-elements-background-depth-2 text-xs text-bolt-elements-textTertiary border border-bolt-elements-borderColor z-10">
-              VS
-            </div>
-            <div className="overflow-auto">
-              <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
-                Modified
-              </div>
-              <div className="overflow-x-auto">
-                {afterLines.map((line, index) => (
-                  <div key={`after-${index}`} className="flex group min-w-fit">
-                    <div className="w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1">
-                      {index + 1}
+              <div className="overflow-auto">
+                <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
+                  Modified
+                </div>
+                <div className="overflow-x-auto">
+                  {afterLines.map((line, index) => (
+                    <div key={`after-${index}`} className="flex group min-w-fit">
+                      <div className={lineNumberStyles}>{index + 1}</div>
+                      <div className={`${lineContentStyles} ${
+                        lineChanges.after.has(index) ? 'bg-green-500/20 border-l-4 border-green-500' : ''
+                      }`}>
+                        <span className="mr-2 text-bolt-elements-textTertiary">
+                          {lineChanges.after.has(index) ? '+' : ' '}
+                        </span>
+                        <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
+                      </div>
                     </div>
-                    <div className={`px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary ${
-                      lineChanges.after.has(index) ? 'bg-green-500/20 border-l-4 border-green-500' : ''
-                    }`}>
-                      <span className="mr-2 text-bolt-elements-textTertiary">
-                        {lineChanges.after.has(index) ? '+' : ' '}
-                      </span>
-                      <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center p-4">
+              <div className="text-center text-bolt-elements-textTertiary">
+                <div className="i-ph:files text-4xl text-green-400 mb-2 mx-auto" />
+                <p className="font-medium text-bolt-elements-textPrimary">Files are identical</p>
+                <p className="text-sm mt-1">Both versions match exactly</p>
+              </div>
+              <div className="mt-4 w-full max-w-2xl bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor overflow-hidden">
+                <div className="p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
+                  Current Content
+                </div>
+                <div className="overflow-auto max-h-96">
+                  {beforeLines.map((line, index) => (
+                    <div key={index} className="flex group min-w-fit">
+                      <div className={lineNumberStyles}>{index + 1}</div>
+                      <div className={lineContentStyles}>
+                        <span className="mr-2"> </span>
+                        <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </FullscreenOverlay>
@@ -333,46 +407,36 @@ interface FileHistory {
   }[];
 }
 
-const saveFileHistory = (filePath: string, history: FileHistory) => {
-  try {
-    const key = `diff_history_${filePath.replace(/\//g, '_')}`;
-    localStorage.setItem(key, JSON.stringify(history));
-  } catch (e) {
-    console.error('Error saving diff history:', e);
-  }
-};
-
-const loadFileHistory = (filePath: string): FileHistory | null => {
-  try {
-    const key = `diff_history_${filePath.replace(/\//g, '_')}`;
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : null;
-  } catch (e) {
-    console.error('Error loading diff history:', e);
-    return null;
-  }
-};
-
 interface DiffViewProps {
   fileHistory: Record<string, FileHistory>;
   setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
   diffViewMode: 'inline' | 'side';
+  actionRunner: ActionRunner;
 }
 
-export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode }: DiffViewProps) => {
+export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actionRunner }: DiffViewProps) => {
   const files = useStore(workbenchStore.files) as FileMap;
   const selectedFile = useStore(workbenchStore.selectedFile);
   const currentDocument = useStore(workbenchStore.currentDocument) as EditorDocument;
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
 
   useEffect(() => {
-    if (selectedFile) {
-      const history = loadFileHistory(selectedFile);
-      if (history) {
-        setFileHistory(prev => ({ ...prev, [selectedFile]: history }));
+    const loadHistory = async () => {
+      if (selectedFile && actionRunner) {
+        const history = await actionRunner.getFileHistory(selectedFile);
+        if (history) {
+          setFileHistory(prev => ({ ...prev, [selectedFile]: history }));
+        }
       }
+    };
+    loadHistory();
+  }, [selectedFile, setFileHistory, actionRunner]);
+
+  const saveFileHistory = useCallback(async (filePath: string, history: FileHistory) => {
+    if (actionRunner) {
+      await actionRunner.saveFileHistory(filePath, history);
     }
-  }, [selectedFile, setFileHistory]);
+  }, [actionRunner]);
 
   useEffect(() => {
     if (selectedFile && currentDocument) {
@@ -384,25 +448,66 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode }: Dif
         const existingHistory = fileHistory[selectedFile];
         const currentContent = currentDocument.value;
         
-        const newHistory: FileHistory = {
-          originalContent: existingHistory?.originalContent || file.content,
-          lastModified: Date.now(),
-          changes: existingHistory?.changes || [],
-          saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
-          versions: [
-            ...(existingHistory?.versions || []),
-            {
-              timestamp: Date.now(),
-              content: currentContent
-            }
-          ]
-        };
-        
-        setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
-        saveFileHistory(selectedFile, newHistory);
+        const relativePath = extractRelativePath(selectedFile);
+        const unifiedDiff = diffFiles(
+          relativePath,
+          existingHistory?.originalContent || file.content,
+          currentContent
+        );
+
+        if (unifiedDiff) {
+          const newHistory: FileHistory = {
+            originalContent: existingHistory?.originalContent || file.content,
+            lastModified: Date.now(),
+            changes: existingHistory?.changes || [],
+            saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
+            versions: [
+              ...(existingHistory?.versions || []),
+              {
+                timestamp: Date.now(),
+                content: currentContent
+              }
+            ]
+          };
+          
+          setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
+          saveFileHistory(selectedFile, newHistory);
+        }
       }
     }
-  }, [selectedFile, unsavedFiles, currentDocument?.value, files, setFileHistory]);
+  }, [selectedFile, unsavedFiles, currentDocument?.value, files, setFileHistory, saveFileHistory]);
+
+  useEffect(() => {
+    const trackFileChanges = async () => {
+      if (!selectedFile || !actionRunner) return;
+
+      try {
+        const history = await actionRunner.getFileHistory(selectedFile);
+        if (!history) return;
+
+        // Verificar mudanças reais no conteúdo
+        const { hasChanges } = processChanges(
+          history.originalContent,
+          history.versions[history.versions.length - 1]?.content || ''
+        );
+
+        if (hasChanges) {
+          setFileHistory(prev => ({
+            ...prev,
+            [selectedFile]: {
+              ...history,
+              lastModified: Date.now(),
+              changeSource: 'user'
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Error tracking file changes:', error);
+      }
+    };
+
+    trackFileChanges();
+  }, [selectedFile, actionRunner]);
 
   if (!selectedFile || !currentDocument) {
     return (
@@ -420,29 +525,41 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode }: Dif
   const effectiveOriginalContent = history?.originalContent || originalContent;
   const language = getLanguageFromExtension(selectedFile.split('.').pop() || '');
 
-  return (
-    <div className="h-full overflow-hidden">
-      {diffViewMode === 'inline' ? (
-        <InlineDiffComparison
-          beforeCode={effectiveOriginalContent}
-          afterCode={currentContent}
-          language={language}
-          filename={selectedFile}
-          lightTheme="github-light"
-          darkTheme="github-dark"
-        />
-      ) : (
-        <SideBySideComparison
-          beforeCode={effectiveOriginalContent}
-          afterCode={currentContent}
-          language={language}
-          filename={selectedFile}
-          lightTheme="github-light"
-          darkTheme="github-dark"
-        />
-      )}
-    </div>
-  );
+  try {
+    return (
+      <div className="h-full overflow-hidden">
+        {diffViewMode === 'inline' ? (
+          <InlineDiffComparison
+            beforeCode={effectiveOriginalContent}
+            afterCode={currentContent}
+            language={language}
+            filename={selectedFile}
+            lightTheme="github-light"
+            darkTheme="github-dark"
+          />
+        ) : (
+          <SideBySideComparison
+            beforeCode={effectiveOriginalContent}
+            afterCode={currentContent}
+            language={language}
+            filename={selectedFile}
+            lightTheme="github-light"
+            darkTheme="github-dark"
+          />
+        )}
+      </div>
+    );
+  } catch (error) {
+    console.error('DiffView render error:', error);
+    return (
+      <div className="flex w-full h-full justify-center items-center bg-bolt-elements-background-depth-1 text-red-400">
+        <div className="text-center">
+          <div className="i-ph:warning-circle text-4xl mb-2" />
+          <p>Failed to render diff view</p>
+        </div>
+      </div>
+    );
+  }
 });
 
 const getLanguageFromExtension = (ext: string) => {

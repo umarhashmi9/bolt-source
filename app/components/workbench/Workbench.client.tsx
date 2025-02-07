@@ -23,6 +23,7 @@ import { DiffView } from './DiffView';
 import { Popover, Transition } from '@headlessui/react'
 import { type Change } from 'diff';
 import { formatDistanceToNow as formatDistance } from 'date-fns';
+import { ActionRunner } from '~/lib/runtime/action-runner';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -101,10 +102,10 @@ const FileModifiedDropdown = memo(({
         {({ open }: { open: boolean }) => (
           <>
             <Popover.Button className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-colors text-bolt-elements-textPrimary border border-bolt-elements-borderColor">
-              <div className="i-ph:git-diff text-base" />
+              <div className="i-ph:git-diff text-base text-bolt-elements-textTertiary" />
               <span className="font-medium">File Changes</span>
               {hasChanges && (
-                <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-500 text-xs flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-bolt-elements-background-depth-1 text-bolt-elements-textPrimary text-xs flex items-center justify-center border border-bolt-elements-borderColor">
                   {modifiedFiles.length}
                 </span>
               )}
@@ -213,15 +214,20 @@ const FileModifiedDropdown = memo(({
       </Popover>
       <button
         onClick={(e) => { e.stopPropagation(); toggleDiffViewMode(); }}
-        className="px-2 py-1 text-xs rounded bg-blue-500 text-white"
+        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-colors text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
       >
-        {diffViewMode === 'inline' ? 'Inline' : 'Side by Side'}
+        <div className={diffViewMode === 'inline' ? "i-ph:columns" : "i-ph:columns-horizontal"} />
+        <span className="font-medium">{diffViewMode === 'inline' ? 'Inline' : 'Side by Side'}</span>
       </button>
     </div>
   );
 });
 
-export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => {
+export const Workbench = memo(({ 
+  chatStarted, 
+  isStreaming,
+  actionRunner
+}: WorkspaceProps & { actionRunner: ActionRunner }) => {
   renderLogger.trace('Workbench');
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -542,6 +548,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     fileHistory={fileHistory}
                     setFileHistory={setFileHistory}
                     diffViewMode={diffViewMode}
+                    actionRunner={actionRunner}
                   />
                 </View>
                 

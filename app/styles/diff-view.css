@@ -33,18 +33,40 @@
 
 /* Estilos para as linhas de diff */
 .diff-block-added {
-  background-color: rgba(34, 197, 94, 0.2);
+  @apply bg-green-500/20 border-l-4 border-green-500;
 }
 
 .diff-block-removed {
-  background-color: rgba(239, 68, 68, 0.2);
+  @apply bg-red-500/20 border-l-4 border-red-500;
 }
 
-/* Hover states para melhor contraste */
-.diff-panel-content .group:hover .bg-green-500\/20 {
-  background-color: rgba(34, 197, 94, 0.25);
+/* Melhorar contraste para mudanças */
+.diff-panel-content .group:hover .diff-block-added {
+  @apply bg-green-500/30;
 }
 
-.diff-panel-content .group:hover .bg-red-500\/20 {
-  background-color: rgba(239, 68, 68, 0.25);
+.diff-panel-content .group:hover .diff-block-removed {
+  @apply bg-red-500/30;
+}
+
+/* Estilos unificados para ambas as visualizações */
+.diff-line {
+  @apply flex group min-w-fit transition-colors duration-150;
+}
+
+.diff-line-number {
+  @apply w-12 shrink-0 pl-2 py-0.5 text-left font-mono text-bolt-elements-textTertiary border-r border-bolt-elements-borderColor bg-bolt-elements-background-depth-1;
+}
+
+.diff-line-content {
+  @apply px-4 py-0.5 font-mono whitespace-pre flex-1 group-hover:bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary;
+}
+
+/* Cores específicas para adições/remoções */
+.diff-added {
+  @apply bg-green-500/20 border-l-4 border-green-500;
+}
+
+.diff-removed {
+  @apply bg-red-500/20 border-l-4 border-red-500;
 } 
