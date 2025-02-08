@@ -34,9 +34,15 @@ import ChatAlert from './ChatAlert';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import ProgressCompilation from './ProgressCompilation';
 import type { ProgressAnnotation } from '~/types/context';
-import type { ActionRunner } from '~/lib/runtime/action-runner';
+import { ActionRunner } from '~/lib/runtime/action-runner';
 
 const TEXTAREA_MIN_HEIGHT = 76;
+
+// Defina um dummyActionRunner para uso padrão (observe que usamos cast para contornar os parâmetros mínimos)
+const dummyActionRunner = new ActionRunner(
+  Promise.resolve(null as any),
+  () => ({} as any)
+);
 
 interface BaseChatProps {
   textareaRef?: React.RefObject<HTMLTextAreaElement> | undefined;
@@ -68,7 +74,7 @@ interface BaseChatProps {
   actionAlert?: ActionAlert;
   clearAlert?: () => void;
   data?: JSONValue[] | undefined;
-  actionRunner: ActionRunner;
+  actionRunner?: ActionRunner;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -103,7 +109,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       actionAlert,
       clearAlert,
       data,
-      actionRunner,
+      actionRunner = dummyActionRunner,
     },
     ref,
   ) => {
