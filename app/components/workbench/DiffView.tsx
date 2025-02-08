@@ -8,6 +8,7 @@ import { getHighlighter } from 'shiki';
 import '~/styles/diff-view.css';
 import { diffFiles, extractRelativePath } from '~/utils/diff';
 import { ActionRunner } from '~/lib/runtime/action-runner';
+import type { FileHistory } from '~/types/actions';
 
 interface CodeComparisonProps {
   beforeCode: string;
@@ -182,6 +183,42 @@ const renderContentWarning = (type: 'binary' | 'error') => (
   </div>
 );
 
+const NoChangesView = memo(({ beforeCode, language, highlighter }: { 
+  beforeCode: string;
+  language: string;
+  highlighter: any;
+}) => (
+  <div className="h-full flex flex-col items-center justify-center p-4">
+    <div className="text-center text-bolt-elements-textTertiary">
+      <div className="i-ph:files text-4xl text-green-400 mb-2 mx-auto" />
+      <p className="font-medium text-bolt-elements-textPrimary">Files are identical</p>
+      <p className="text-sm mt-1">Both versions match exactly</p>
+    </div>
+    <div className="mt-4 w-full max-w-2xl bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor overflow-hidden">
+      <div className="p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
+        Current Content
+      </div>
+      <div className="overflow-auto max-h-96">
+        {beforeCode.split('\n').map((line, index) => (
+          <div key={index} className="flex group min-w-fit">
+            <div className={lineNumberStyles}>{index + 1}</div>
+            <div className={lineContentStyles}>
+              <span className="mr-2"> </span>
+              <span dangerouslySetInnerHTML={{ 
+                __html: highlighter ? 
+                  highlighter.codeToHtml(line, { lang: language, theme: 'github-dark' })
+                    .replace(/<\/?pre[^>]*>/g, '')
+                    .replace(/<\/?code[^>]*>/g, '') 
+                  : line 
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+));
+
 const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, lightTheme, darkTheme }: CodeComparisonProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [highlighter, setHighlighter] = useState<any>(null);
@@ -215,7 +252,7 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
     return (
       <div key={block.lineNumber} className="flex group min-w-fit">
         <div className={lineNumberStyles}>
-          {block.type === 'added' ? ' ' : block.lineNumber}
+          {block.lineNumber + 1}
         </div>
         <div className={`${lineContentStyles} ${bgColor}`}>
           <span className="mr-2 text-bolt-elements-textTertiary">
@@ -254,13 +291,11 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
               {unifiedBlocks.map(renderDiffBlock)}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center p-4">
-              <div className="text-center text-bolt-elements-textTertiary">
-                <div className="i-ph:check-circle text-4xl text-green-400 mb-2 mx-auto" />
-                <p className="font-medium text-bolt-elements-textPrimary">No changes detected</p>
-                <p className="text-sm mt-1">The file content is identical to the original version</p>
-              </div>
-            </div>
+            <NoChangesView 
+              beforeCode={beforeCode}
+              language={language}
+              highlighter={highlighter}
+            />
           )}
         </div>
       </div>
@@ -366,46 +401,17 @@ const SideBySideComparison = memo(({
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center p-4">
-              <div className="text-center text-bolt-elements-textTertiary">
-                <div className="i-ph:files text-4xl text-green-400 mb-2 mx-auto" />
-                <p className="font-medium text-bolt-elements-textPrimary">Files are identical</p>
-                <p className="text-sm mt-1">Both versions match exactly</p>
-              </div>
-              <div className="mt-4 w-full max-w-2xl bg-bolt-elements-background-depth-1 rounded-lg border border-bolt-elements-borderColor overflow-hidden">
-                <div className="p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
-                  Current Content
-                </div>
-                <div className="overflow-auto max-h-96">
-                  {beforeLines.map((line, index) => (
-                    <div key={index} className="flex group min-w-fit">
-                      <div className={lineNumberStyles}>{index + 1}</div>
-                      <div className={lineContentStyles}>
-                        <span className="mr-2"> </span>
-                        <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <NoChangesView 
+              beforeCode={beforeCode}
+              language={language}
+              highlighter={highlighter}
+            />
           )}
         </div>
       </div>
     </FullscreenOverlay>
   );
 });
-
-interface FileHistory {
-  originalContent: string;
-  lastModified: number;
-  changes: Change[];
-  saveCount: number;
-  versions: {
-    timestamp: number;
-    content: string;
-  }[];
-}
 
 interface DiffViewProps {
   fileHistory: Record<string, FileHistory>;
@@ -425,7 +431,13 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
       if (selectedFile && actionRunner) {
         const history = await actionRunner.getFileHistory(selectedFile);
         if (history) {
-          setFileHistory(prev => ({ ...prev, [selectedFile]: history }));
+          setFileHistory(prev => ({ 
+            ...prev, 
+            [selectedFile]: {
+              ...history,
+              changeSource: history.changeSource || 'auto-save' // Garantir valor válido
+            } 
+          }));
         }
       }
     };
@@ -443,39 +455,45 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
       const file = files[selectedFile];
       if (!file || !('content' in file)) return;
 
-      const isUnsaved = unsavedFiles.has(selectedFile);
-      if (!isUnsaved) {
-        const existingHistory = fileHistory[selectedFile];
-        const currentContent = currentDocument.value;
-        
-        const relativePath = extractRelativePath(selectedFile);
-        const unifiedDiff = diffFiles(
-          relativePath,
+      const existingHistory = fileHistory[selectedFile];
+      const currentContent = currentDocument.value;
+      
+      const relativePath = extractRelativePath(selectedFile);
+      const unifiedDiff = diffFiles(
+        relativePath,
+        existingHistory?.originalContent || file.content,
+        currentContent
+      );
+
+      if (unifiedDiff) {
+        const newChanges = diffLines(
           existingHistory?.originalContent || file.content,
           currentContent
         );
 
-        if (unifiedDiff) {
-          const newHistory: FileHistory = {
-            originalContent: existingHistory?.originalContent || file.content,
-            lastModified: Date.now(),
-            changes: existingHistory?.changes || [],
-            saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
-            versions: [
-              ...(existingHistory?.versions || []),
-              {
-                timestamp: Date.now(),
-                content: currentContent
-              }
-            ]
-          };
-          
-          setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
-          saveFileHistory(selectedFile, newHistory);
-        }
+        const newHistory: FileHistory = {
+          originalContent: existingHistory?.originalContent || file.content,
+          lastModified: Date.now(),
+          changes: [
+            ...(existingHistory?.changes || []),
+            ...newChanges
+          ].slice(-100), // Limitar histórico de mudanças
+          saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
+          versions: [
+            ...(existingHistory?.versions || []),
+            {
+              timestamp: Date.now(),
+              content: currentContent
+            }
+          ].slice(-10), // Manter apenas as 10 últimas versões
+          changeSource: unsavedFiles.has(selectedFile) ? 'user' : 'auto-save'
+        };
+        
+        setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
+        saveFileHistory(selectedFile, newHistory);
       }
     }
-  }, [selectedFile, unsavedFiles, currentDocument?.value, files, setFileHistory, saveFileHistory]);
+  }, [selectedFile, currentDocument?.value, files, setFileHistory, saveFileHistory, unsavedFiles]);
 
   useEffect(() => {
     const trackFileChanges = async () => {
