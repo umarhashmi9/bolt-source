@@ -102,10 +102,9 @@ const FileModifiedDropdown = memo(({
         {({ open }: { open: boolean }) => (
           <>
             <Popover.Button className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-colors text-bolt-elements-textPrimary border border-bolt-elements-borderColor">
-              <div className="i-ph:git-diff text-base text-bolt-elements-textTertiary" />
               <span className="font-medium">File Changes</span>
               {hasChanges && (
-                <span className="w-5 h-5 rounded-full bg-bolt-elements-background-depth-1 text-bolt-elements-textPrimary text-xs flex items-center justify-center border border-bolt-elements-borderColor">
+                <span className="w-5 h-5 rounded-full bg-accent-500/20 text-accent-500 text-xs flex items-center justify-center border border-accent-500/30">
                   {modifiedFiles.length}
                 </span>
               )}
@@ -159,7 +158,7 @@ const FileModifiedDropdown = memo(({
                                   <span className="truncate text-sm font-medium text-bolt-elements-textPrimary">
                                     {filePath.split('/').pop()}
                                   </span>
-                                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-500">
+                                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-accent-500/20 text-accent-500">
                                     {history.saveCount === 1 ? 'NEW' : `${history.saveCount} saves`}
                                   </span>
                                 </div>
@@ -198,11 +197,12 @@ const FileModifiedDropdown = memo(({
                         navigator.clipboard.writeText(
                           filteredFiles.map(([filePath]) => filePath).join('\n')
                         );
-                        toast.success('File list copied to clipboard');
+                        toast('File list copied to clipboard', { 
+                          icon: <div className="i-ph:check-circle text-accent-500" /> 
+                        });
                       }}
                       className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-bolt-elements-background-depth-1 hover:bg-bolt-elements-background-depth-3 transition-colors text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
                     >
-                      <div className="i-ph:copy" />
                       Copy File List
                     </button>
                   </div>
@@ -216,7 +216,6 @@ const FileModifiedDropdown = memo(({
         onClick={(e) => { e.stopPropagation(); toggleDiffViewMode(); }}
         className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-colors text-bolt-elements-textPrimary border border-bolt-elements-borderColor"
       >
-        <div className={diffViewMode === 'inline' ? "i-ph:columns" : "i-ph:columns-horizontal"} />
         <span className="font-medium">{diffViewMode === 'inline' ? 'Inline' : 'Side by Side'}</span>
       </button>
     </div>
