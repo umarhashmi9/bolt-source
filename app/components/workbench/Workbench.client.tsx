@@ -24,6 +24,7 @@ import { Popover, Transition } from '@headlessui/react'
 import { type Change } from 'diff';
 import { formatDistanceToNow as formatDistance } from 'date-fns';
 import { ActionRunner } from '~/lib/runtime/action-runner';
+import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -576,16 +577,3 @@ const View = memo(({ children, ...props }: ViewProps) => {
     </motion.div>
   );
 });
-
-const getLanguageFromExtension = (ext: string) => {
-  const map: Record<string, string> = {
-    'js': 'javascript',
-    'jsx': 'jsx',
-    'ts': 'typescript',
-    'tsx': 'tsx',
-    'json': 'json',
-    'html': 'html',
-    'css': 'css'
-  };
-  return map[ext] || 'typescript';
-};

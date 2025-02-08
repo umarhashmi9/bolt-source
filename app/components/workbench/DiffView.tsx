@@ -9,6 +9,7 @@ import '~/styles/diff-view.css';
 import { diffFiles, extractRelativePath } from '~/utils/diff';
 import { ActionRunner } from '~/lib/runtime/action-runner';
 import type { FileHistory } from '~/types/actions';
+import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 
 interface CodeComparisonProps {
   beforeCode: string;
@@ -564,28 +565,3 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
     );
   }
 });
-
-const getLanguageFromExtension = (ext: string) => {
-  const map: Record<string, string> = {
-    'js': 'javascript',
-    'jsx': 'jsx',
-    'ts': 'typescript',
-    'tsx': 'tsx',
-    'json': 'json',
-    'html': 'html',
-    'css': 'css',
-    'py': 'python',
-    'java': 'java',
-    'rb': 'ruby',
-    'cpp': 'cpp',
-    'c': 'c',
-    'cs': 'csharp',
-    'go': 'go',
-    'rs': 'rust',
-    'php': 'php',
-    'swift': 'swift',
-    'md': 'plaintext',
-    'sh': 'bash'
-  };
-  return map[ext] || 'typescript';
-}; 
