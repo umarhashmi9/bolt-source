@@ -357,16 +357,11 @@ const SideBySideComparison = memo(({
           {hasChanges ? (
             <div className="grid md:grid-cols-2 divide-x divide-bolt-elements-borderColor relative h-full">
               <div className="overflow-auto">
-                <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
-                  Original
-                </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-auto">
                   {beforeLines.map((line, index) => (
                     <div key={`before-${index}`} className="flex group min-w-fit">
                       <div className={lineNumberStyles}>{index + 1}</div>
-                      <div className={`${lineContentStyles} ${
-                        lineChanges.before.has(index) ? 'bg-red-500/20 border-l-4 border-red-500' : ''
-                      }`}>
+                      <div className={`${lineContentStyles} ${lineChanges.before.has(index) ? 'bg-red-500/20 border-l-4 border-red-500' : ''}`}>
                         <span className="mr-2 text-bolt-elements-textTertiary">
                           {lineChanges.before.has(index) ? '-' : ' '}
                         </span>
@@ -376,28 +371,18 @@ const SideBySideComparison = memo(({
                   ))}
                 </div>
               </div>
-              <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md bg-bolt-elements-background-depth-2 text-xs text-bolt-elements-textTertiary border border-bolt-elements-borderColor z-10">
-                VS
-              </div>
               <div className="overflow-auto">
-                <div className="sticky top-0 z-10 bg-bolt-elements-background-depth-1 p-2 text-xs font-bold text-bolt-elements-textTertiary border-b border-bolt-elements-borderColor">
-                  Modified
-                </div>
-                <div className="overflow-x-auto">
-                  {afterLines.map((line, index) => (
-                    <div key={`after-${index}`} className="flex group min-w-fit">
-                      <div className={lineNumberStyles}>{index + 1}</div>
-                      <div className={`${lineContentStyles} ${
-                        lineChanges.after.has(index) ? 'bg-green-500/20 border-l-4 border-green-500' : ''
-                      }`}>
-                        <span className="mr-2 text-bolt-elements-textTertiary">
-                          {lineChanges.after.has(index) ? '+' : ' '}
-                        </span>
-                        <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
-                      </div>
+                {afterLines.map((line, index) => (
+                  <div key={`after-${index}`} className="flex group min-w-fit">
+                    <div className={lineNumberStyles}>{index + 1}</div>
+                    <div className={`${lineContentStyles} ${lineChanges.after.has(index) ? 'bg-green-500/20 border-l-4 border-green-500' : ''}`}>
+                      <span className="mr-2 text-bolt-elements-textTertiary">
+                        {lineChanges.after.has(index) ? '+' : ' '}
+                      </span>
+                      <span dangerouslySetInnerHTML={{ __html: renderCode(line) }} />
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
