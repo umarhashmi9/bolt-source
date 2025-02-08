@@ -599,7 +599,7 @@ const getLanguageFromExtension = (ext: string) => {
     'rs': 'rust',
     'php': 'php',
     'swift': 'swift',
-    'md': 'markdown',
+    'md': 'plaintext',
     'sh': 'bash'
   };
   return map[ext] || 'typescript';
