@@ -17,6 +17,7 @@ export type ProviderInfo = {
 export interface IProviderSetting {
   enabled?: boolean;
   baseUrl?: string;
+  showOnlyFreeModels?: boolean;
 }
 
 export type IProviderConfig = ProviderInfo & {

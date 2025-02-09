@@ -75,7 +75,7 @@ export default class OpenRouterProvider extends BaseProvider {
 
   async getDynamicModels(
     _apiKeys?: Record<string, string>,
-    _settings?: IProviderSetting,
+    settings?: IProviderSetting,
     _serverEnv: Record<string, string> = {},
   ): Promise<ModelInfo[]> {
     try {
@@ -86,9 +86,11 @@ export default class OpenRouterProvider extends BaseProvider {
       });
 
       const data = (await response.json()) as OpenRouterModelsResponse;
+      const showOnlyFreeModels = settings?.showOnlyFreeModels === true;
 
       return data.data
         .sort((a, b) => a.name.localeCompare(b.name))
+        .filter((m) => !showOnlyFreeModels || (m.pricing.prompt === 0 && m.pricing.completion === 0))
         .map((m) => ({
           name: m.id,
           label: `${m.name} - in:$${(m.pricing.prompt * 1_000_000).toFixed(2)} out:$${(m.pricing.completion * 1_000_000).toFixed(2)} - context ${Math.floor(m.context_length / 1000)}k`,

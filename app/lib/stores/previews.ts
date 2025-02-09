@@ -1,5 +1,6 @@
 import type { WebContainer } from '@webcontainer/api';
 import { atom } from 'nanostores';
+import { bufferWatchEvents } from '~/utils/buffer';
 
 // Extend Window interface to include our custom property
 declare global {
@@ -34,12 +35,48 @@ export class PreviewsStore {
     this.#broadcastChannel = new BroadcastChannel(PREVIEW_CHANNEL);
     this.#storageChannel = new BroadcastChannel('storage-sync-channel');
 
-    // Listen for preview updates from other tabs
+    this.#setupBroadcastChannels();
+    this.#setupLocalStorageOverride();
+    this.#init();
+  }
+
+  async #init() {
+    const webcontainer = await this.#webcontainer;
+
+    webcontainer.on('server-ready', (port, url) => {
+      console.log('[Preview] Server ready on port:', port, url);
+      this.broadcastUpdate(url);
+      this._broadcastStorageSync();
+    });
+
+    try {
+      webcontainer.fs.watch(
+        '**/*',
+        bufferWatchEvents(300, (_events) => {
+          const previews = this.previews.get();
+
+          for (const preview of previews) {
+            const previewId = this.getPreviewId(preview.baseUrl);
+
+            if (previewId) {
+              this.broadcastFileChange(previewId);
+            }
+          }
+        }),
+      );
+    } catch (error) {
+      console.error('[Preview] Error setting up watchers:', error);
+    }
+
+    this.#setupDOMObserver();
+    this.#setupPortListener(webcontainer);
+  }
+
+  #setupBroadcastChannels() {
     this.#broadcastChannel.onmessage = (event) => {
-      const { type, previewId } = event.data;
+      const { type, previewId, timestamp } = event.data;
 
       if (type === 'file-change') {
-        const timestamp = event.data.timestamp;
         const lastUpdate = this.#lastUpdate.get(previewId) || 0;
 
         if (timestamp > lastUpdate) {
@@ -49,7 +86,6 @@ export class PreviewsStore {
       }
     };
 
-    // Listen for storage sync messages
     this.#storageChannel.onmessage = (event) => {
       const { storage, source } = event.data;
 
@@ -57,18 +93,61 @@ export class PreviewsStore {
         this._syncStorage(storage);
       }
     };
+  }
 
-    // Override localStorage setItem to catch all changes
+  #setupLocalStorageOverride() {
     if (typeof window !== 'undefined') {
-      const originalSetItem = localStorage.setItem;
+      const originalSetItem = localStorage.setItem.bind(localStorage);
 
       localStorage.setItem = (...args) => {
-        originalSetItem.apply(localStorage, args);
+        originalSetItem(...args);
         this._broadcastStorageSync();
       };
     }
+  }
 
-    this.#init();
+  #setupDOMObserver() {
+    if (typeof window !== 'undefined') {
+      const observer = new MutationObserver(() => {
+        this._broadcastStorageSync();
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+      });
+    }
+  }
+
+  #setupPortListener(webcontainer: WebContainer) {
+    webcontainer.on('port', (port, type, url) => {
+      const previews = this.previews.get();
+      let previewInfo = this.#availablePreviews.get(port);
+
+      if (type === 'close' && previewInfo) {
+        this.#availablePreviews.delete(port);
+        this.previews.set(previews.filter((p) => p.port !== port));
+
+        return;
+      }
+
+      if (!previewInfo) {
+        previewInfo = { port, ready: type === 'open', baseUrl: url };
+        this.#availablePreviews.set(port, previewInfo);
+        previews.push(previewInfo);
+      }
+
+      previewInfo.ready = type === 'open';
+      previewInfo.baseUrl = url;
+
+      this.previews.set([...previews]);
+
+      if (type === 'open') {
+        this.broadcastUpdate(url);
+      }
+    });
   }
 
   // Generate a unique ID for this tab
@@ -137,83 +216,6 @@ export class PreviewsStore {
         timestamp: Date.now(),
       });
     }
-  }
-
-  async #init() {
-    const webcontainer = await this.#webcontainer;
-
-    // Listen for server ready events
-    webcontainer.on('server-ready', (port, url) => {
-      console.log('[Preview] Server ready on port:', port, url);
-      this.broadcastUpdate(url);
-
-      // Initial storage sync when preview is ready
-      this._broadcastStorageSync();
-    });
-
-    try {
-      // Watch for file changes
-      const watcher = await webcontainer.fs.watch('**/*', { persistent: true });
-
-      // Use the native watch events
-      (watcher as any).addEventListener('change', async () => {
-        const previews = this.previews.get();
-
-        for (const preview of previews) {
-          const previewId = this.getPreviewId(preview.baseUrl);
-
-          if (previewId) {
-            this.broadcastFileChange(previewId);
-          }
-        }
-      });
-
-      // Watch for DOM changes that might affect storage
-      if (typeof window !== 'undefined') {
-        const observer = new MutationObserver((_mutations) => {
-          // Broadcast storage changes when DOM changes
-          this._broadcastStorageSync();
-        });
-
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true,
-          characterData: true,
-          attributes: true,
-        });
-      }
-    } catch (error) {
-      console.error('[Preview] Error setting up watchers:', error);
-    }
-
-    // Listen for port events
-    webcontainer.on('port', (port, type, url) => {
-      let previewInfo = this.#availablePreviews.get(port);
-
-      if (type === 'close' && previewInfo) {
-        this.#availablePreviews.delete(port);
-        this.previews.set(this.previews.get().filter((preview) => preview.port !== port));
-
-        return;
-      }
-
-      const previews = this.previews.get();
-
-      if (!previewInfo) {
-        previewInfo = { port, ready: type === 'open', baseUrl: url };
-        this.#availablePreviews.set(port, previewInfo);
-        previews.push(previewInfo);
-      }
-
-      previewInfo.ready = type === 'open';
-      previewInfo.baseUrl = url;
-
-      this.previews.set([...previews]);
-
-      if (type === 'open') {
-        this.broadcastUpdate(url);
-      }
-    });
   }
 
   // Helper to extract preview ID from URL

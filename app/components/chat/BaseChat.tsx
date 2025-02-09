@@ -400,7 +400,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             provider={provider}
                             setProvider={setProvider}
                             providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
-                            apiKeys={apiKeys}
                             modelLoading={isModelLoading}
                           />
                           {(providerList || []).length > 0 && provider && (

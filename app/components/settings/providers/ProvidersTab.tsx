@@ -52,10 +52,10 @@ export default function ProvidersTab() {
         key={provider.name}
         className="flex flex-col provider-item hover:bg-bolt-elements-bg-depth-3 p-4 rounded-lg border border-bolt-elements-borderColor"
       >
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center">
           <div className="flex items-center gap-2">
             <img
-              src={`/icons/${provider.name}.svg`}
+              src={provider.icon || DefaultIcon}
               onError={(e) => {
                 e.currentTarget.src = DefaultIcon;
               }}
@@ -69,15 +69,27 @@ export default function ProvidersTab() {
             checked={provider.settings.enabled}
             onCheckedChange={(enabled) => {
               updateProviderSettings(provider.name, { ...provider.settings, enabled });
-
-              if (enabled) {
-                logStore.logProvider(`Provider ${provider.name} enabled`, { provider: provider.name });
-              } else {
-                logStore.logProvider(`Provider ${provider.name} disabled`, { provider: provider.name });
-              }
             }}
           />
         </div>
+
+        {/* Add OpenRouter Free Models Toggle */}
+        {provider.name === 'OpenRouter' && provider.settings.enabled && (
+          <div className="flex items-center justify-between mt-4">
+            <label className="text-sm text-bolt-elements-textSecondary">Show only free models</label>
+            <Switch
+              checked={provider.settings.showOnlyFreeModels || false}
+              onCheckedChange={(checked) => {
+                updateProviderSettings(provider.name, {
+                  ...provider.settings,
+                  showOnlyFreeModels: checked,
+                });
+              }}
+            />
+          </div>
+        )}
+
+        {/* Existing URL configuration */}
         {isUrlConfigurable && provider.settings.enabled && (
           <div className="mt-2">
             {envBaseUrl && (
