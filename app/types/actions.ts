@@ -35,7 +35,6 @@ export interface FileHistory {
   originalContent: string;
   lastModified: number;
   changes: Change[];
-  saveCount: number;
   versions: {
     timestamp: number;
     content: string;

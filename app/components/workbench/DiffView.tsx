@@ -239,7 +239,8 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
 
   if (isBinary || error) return renderContentWarning(isBinary ? 'binary' : 'error');
 
-  const renderDiffBlock = (block: DiffBlock) => {
+  const renderDiffBlock = (block: DiffBlock, index?: number) => {
+    const key = index !== undefined ? `${block.lineNumber}-${index}` : block.lineNumber;
     const bgColor = {
       added: 'bg-green-500/20 border-l-4 border-green-500',
       removed: 'bg-red-500/20 border-l-4 border-red-500',
@@ -251,7 +252,7 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
       block.content;
 
     return (
-      <div key={block.lineNumber} className="flex group min-w-fit">
+      <div key={key} className="flex group min-w-fit">
         <div className={lineNumberStyles}>
           {block.lineNumber + 1}
         </div>
@@ -289,7 +290,7 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language, 
         <div className="flex-1 overflow-auto diff-panel-content">
           {hasChanges ? (
             <div className="overflow-x-auto">
-              {unifiedBlocks.map(renderDiffBlock)}
+              {unifiedBlocks.map((block, index) => renderDiffBlock(block, index))}
             </div>
           ) : (
             <NoChangesView 
@@ -413,30 +414,6 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
 
   useEffect(() => {
-    const loadHistory = async () => {
-      if (selectedFile && actionRunner) {
-        const history = await actionRunner.getFileHistory(selectedFile);
-        if (history) {
-          setFileHistory(prev => ({ 
-            ...prev, 
-            [selectedFile]: {
-              ...history,
-              changeSource: history.changeSource || 'auto-save' // Garantir valor válido
-            } 
-          }));
-        }
-      }
-    };
-    loadHistory();
-  }, [selectedFile, setFileHistory, actionRunner]);
-
-  const saveFileHistory = useCallback(async (filePath: string, history: FileHistory) => {
-    if (actionRunner) {
-      await actionRunner.saveFileHistory(filePath, history);
-    }
-  }, [actionRunner]);
-
-  useEffect(() => {
     if (selectedFile && currentDocument) {
       const file = files[selectedFile];
       if (!file || !('content' in file)) return;
@@ -464,7 +441,6 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
             ...(existingHistory?.changes || []),
             ...newChanges
           ].slice(-100), // Limitar histórico de mudanças
-          saveCount: existingHistory ? existingHistory.saveCount + 1 : 1,
           versions: [
             ...(existingHistory?.versions || []),
             {
@@ -472,46 +448,13 @@ export const DiffView = memo(({ fileHistory, setFileHistory, diffViewMode, actio
               content: currentContent
             }
           ].slice(-10), // Manter apenas as 10 últimas versões
-          changeSource: unsavedFiles.has(selectedFile) ? 'user' : 'auto-save'
+          changeSource: 'auto-save'
         };
         
         setFileHistory(prev => ({ ...prev, [selectedFile]: newHistory }));
-        saveFileHistory(selectedFile, newHistory);
       }
     }
-  }, [selectedFile, currentDocument?.value, files, setFileHistory, saveFileHistory, unsavedFiles]);
-
-  useEffect(() => {
-    const trackFileChanges = async () => {
-      if (!selectedFile || !actionRunner) return;
-
-      try {
-        const history = await actionRunner.getFileHistory(selectedFile);
-        if (!history) return;
-
-        // Verificar mudanças reais no conteúdo
-        const { hasChanges } = processChanges(
-          history.originalContent,
-          history.versions[history.versions.length - 1]?.content || ''
-        );
-
-        if (hasChanges) {
-          setFileHistory(prev => ({
-            ...prev,
-            [selectedFile]: {
-              ...history,
-              lastModified: Date.now(),
-              changeSource: 'user'
-            }
-          }));
-        }
-      } catch (error) {
-        console.error('Error tracking file changes:', error);
-      }
-    };
-
-    trackFileChanges();
-  }, [selectedFile, actionRunner]);
+  }, [selectedFile, currentDocument?.value, files, setFileHistory, unsavedFiles]);
 
   if (!selectedFile || !currentDocument) {
     return (

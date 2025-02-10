@@ -25,6 +25,7 @@ import { type Change } from 'diff';
 import { formatDistanceToNow as formatDistance } from 'date-fns';
 import { ActionRunner } from '~/lib/runtime/action-runner';
 import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
+import type { FileHistory } from '~/types/actions';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -64,17 +65,6 @@ const workbenchVariants = {
     },
   },
 } satisfies Variants;
-
-interface FileHistory {
-  originalContent: string;
-  lastModified: number;
-  changes: Change[];
-  saveCount: number;
-  versions: {
-    timestamp: number;
-    content: string;
-  }[];
-}
 
 const FileModifiedDropdown = memo(({
   fileHistory,
@@ -148,19 +138,22 @@ const FileModifiedDropdown = memo(({
                           >
                             <div className="flex items-center gap-2">
                               <div className="shrink-0 w-5 h-5 text-bolt-elements-textTertiary">
-                                {language === 'typescript' && <div className="i-vscode-icons:file-type-typescript" />}
-                                {language === 'javascript' && <div className="i-vscode-icons:file-type-js" />}
-                                {language === 'css' && <div className="i-vscode-icons:file-type-css" />}
-                                {language === 'html' && <div className="i-vscode-icons:file-type-html" />}
-                                {language === 'json' && <div className="i-vscode-icons:file-type-json" />}
+                                {['typescript', 'javascript', 'jsx', 'tsx'].includes(language) && <div className="i-ph:file-js" />}
+                                {['css', 'scss', 'less'].includes(language) && <div className="i-ph:paint-brush" />}
+                                {language === 'html' && <div className="i-ph:code" />}
+                                {language === 'json' && <div className="i-ph:brackets-curly" />}
+                                {language === 'python' && <div className="i-ph:file-text" />}
+                                {language === 'markdown' && <div className="i-ph:article" />}
+                                {['yaml', 'yml'].includes(language) && <div className="i-ph:file-text" />}
+                                {language === 'sql' && <div className="i-ph:database" />}
+                                {language === 'dockerfile' && <div className="i-ph:cube" />}
+                                {language === 'shell' && <div className="i-ph:terminal" />}
+                                {!['typescript', 'javascript', 'css', 'html', 'json', 'python', 'markdown', 'yaml', 'yml', 'sql', 'dockerfile', 'shell', 'jsx', 'tsx', 'scss', 'less'].includes(language) && <div className="i-ph:file-text" />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="truncate text-sm font-medium text-bolt-elements-textPrimary">
                                     {filePath.split('/').pop()}
-                                  </span>
-                                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-accent-500/20 text-accent-500">
-                                    {history.saveCount === 1 ? 'NEW' : `${history.saveCount} saves`}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-bolt-elements-textTertiary">
