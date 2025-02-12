@@ -152,7 +152,7 @@ export const AssistantMessage = memo(
         {isLast && pendingTasks.length > 0 && (
           <div className="flex gap-2 flex-col mt-6">
             <div className="text-gray-600 dark:text-gray-400 text-sm font-medium px-4 py-2">
-              What do want to do next?
+              What do you want to do next?
             </div>
             {pendingTasks.map((task, index) => (
               <button
