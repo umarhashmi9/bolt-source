@@ -4,7 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 
 export default class OpenAILikeProvider extends BaseProvider {
-  name = 'OpenAILike';
+  name = 'Azure';
   getApiKeyLink = undefined;
 
   config = {
@@ -12,13 +12,17 @@ export default class OpenAILikeProvider extends BaseProvider {
     apiTokenKey: 'OPENAI_LIKE_API_KEY',
   };
 
-  staticModels: ModelInfo[] = [];
+  staticModels: ModelInfo[] = [
+    { name: 'deepseek-r1', label: 'DeepSeek R1', provider: 'Azure', maxTokenAllowed: 8000 },
+  ];
 
   async getDynamicModels(
     apiKeys?: Record<string, string>,
     settings?: IProviderSetting,
     serverEnv: Record<string, string> = {},
   ): Promise<ModelInfo[]> {
+    return [];
+
     const { baseUrl, apiKey } = this.getProviderBaseUrlAndKey({
       apiKeys,
       providerSettings: settings,
