@@ -5,14 +5,18 @@ import { renderToReadableStream } from 'react-dom/server';
 import { renderHeadToString } from 'remix-island';
 import { Head } from './root';
 import { themeStore } from '~/lib/stores/theme';
+import { requireBasicAuth } from '~/lib/auth/basicAuth';
 
 export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   remixContext: any,
-  _loadContext: AppLoadContext,
+  loadContext: AppLoadContext,
 ) {
+  const authResponse = requireBasicAuth(request, loadContext);
+  if (authResponse) return authResponse;
+
   // await initializeModelList({});
 
   const readable = await renderToReadableStream(<RemixServer context={remixContext} url={request.url} />, {
