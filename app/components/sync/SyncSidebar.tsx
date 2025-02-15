@@ -3,6 +3,7 @@ import type { Variants } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { syncSidebarStore } from '~/lib/stores/sync-sidebar';
 import { toast } from 'react-toastify';
 import { classNames } from '~/utils/classNames';
 
@@ -29,10 +30,10 @@ const sidebarVariants: Variants = {
 
 export function SyncSidebar() {
   const [isHovered, setIsHovered] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const syncStatus = useStore(workbenchStore.syncStatus);
   const syncSettings = useStore(workbenchStore.syncSettings);
+  const isOpen = useStore(syncSidebarStore.isOpen);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -58,7 +59,7 @@ export function SyncSidebar() {
     try {
       const handle = await window.showDirectoryPicker();
       await workbenchStore.setSyncFolder(handle);
-      setIsOpen(true); // Keep sidebar open after selection
+      syncSidebarStore.open(); // Use the store's open method
       toast.success('Sync folder selected successfully');
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
