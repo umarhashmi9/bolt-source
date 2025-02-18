@@ -54,6 +54,21 @@ export function SyncSidebar() {
     return () => window.removeEventListener('mousemove', handleMouseMoveWindow);
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    return undefined;
+  }, [isOpen]);
+
   const handleFolderSelect = async () => {
     try {
       const handle = await window.showDirectoryPicker();
@@ -110,7 +125,7 @@ export function SyncSidebar() {
     >
       <div className="h-full flex flex-col">
         {/* Header */}
-        <div className="h-12 flex items-center px-4 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50">
+        <div className="h-12 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="flex items-center gap-2">
             <div className="i-ph:gear-six-duotone h-4 w-4 text-gray-500 dark:text-gray-400" />
             <span className="font-medium text-gray-900 dark:text-white">Sync Settings</span>
