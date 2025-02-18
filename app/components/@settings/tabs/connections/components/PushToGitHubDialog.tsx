@@ -244,7 +244,7 @@ function FileSelection({
           </div>
         </div>
 
-        <div className={classNames('space-y-2 max-h-[320px] overflow-y-auto pr-2', themeTokens.scrollbar)}>
+        <div className={classNames('space-y-2 max-h-[calc(90vh-500px)] overflow-y-auto pr-2', themeTokens.scrollbar)}>
           {filteredFiles.length === 0 ? (
             <div className={classNames('py-8 text-center', themeTokens.text.secondary)}>
               <div className={classNames('i-ph:file-x', themeTokens.icon.sizes.lg, 'mx-auto opacity-50')} />
@@ -549,7 +549,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
       <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
         <Dialog.Portal>
           <Dialog.Overlay className={themeTokens.dialog.overlay} />
-          <Dialog.Content className={themeTokens.dialog.content}>
+          <Dialog.Content className={classNames(themeTokens.dialog.content, 'max-h-[90vh] flex flex-col')}>
             <div className={themeTokens.dialog.header}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -564,7 +564,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
               </div>
             </div>
 
-            <div className={themeTokens.dialog.body}>
+            <div className={classNames(themeTokens.dialog.body, 'flex-1 overflow-y-auto min-h-0')}>
               <div className="space-y-4">
                 <div className={themeTokens.dialog.section}>
                   <div className="flex items-center gap-2 mb-2">
@@ -735,7 +735,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className={themeTokens.dialog.overlay} />
-        <Dialog.Content className={themeTokens.dialog.content}>
+        <Dialog.Content className={classNames(themeTokens.dialog.content, 'max-h-[90vh] flex flex-col')}>
           <div className={themeTokens.dialog.header}>
             <div className="flex items-center justify-between">
               <Dialog.Title className={classNames('text-xl font-semibold', themeTokens.text.primary)}>
@@ -757,7 +757,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
             </div>
           </div>
 
-          <div className={themeTokens.dialog.body}>
+          <div className={classNames(themeTokens.dialog.body, 'flex-1 overflow-y-auto min-h-0')}>
             <div className="space-y-6">
               <div className={themeTokens.dialog.section}>
                 <div className="flex items-center gap-3">
@@ -772,7 +772,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
               </div>
 
               {!selectedRepo ? (
-                <div className={classNames('max-h-[400px] overflow-y-auto pr-2', themeTokens.scrollbar)}>
+                <div className={classNames('max-h-[calc(90vh-300px)] overflow-y-auto pr-2', themeTokens.scrollbar)}>
                   <RepositoryList
                     repos={recentRepos}
                     isLoading={isFetchingRepos}
