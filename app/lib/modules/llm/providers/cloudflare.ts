@@ -13,11 +13,51 @@ export default class CloudflareProvider extends BaseProvider {
     accountIdKey: 'CLOUDFLARE_ACCOUNT_ID',
   };
 
-  staticModels: ModelInfo[] = [
-    { name: '@cf/meta/llama-2-7b-chat-int8', label: 'Llama-2-7b-chat-int8', provider: 'Cloudflare', maxTokenAllowed: 4096 },
-    { name: '@cf/meta/llama-2-7b-chat-fp16', label: 'Llama-2-7b-chat-fp16', provider: 'Cloudflare', maxTokenAllowed: 4096 },
-    { name: '@cf/mistral/mistral-7b-instruct-v0.1', label: 'Mistral-7b-instruct', provider: 'Cloudflare', maxTokenAllowed: 4096 },
- ];
+  staticModels: ModelInfo[] = [];
+
+  async getDynamicModels(
+    apiKeys?: Record<string, string>,
+    serverEnv: Record<string, string> = {},
+  ): Promise<ModelInfo[]> {
+    const { apiKey } = this.getProviderBaseUrlAndKey({
+      apiKeys,
+      serverEnv: serverEnv as any,
+      defaultBaseUrlKey: '',
+      defaultApiTokenKey: 'CLOUDFLARE_API_TOKEN',
+    });
+
+    const accountId = serverEnv?.CLOUDFLARE_ACCOUNT_ID || process?.env?.CLOUDFLARE_ACCOUNT_ID;
+
+    if (!apiKey || !accountId) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as { result: Array<{ id: string }> };
+      return data.result.map((model: any) => ({
+        name: model.name,
+        label: model.name,
+        provider: this.name,
+        maxTokenAllowed: 100000,
+      }));
+    } catch (error) {
+      console.error('Error fetching Cloudflare models:', error);
+      return [];
+    }
+  }
 
   getModelInstance(options: {
     model: string;
