@@ -48,7 +48,7 @@ export default class HyperbolicProvider extends BaseProvider {
       label: 'DeepSeek-V3',
       provider: 'Hyperbolic',
       maxTokenAllowed: 8192,
-    }
+    },
   ];
   
   async getDynamicModels(
