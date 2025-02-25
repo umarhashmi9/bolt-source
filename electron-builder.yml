@@ -21,8 +21,7 @@ mac:
   icon: icons/icon.icns
   target:
     - dmg
-    - zip
-  identity: null
+  identity: "Xinzhe Wang (RDQSC33B2X)"
 
 win:
   icon: icons/icon.ico
