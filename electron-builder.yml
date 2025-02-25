@@ -18,13 +18,19 @@ asarUnpack:
   - electron-update.yml
 
 mac:
-  icon: icons/icon.icns
+  icon: assets/icons/icon.icns
   target:
     - dmg
   identity: "Xinzhe Wang (RDQSC33B2X)"
+  category: "public.app-category.developer-tools"
+  type: "distribution"
+  hardenedRuntime: true
+  entitlements: "assets/entitlements.mac.plist"
+  entitlementsInherit: "assets/entitlements.mac.plist"
+  gatekeeperAssess: false
 
 win:
-  icon: icons/icon.ico
+  icon: assets/icons/icon.ico
   target:
     - nsis
     - zip
@@ -32,7 +38,7 @@ win:
   artifactName: ${name}-${version}-${os}-${arch}.${ext}
 
 linux:
-  icon: icons/icon.png
+  icon: assets/icons/icon.png
   target:
     - AppImage
     - deb
