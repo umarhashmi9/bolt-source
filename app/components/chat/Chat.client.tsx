@@ -321,17 +321,17 @@ export const ChatImpl = memo(
               const { assistantMessage, userMessage } = temResp;
               setMessages([
                 {
-                  id: `${new Date().getTime()}`,
+                  id: `1-${new Date().getTime()}`,
                   role: 'user',
                   content: messageContent,
                 },
                 {
-                  id: `${new Date().getTime()}`,
+                  id: `2-${new Date().getTime()}`,
                   role: 'assistant',
                   content: assistantMessage,
                 },
                 {
-                  id: `${new Date().getTime()}`,
+                  id: `3-${new Date().getTime()}`,
                   role: 'user',
                   content: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userMessage}`,
                   annotations: ['hidden'],
