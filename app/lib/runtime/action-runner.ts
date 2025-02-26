@@ -1,6 +1,6 @@
-import { WebContainer } from '@webcontainer/api';
+import type { WebContainer } from '@webcontainer/api';
+import { path } from '~/utils/path';
 import { atom, map, type MapStore } from 'nanostores';
-import * as nodePath from 'node:path';
 import type { ActionAlert, BoltAction } from '~/types/actions';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -70,6 +70,7 @@ export class ActionRunner {
   runnerId = atom<string>(`${Date.now()}`);
   actions: ActionsMap = map({});
   onAlert?: (alert: ActionAlert) => void;
+  buildOutput?: { path: string; exitCode: number; output: string };
 
   constructor(
     webcontainerPromise: Promise<WebContainer>,
@@ -154,6 +155,13 @@ export class ActionRunner {
         }
         case 'file': {
           await this.#runFileAction(action);
+          break;
+        }
+        case 'build': {
+          const buildOutput = await this.#runBuildAction(action);
+
+          // Store build output for deployment
+          this.buildOutput = buildOutput;
           break;
         }
         case 'start': {
@@ -276,9 +284,9 @@ export class ActionRunner {
     }
 
     const webcontainer = await this.#webcontainer;
-    const relativePath = nodePath.relative(webcontainer.workdir, action.filePath);
+    const relativePath = path.relative(webcontainer.workdir, action.filePath);
 
-    let folder = nodePath.dirname(relativePath);
+    let folder = path.dirname(relativePath);
 
     // remove trailing slashes
     folder = folder.replace(/\/+$/g, '');
@@ -303,5 +311,40 @@ export class ActionRunner {
     const actions = this.actions.get();
 
     this.actions.setKey(id, { ...actions[id], ...newState });
+  }
+
+  async #runBuildAction(action: ActionState) {
+    if (action.type !== 'build') {
+      unreachable('Expected build action');
+    }
+
+    const webcontainer = await this.#webcontainer;
+
+    // Create a new terminal specifically for the build
+    const buildProcess = await webcontainer.spawn('npm', ['run', 'build']);
+
+    let output = '';
+    buildProcess.output.pipeTo(
+      new WritableStream({
+        write(data) {
+          output += data;
+        },
+      }),
+    );
+
+    const exitCode = await buildProcess.exit;
+
+    if (exitCode !== 0) {
+      throw new ActionCommandError('Build Failed', output || 'No Output Available');
+    }
+
+    // Get the build output directory path
+    const buildDir = path.join(webcontainer.workdir, 'dist');
+
+    return {
+      path: buildDir,
+      exitCode,
+      output,
+    };
   }
 }
