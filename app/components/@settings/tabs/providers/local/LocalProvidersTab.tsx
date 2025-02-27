@@ -204,20 +204,33 @@ export default function LocalProvidersTab() {
        * This ensures the model selector in the chat interface is updated
        */
       if (forceRefresh && ollamaProvider && ollamaProvider.name) {
-        // First update with current settings to trigger a refresh
+        // First, temporarily disable the provider to clear the cache
+        const wasEnabled = ollamaProvider.settings.enabled;
+
+        // Disable to clear cache
         updateProviderSettings(ollamaProvider.name, {
           ...ollamaProvider.settings,
+          enabled: false,
         });
 
-        // For more reliable refresh, toggle enabled state with a delay
-        if (ollamaProvider.settings.enabled) {
-          // Schedule a second refresh after a short delay for reliability
-          setTimeout(() => {
-            updateProviderSettings(ollamaProvider.name, {
-              ...ollamaProvider.settings,
-            });
-          }, 500);
-        }
+        // Short delay before re-enabling
+        setTimeout(() => {
+          // Re-enable with original state
+          updateProviderSettings(ollamaProvider.name, {
+            ...ollamaProvider.settings,
+            enabled: wasEnabled,
+          });
+
+          // For more reliable refresh, do another update after a short delay
+          if (wasEnabled) {
+            setTimeout(() => {
+              updateProviderSettings(ollamaProvider.name, {
+                ...ollamaProvider.settings,
+                enabled: wasEnabled,
+              });
+            }, 500);
+          }
+        }, 100);
       }
     } catch (error) {
       console.error('Error fetching Ollama models:', error);
@@ -245,13 +258,20 @@ export default function LocalProvidersTab() {
       const ollamaProvider = filteredProviders.find((provider) => provider.name === 'Ollama');
       const baseUrl = ollamaProvider?.settings?.baseUrl || OLLAMA_API_URL;
 
+      // Use AbortController to set a timeout for the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for deletion
+
       const response = await fetch(`${baseUrl}/api/delete`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: modelName }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Failed to delete model: ${response.statusText}`);
@@ -262,21 +282,32 @@ export default function LocalProvidersTab() {
 
       // Force a refresh of the provider's dynamic models
       if (ollamaProvider && ollamaProvider.name) {
-        // Toggle the enabled state to force a refresh of the model list
-        const currentEnabledState = ollamaProvider.settings.enabled;
+        // First, temporarily disable the provider to clear the cache
+        const wasEnabled = ollamaProvider.settings.enabled;
 
-        // Temporarily disable
+        // Disable to clear cache
         updateProviderSettings(ollamaProvider.name, {
           ...ollamaProvider.settings,
           enabled: false,
         });
 
-        // Re-enable after a short delay
+        // Short delay before re-enabling
         setTimeout(() => {
+          // Re-enable with original state
           updateProviderSettings(ollamaProvider.name, {
             ...ollamaProvider.settings,
-            enabled: currentEnabledState,
+            enabled: wasEnabled,
           });
+
+          // For more reliable refresh, do another update after a short delay
+          if (wasEnabled) {
+            setTimeout(() => {
+              updateProviderSettings(ollamaProvider.name, {
+                ...ollamaProvider.settings,
+                enabled: wasEnabled,
+              });
+            }, 500);
+          }
         }, 100);
       }
 
