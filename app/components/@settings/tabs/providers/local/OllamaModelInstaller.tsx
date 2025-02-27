@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { classNames } from '~/utils/classNames';
 import { Progress } from '~/components/ui/Progress';
 import { useToast } from '~/components/ui/use-toast';
-import { useSettings } from '~/lib/hooks/useSettings';
+import { Button } from '~/components/ui/Button';
+import { Input } from '~/components/ui/Input';
+import { debounce } from '~/utils/debounce';
 
 // Create a CSS module for OllamaModelInstaller styles
 import '~/styles/components/ollama.scss';
 
 interface OllamaModelInstallerProps {
   onModelInstalled: () => void;
+  baseUrl?: string;
 }
 
 interface InstallProgress {
@@ -136,7 +139,10 @@ function OllamaIcon({ className }: { className?: string }) {
   );
 }
 
-export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelInstallerProps) {
+export default function OllamaModelInstaller({
+  onModelInstalled,
+  baseUrl = 'http://127.0.0.1:11434',
+}: OllamaModelInstallerProps) {
   const [modelString, setModelString] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isInstalling, setIsInstalling] = useState(false);
@@ -144,21 +150,39 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
   const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [models, setModels] = useState<ModelInfo[]>(POPULAR_MODELS);
+  const [lastCheckedUrl, setLastCheckedUrl] = useState<string>('');
+  const [checkError, setCheckError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { providers } = useSettings();
+  const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get base URL from provider settings
-  const baseUrl = providers?.Ollama?.settings?.baseUrl || 'http://127.0.0.1:11434';
+  // Function to check installed models and their versions with error handling
+  const checkInstalledModels = async (url: string, showToast = false) => {
+    // Don't check if we're already checking or installing
+    if (isChecking || isInstalling) {
+      return;
+    }
 
-  // Function to check installed models and their versions
-  const checkInstalledModels = async () => {
+    // Don't recheck if the URL hasn't changed and we've already checked recently
+    if (url === lastCheckedUrl && !showToast) {
+      return;
+    }
+
     try {
-      const response = await fetch(`${baseUrl}/api/tags`, {
+      setIsChecking(true);
+      setCheckError(null);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(`${url}/api/tags`, {
         method: 'GET',
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch installed models');
+        throw new Error(`Failed to fetch installed models: ${response.statusText}`);
       }
 
       const data = (await response.json()) as { models: Array<{ name: string; digest: string; latest: string }> };
@@ -181,28 +205,49 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
           return model;
         }),
       );
+
+      setLastCheckedUrl(url);
+
+      if (showToast) {
+        toast('Model versions checked');
+      }
     } catch (error) {
       console.error('Error checking installed models:', error);
-    }
-  };
+      setCheckError(error instanceof Error ? error.message : 'Unknown error');
 
-  // Check installed models on mount and after installation
-  useEffect(() => {
-    checkInstalledModels();
-  }, [baseUrl]);
-
-  const handleCheckUpdates = async () => {
-    setIsChecking(true);
-
-    try {
-      await checkInstalledModels();
-      toast('Model versions checked');
-    } catch (err) {
-      console.error('Failed to check model versions:', err);
-      toast('Failed to check model versions');
+      if (showToast) {
+        toast('Failed to check model versions');
+      }
     } finally {
       setIsChecking(false);
     }
+  };
+
+  // Debounced version of checkInstalledModels to prevent too many requests
+  const debouncedCheckModels = useRef(
+    debounce((url: string) => {
+      checkInstalledModels(url, false);
+    }, 1000),
+  ).current;
+
+  // Check installed models when baseUrl changes
+  useEffect(() => {
+    if (baseUrl) {
+      // Only check models on initial mount or when baseUrl changes
+      if (lastCheckedUrl !== baseUrl) {
+        debouncedCheckModels(baseUrl);
+      }
+    }
+
+    return () => {
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+    };
+  }, [baseUrl]);
+
+  const handleCheckUpdates = async () => {
+    await checkInstalledModels(baseUrl, true);
   };
 
   const filteredModels = models.filter((model) => {
@@ -216,7 +261,7 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
   });
 
   const handleInstallModel = async (modelToInstall: string) => {
-    if (!modelToInstall) {
+    if (!modelToInstall || isInstalling) {
       return;
     }
 
@@ -232,13 +277,19 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
       setModelString('');
       setSearchQuery('');
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for large models
+
       const response = await fetch(`${baseUrl}/api/pull`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: modelToInstall }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -292,8 +343,15 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
 
       toast('Successfully installed ' + modelToInstall + '. The model list will refresh automatically.');
 
-      // Ensure we call onModelInstalled after successful installation
-      setTimeout(() => {
+      /*
+       * Ensure we call onModelInstalled after successful installation
+       * Use a small delay to ensure the server has time to register the new model
+       */
+      checkTimeoutRef.current = setTimeout(() => {
+        // Reset the URL check to force a recheck on next render
+        setLastCheckedUrl('');
+
+        // This single call will update both the UI and the model selector
         onModelInstalled();
       }, 1000);
     } catch (err) {
@@ -307,8 +365,15 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
   };
 
   const handleUpdateModel = async (modelToUpdate: string) => {
+    if (isInstalling) {
+      return;
+    }
+
     try {
       setModels((prev) => prev.map((m) => (m.name === modelToUpdate ? { ...m, status: 'updating' } : m)));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout for large models
 
       const response = await fetch(`${baseUrl}/api/pull`, {
         method: 'POST',
@@ -316,7 +381,10 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: modelToUpdate }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -371,7 +439,16 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
       toast('Successfully updated ' + modelToUpdate);
 
       // Refresh model list after update
-      await checkInstalledModels();
+      checkTimeoutRef.current = setTimeout(() => {
+        // Reset the URL check to force a recheck
+        setLastCheckedUrl('');
+
+        // Check installed models to update the UI
+        checkInstalledModels(baseUrl, false);
+
+        // Notify parent component to refresh the model selector
+        onModelInstalled();
+      }, 1000);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       console.error(`Error updating ${modelToUpdate}:`, errorMessage);
@@ -379,6 +456,65 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
       setModels((prev) => prev.map((m) => (m.name === modelToUpdate ? { ...m, status: 'error' } : m)));
     } finally {
       setInstallProgress(null);
+    }
+  };
+
+  // Add a function to handle model deletion
+  const handleDeleteModel = async (modelName: string) => {
+    if (isInstalling) {
+      return;
+    }
+
+    try {
+      // Update UI to show deletion in progress
+      setModels((prev) => prev.map((m) => (m.name === modelName ? { ...m, status: 'updating' } : m)));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(`${baseUrl}/api/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: modelName }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete model: ${response.statusText}`);
+      }
+
+      // Remove the model from the local state immediately
+      setModels((prev) =>
+        prev.map((m) =>
+          m.name === modelName
+            ? { ...m, installedVersion: undefined, needsUpdate: false, latestVersion: undefined }
+            : m,
+        ),
+      );
+
+      toast(`Successfully deleted ${modelName}`);
+
+      // Force a refresh of the model list
+      setLastCheckedUrl(''); // Reset the URL check to force a refresh
+
+      // First immediate refresh
+      onModelInstalled();
+
+      // Second refresh after a delay to ensure the model selector is updated
+      setTimeout(() => {
+        onModelInstalled();
+      }, 1000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error(`Error deleting ${modelName}:`, errorMessage);
+      toast(`Failed to delete ${modelName}. ${errorMessage}`);
+
+      // Reset the model status
+      setModels((prev) => prev.map((m) => (m.name === modelName ? { ...m, status: 'error' } : m)));
     }
   };
 
@@ -394,27 +530,42 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
             <p className="installer-subtitle">Install and manage your Ollama models</p>
           </div>
         </div>
-        <motion.button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleCheckUpdates}
           className={classNames('check-updates-btn', {
             updating: isChecking,
           })}
-          disabled={isChecking}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+          disabled={isChecking || isInstalling}
         >
           {isChecking ? (
-            <div className="i-ph:spinner-gap-bold animate-spin" />
+            <div className="i-ph:spinner-gap-bold animate-spin mr-2" />
           ) : (
-            <div className="i-ph:arrows-clockwise" />
+            <div className="i-ph:arrows-clockwise mr-2" />
           )}
           Check Updates
-        </motion.button>
+        </Button>
       </div>
+
+      {checkError && (
+        <div className="connection-error">
+          <div className="i-ph:warning-circle error-icon" />
+          <span>Connection error: {checkError}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => checkInstalledModels(baseUrl, true)}
+            className="retry-button"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div className="search-container">
         <div className="search-input-wrapper">
-          <input
+          <Input
             type="text"
             className="search-input"
             placeholder="Search models or enter custom model name..."
@@ -435,33 +586,35 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
             and copy model names to install
           </p>
         </div>
-        <motion.button
+        <Button
+          variant="default"
+          size="sm"
           onClick={() => handleInstallModel(modelString)}
           className={classNames('install-btn', {
             disabled: !modelString || isInstalling,
           })}
           disabled={!modelString || isInstalling}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
         >
           {isInstalling ? (
             <div className="btn-content">
-              <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
+              <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4 mr-2" />
               <span>Installing...</span>
             </div>
           ) : (
             <div className="btn-content">
-              <OllamaIcon className="btn-icon" />
+              <OllamaIcon className="btn-icon mr-2" />
               <span>Install Model</span>
             </div>
           )}
-        </motion.button>
+        </Button>
       </div>
 
       <div className="tag-filters">
         {allTags.map((tag) => (
-          <button
+          <Button
             key={tag}
+            variant="outline"
+            size="sm"
             onClick={() => {
               setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
             }}
@@ -470,71 +623,122 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
             })}
           >
             {tag}
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="model-grid">
-        {filteredModels.map((model) => (
-          <motion.div key={model.name} className="model-card">
-            <OllamaIcon className="model-icon" />
-            <div className="model-details">
-              <div className="model-header">
-                <div>
-                  <p className="model-name">{model.name}</p>
-                  <p className="model-description">{model.desc}</p>
+        {isChecking ? (
+          <div className="models-loading">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="model-placeholder" />
+            ))}
+          </div>
+        ) : filteredModels.length === 0 ? (
+          <div className="models-empty">
+            <div className="i-ph:cube-transparent empty-icon" />
+            <p className="empty-message">No models found matching your search</p>
+            <p className="empty-help">Try a different search term or tag filter</p>
+          </div>
+        ) : (
+          filteredModels.map((model) => (
+            <motion.div
+              key={model.name}
+              className={classNames('model-card', {
+                'model-installed': !!model.installedVersion,
+                'model-updating': model.status === 'updating',
+                'model-error': model.status === 'error',
+              })}
+            >
+              <OllamaIcon className="model-icon" />
+              <div className="model-details">
+                <div className="model-header">
+                  <div>
+                    <p className="model-name">{model.name}</p>
+                    <p className="model-description">{model.desc}</p>
+                  </div>
+                  <div className="model-meta">
+                    <span className="model-size">{model.size}</span>
+                    {model.installedVersion && (
+                      <div className="model-version-info">
+                        <span className="model-installed-version">v{model.installedVersion}</span>
+                        {model.needsUpdate && model.latestVersion && (
+                          <span className="model-update-available">v{model.latestVersion} available</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="model-meta">
-                  <span className="model-size">{model.size}</span>
-                  {model.installedVersion && (
-                    <div className="model-version-info">
-                      <span className="model-installed-version">v{model.installedVersion}</span>
-                      {model.needsUpdate && model.latestVersion && (
-                        <span className="model-update-available">v{model.latestVersion} available</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="model-footer">
-                <div className="model-tags">
-                  {model.tags.map((tag) => (
-                    <span key={tag} className="model-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="model-actions">
-                  {model.installedVersion ? (
-                    model.needsUpdate ? (
-                      <motion.button
-                        onClick={() => handleUpdateModel(model.name)}
-                        className="update-model-btn"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <div className="i-ph:arrows-clockwise text-xs" />
-                        Update
-                      </motion.button>
+                <div className="model-footer">
+                  <div className="model-tags">
+                    {model.tags.map((tag) => (
+                      <span key={tag} className="model-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="model-actions">
+                    {model.installedVersion ? (
+                      model.needsUpdate ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUpdateModel(model.name)}
+                          className="update-model-btn"
+                          disabled={model.status === 'updating' || isInstalling}
+                        >
+                          {model.status === 'updating' ? (
+                            <>
+                              <div className="i-ph:spinner-gap-bold animate-spin mr-1" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <div className="i-ph:arrows-clockwise mr-1" />
+                              Update
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="model-installed-actions">
+                          <span className="model-up-to-date">
+                            <div className="i-ph:check-circle mr-1" />
+                            Up to date
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete ${model.name}?`)) {
+                                handleDeleteModel(model.name);
+                              }
+                            }}
+                            className="delete-model-btn"
+                            disabled={model.status === 'updating' || isInstalling}
+                          >
+                            <div className="i-ph:trash mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      )
                     ) : (
-                      <span className="model-up-to-date">Up to date</span>
-                    )
-                  ) : (
-                    <motion.button
-                      onClick={() => handleInstallModel(model.name)}
-                      className="install-model-btn"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="i-ph:download text-xs" />
-                      Install
-                    </motion.button>
-                  )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleInstallModel(model.name)}
+                        className="install-model-btn"
+                        disabled={isInstalling}
+                      >
+                        <div className="i-ph:download mr-1" />
+                        Install
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))
+        )}
       </div>
 
       {installProgress && (

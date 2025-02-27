@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Switch } from '~/components/ui/Switch';
 import { useSettings } from '~/lib/hooks/useSettings';
 import { LOCAL_PROVIDERS, URL_CONFIGURABLE_PROVIDERS } from '~/lib/stores/settings';
@@ -14,6 +14,9 @@ import { Progress } from '~/components/ui/Progress';
 import OllamaModelInstaller from './OllamaModelInstaller';
 import { classNames } from '~/utils/classNames';
 import { FaServer } from 'react-icons/fa';
+import { Button } from '~/components/ui/Button';
+import { Input } from '~/components/ui/Input';
+import { FiLink, FiCheck, FiX, FiEdit2 } from 'react-icons/fi';
 
 // Add type for provider names to ensure type safety
 type ProviderName = 'Ollama' | 'LMStudio' | 'OpenAILike';
@@ -78,7 +81,13 @@ export default function LocalProvidersTab() {
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
+  const [urlInputValue, setUrlInputValue] = useState<string>('');
+  const [urlInputError, setUrlInputError] = useState<string | null>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Add a ref to track if we've already fetched models
+  const lastFetchRef = useRef(false);
 
   // Effect to filter and sort providers
   useEffect(() => {
@@ -144,16 +153,43 @@ export default function LocalProvidersTab() {
   useEffect(() => {
     const ollamaProvider = filteredProviders.find((p) => p.name === 'Ollama');
 
+    /*
+     * Only fetch models when the Ollama provider is enabled
+     * This prevents unnecessary refreshes when other providers change
+     */
     if (ollamaProvider?.settings.enabled) {
-      fetchOllamaModels();
-    }
-  }, [filteredProviders]);
+      // Use a ref to track if this is the initial load
+      const isInitialLoad = !lastFetchRef.current;
+      lastFetchRef.current = true;
 
-  const fetchOllamaModels = async () => {
+      // Only fetch on initial load or when explicitly enabled
+      if (isInitialLoad) {
+        fetchOllamaModels(false); // Don't force refresh on initial load
+      }
+    }
+  }, [filteredProviders.find((p) => p.name === 'Ollama')?.settings.enabled]);
+
+  const fetchOllamaModels = async (forceRefresh = true) => {
     try {
       setIsLoadingModels(true);
 
-      const response = await fetch('http://127.0.0.1:11434/api/tags');
+      const ollamaProvider = filteredProviders.find((p) => p.name === 'Ollama');
+      const baseUrl = ollamaProvider?.settings?.baseUrl || OLLAMA_API_URL;
+
+      // Use AbortController to set a timeout for the fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(`${baseUrl}/api/tags`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Ollama models: ${response.statusText}`);
+      }
+
       const data = (await response.json()) as { models: OllamaModel[] };
 
       setOllamaModels(
@@ -162,76 +198,197 @@ export default function LocalProvidersTab() {
           status: 'idle' as const,
         })),
       );
+
+      /*
+       * Force a refresh of the provider's dynamic models when models are fetched
+       * This ensures the model selector in the chat interface is updated
+       */
+      if (forceRefresh && ollamaProvider && ollamaProvider.name) {
+        // First update with current settings to trigger a refresh
+        updateProviderSettings(ollamaProvider.name, {
+          ...ollamaProvider.settings,
+        });
+
+        // For more reliable refresh, toggle enabled state with a delay
+        if (ollamaProvider.settings.enabled) {
+          // Schedule a second refresh after a short delay for reliability
+          setTimeout(() => {
+            updateProviderSettings(ollamaProvider.name, {
+              ...ollamaProvider.settings,
+            });
+          }, 500);
+        }
+      }
     } catch (error) {
       console.error('Error fetching Ollama models:', error);
+
+      // Show a toast with the error
+      toast(`Error fetching models: ${error instanceof Error ? error.message : 'Unknown error occurred'}`, {
+        type: 'error',
+      });
+
+      // Clear the models list to indicate there was an error
+      setOllamaModels([]);
     } finally {
       setIsLoadingModels(false);
     }
   };
 
-  const updateOllamaModel = async (modelName: string): Promise<boolean> => {
+  const handleDeleteOllamaModel = async (modelName: string) => {
     try {
-      const response = await fetch(`${OLLAMA_API_URL}/api/pull`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      setOllamaModels((prevModels) =>
+        prevModels.map((model) =>
+          model.name === modelName ? { ...model, status: 'updating', error: undefined } : model,
+        ),
+      );
+
+      const ollamaProvider = filteredProviders.find((provider) => provider.name === 'Ollama');
+      const baseUrl = ollamaProvider?.settings?.baseUrl || OLLAMA_API_URL;
+
+      const response = await fetch(`${baseUrl}/api/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ name: modelName }),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update ${modelName}`);
+        throw new Error(`Failed to delete model: ${response.statusText}`);
       }
 
-      const reader = response.body?.getReader();
+      // Remove the model from the local state
+      setOllamaModels((prevModels) => prevModels.filter((model) => model.name !== modelName));
 
-      if (!reader) {
-        throw new Error('No response reader available');
+      // Force a refresh of the provider's dynamic models
+      if (ollamaProvider && ollamaProvider.name) {
+        // Toggle the enabled state to force a refresh of the model list
+        const currentEnabledState = ollamaProvider.settings.enabled;
+
+        // Temporarily disable
+        updateProviderSettings(ollamaProvider.name, {
+          ...ollamaProvider.settings,
+          enabled: false,
+        });
+
+        // Re-enable after a short delay
+        setTimeout(() => {
+          updateProviderSettings(ollamaProvider.name, {
+            ...ollamaProvider.settings,
+            enabled: currentEnabledState,
+          });
+        }, 100);
       }
 
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const text = new TextDecoder().decode(value);
-        const lines = text.split('\n').filter(Boolean);
-
-        for (const line of lines) {
-          const rawData = JSON.parse(line);
-
-          if (!isOllamaPullResponse(rawData)) {
-            console.error('Invalid response format:', rawData);
-            continue;
-          }
-
-          setOllamaModels((current) =>
-            current.map((m) =>
-              m.name === modelName
-                ? {
-                    ...m,
-                    progress: {
-                      current: rawData.completed || 0,
-                      total: rawData.total || 0,
-                      status: rawData.status,
-                    },
-                    newDigest: rawData.digest,
-                  }
-                : m,
-            ),
-          );
-        }
-      }
-
-      const updatedResponse = await fetch('http://127.0.0.1:11434/api/tags');
-      const updatedData = (await updatedResponse.json()) as { models: OllamaModel[] };
-      const updatedModel = updatedData.models.find((m) => m.name === modelName);
-
-      return updatedModel !== undefined;
+      toast(`${modelName} has been deleted successfully.`);
     } catch (error) {
-      console.error(`Error updating ${modelName}:`, error);
-      return false;
+      console.error('Error deleting model:', error);
+
+      setOllamaModels((prevModels) =>
+        prevModels.map((model) =>
+          model.name === modelName
+            ? {
+                ...model,
+                status: 'error',
+                error: error instanceof Error ? error.message : 'Failed to delete model',
+              }
+            : model,
+        ),
+      );
+
+      toast(`Error deleting model: ${error instanceof Error ? error.message : 'Failed to delete model'}`, {
+        type: 'error',
+      });
     }
+  };
+
+  const validateUrlInput = (url: string): { isValid: boolean; errorMessage?: string } => {
+    if (!url) {
+      return { isValid: false, errorMessage: 'URL cannot be empty' };
+    }
+
+    try {
+      const parsedUrl = new URL(url);
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return { isValid: false, errorMessage: 'URL must use http or https protocol' };
+      }
+
+      return { isValid: true };
+    } catch (_) {
+      return { isValid: false, errorMessage: 'Invalid URL format' };
+    }
+  };
+
+  const checkOllamaConnection = async (url: string): Promise<{ isConnected: boolean; errorMessage?: string }> => {
+    try {
+      setIsLoadingModels(true);
+
+      // Add a timeout to prevent hanging on connection issues
+      const response = await fetch(`${url}/api/tags`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        return {
+          isConnected: false,
+          errorMessage: `Connection failed: ${response.statusText}`,
+        };
+      }
+
+      return { isConnected: true };
+    } catch (error) {
+      console.error('Connection check error:', error);
+
+      return {
+        isConnected: false,
+        errorMessage:
+          error instanceof Error ? `Connection failed: ${error.message}` : 'Connection failed: Unknown error',
+      };
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  const handleUrlChange = async () => {
+    // Validate URL format first
+    const validation = validateUrlInput(urlInputValue);
+
+    if (!validation.isValid) {
+      setUrlInputError(validation.errorMessage || null);
+      return;
+    }
+
+    // Check connection to Ollama
+    const connectionCheck = await checkOllamaConnection(urlInputValue);
+
+    if (!connectionCheck.isConnected) {
+      setUrlInputError(connectionCheck.errorMessage || null);
+      return;
+    }
+
+    // Find the Ollama provider
+    const ollamaProvider = filteredProviders.find((p: IProviderConfig) => p.name === 'Ollama');
+
+    if (ollamaProvider && ollamaProvider.name) {
+      // Update provider settings
+      updateProviderSettings(ollamaProvider.name, {
+        ...ollamaProvider.settings,
+        baseUrl: urlInputValue,
+      });
+    }
+
+    setEditingProvider(null);
+    setUrlInputError(null);
+
+    // Refresh models with new URL
+    fetchOllamaModels();
+
+    toast(`Ollama base URL has been updated to ${urlInputValue}`);
   };
 
   const handleToggleCategory = useCallback(
@@ -259,15 +416,6 @@ export default function LocalProvidersTab() {
     }
   };
 
-  const handleUpdateBaseUrl = (provider: IProviderConfig, newBaseUrl: string) => {
-    updateProviderSettings(provider.name, {
-      ...provider.settings,
-      baseUrl: newBaseUrl,
-    });
-    toast(`${provider.name} base URL updated`);
-    setEditingProvider(null);
-  };
-
   const handleUpdateOllamaModel = async (modelName: string) => {
     const updateSuccess = await updateOllamaModel(modelName);
 
@@ -275,29 +423,6 @@ export default function LocalProvidersTab() {
       toast(`Updated ${modelName}`);
     } else {
       toast(`Failed to update ${modelName}`);
-    }
-  };
-
-  const handleDeleteOllamaModel = async (modelName: string) => {
-    try {
-      const response = await fetch(`${OLLAMA_API_URL}/api/delete`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: modelName }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete ${modelName}`);
-      }
-
-      setOllamaModels((current) => current.filter((m) => m.name !== modelName));
-      toast(`Deleted ${modelName}`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      console.error(`Error deleting ${modelName}:`, errorMessage);
-      toast(`Failed to delete ${modelName}`);
     }
   };
 
@@ -323,46 +448,99 @@ export default function LocalProvidersTab() {
     </div>
   );
 
-  // Update model actions to not use Tooltip
-  const ModelActions = ({
-    model,
-    onUpdate,
-    onDelete,
-  }: {
-    model: OllamaModel;
-    onUpdate: () => void;
-    onDelete: () => void;
-  }) => (
-    <div className="model-actions">
-      <motion.button
-        onClick={onUpdate}
-        disabled={model.status === 'updating'}
-        className={`action-button update ${model.status === 'updating' ? 'disabled' : ''}`}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        title="Update model"
-      >
-        {model.status === 'updating' ? (
-          <div className="update-text">
-            <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
-            <span className="text-sm">Updating...</span>
-          </div>
-        ) : (
-          <div className="i-ph:arrows-clockwise text-lg" />
-        )}
-      </motion.button>
-      <motion.button
-        onClick={onDelete}
-        disabled={model.status === 'updating'}
-        className={`action-button delete ${model.status === 'updating' ? 'disabled' : ''}`}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        title="Delete model"
-      >
-        <div className="i-ph:trash text-lg" />
-      </motion.button>
-    </div>
-  );
+  // Enhanced model update function with better error handling
+  const updateOllamaModel = async (modelName: string): Promise<boolean> => {
+    const provider = filteredProviders.find((p) => p.name === 'Ollama');
+
+    if (!provider) {
+      return false;
+    }
+
+    const baseUrl = provider.settings.baseUrl || OLLAMA_API_URL;
+
+    try {
+      // Update model status to updating
+      setOllamaModels((current) => current.map((m) => (m.name === modelName ? { ...m, status: 'updating' } : m)));
+
+      const response = await fetch(`${baseUrl}/api/pull`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: modelName }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update ${modelName}: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+
+      if (!reader) {
+        throw new Error('No response reader available');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        const text = new TextDecoder().decode(value);
+        const lines = text.split('\n').filter(Boolean);
+
+        for (const line of lines) {
+          try {
+            const rawData = JSON.parse(line);
+
+            if (!isOllamaPullResponse(rawData)) {
+              console.error('Invalid response format:', rawData);
+              continue;
+            }
+
+            setOllamaModels((current) =>
+              current.map((m) =>
+                m.name === modelName
+                  ? {
+                      ...m,
+                      progress: {
+                        current: rawData.completed || 0,
+                        total: rawData.total || 0,
+                        status: rawData.status,
+                      },
+                      newDigest: rawData.digest,
+                    }
+                  : m,
+              ),
+            );
+          } catch (err) {
+            console.error('Error parsing response line:', err);
+          }
+        }
+      }
+
+      // Refresh models list after update
+      await fetchOllamaModels();
+
+      return true;
+    } catch (error) {
+      console.error(`Error updating ${modelName}:`, error);
+
+      // Update model status to error
+      setOllamaModels((current) =>
+        current.map((m) =>
+          m.name === modelName
+            ? {
+                ...m,
+                status: 'error',
+                error: error instanceof Error ? error.message : 'Unknown error',
+              }
+            : m,
+        ),
+      );
+
+      return false;
+    }
+  };
 
   return (
     <div className="local-providers" role="region" aria-label="Local Providers Configuration">
@@ -404,7 +582,6 @@ export default function LocalProvidersTab() {
               className="provider-card"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.01 }}
             >
               {/* Provider Header */}
               <div className="provider-header">
@@ -434,7 +611,7 @@ export default function LocalProvidersTab() {
                 />
               </div>
 
-              {/* URL Configuration Section */}
+              {/* Enhanced URL Configuration Section */}
               <AnimatePresence>
                 {provider.settings.enabled && (
                   <motion.div
@@ -443,36 +620,67 @@ export default function LocalProvidersTab() {
                     exit={{ opacity: 0, height: 0 }}
                     className="url-config"
                   >
-                    <label className="url-label">API Endpoint</label>
+                    <div className="url-config-header">
+                      <label className="url-label">API Endpoint</label>
+                      {urlInputError && <span className="url-error">{urlInputError}</span>}
+                    </div>
+
                     {editingProvider === provider.name ? (
-                      <input
-                        type="text"
-                        defaultValue={provider.settings.baseUrl || OLLAMA_API_URL}
-                        placeholder="Enter Ollama base URL"
-                        className="url-input"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleUpdateBaseUrl(provider, e.currentTarget.value);
-                          } else if (e.key === 'Escape') {
-                            setEditingProvider(null);
-                          }
-                        }}
-                        onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
-                        autoFocus
-                      />
+                      <div className="url-edit-container">
+                        <Input
+                          ref={urlInputRef}
+                          type="text"
+                          value={urlInputValue}
+                          onChange={(e) => setUrlInputValue(e.target.value)}
+                          placeholder="Enter Ollama base URL"
+                          className="url-input"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleUrlChange();
+                            } else if (e.key === 'Escape') {
+                              setEditingProvider(null);
+                            }
+                          }}
+                        />
+                        <div className="url-edit-actions">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleUrlChange}
+                            className="url-action-button confirm"
+                            aria-label="Confirm URL change"
+                          >
+                            <FiCheck />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingProvider(null)}
+                            className="url-action-button cancel"
+                            aria-label="Cancel URL change"
+                          >
+                            <FiX />
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <div onClick={() => setEditingProvider(provider.name)} className="url-display">
                         <div className="url-content">
-                          <div className="i-ph:link url-icon" />
+                          <FiLink className="url-icon" />
                           <span>{provider.settings.baseUrl || OLLAMA_API_URL}</span>
                         </div>
+                        <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
+                          <FiEdit2 size={16} />
+                        </Button>
                       </div>
                     )}
+
+                    <div className="url-help-text">The API endpoint should point to your Ollama server</div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Ollama Models Section */}
+              {/* Enhanced Ollama Models Section */}
               {provider.settings.enabled && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="models-section">
                   <div className="models-header">
@@ -486,7 +694,19 @@ export default function LocalProvidersTab() {
                         <span className="models-count">Loading models...</span>
                       </div>
                     ) : (
-                      <span className="models-count">{ollamaModels.length} models available</span>
+                      <div className="models-actions">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchOllamaModels(true)}
+                          className="refresh-models-button"
+                          disabled={isLoadingModels}
+                        >
+                          <div className="i-ph:arrows-clockwise mr-1" />
+                          Refresh
+                        </Button>
+                        <span className="models-count">{ollamaModels.length} models available</span>
+                      </div>
                     )}
                   </div>
 
@@ -516,54 +736,110 @@ export default function LocalProvidersTab() {
                         </p>
                       </div>
                     ) : (
-                      ollamaModels.map((model) => (
-                        <motion.div key={model.name} className="model-item" whileHover={{ scale: 1.01 }}>
-                          <div className="model-item-header">
-                            <div className="model-info">
-                              <div className="model-info-name">
-                                <h5>{model.name}</h5>
-                                {model.status && model.status !== 'idle' && (
-                                  <span className={classNames('model-status-badge', model.status)}>
-                                    {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+                      <div className="models-grid">
+                        {ollamaModels.map((model) => (
+                          <motion.div
+                            key={model.name}
+                            className={classNames('model-item', {
+                              'model-updating': model.status === 'updating',
+                              'model-error': model.status === 'error',
+                            })}
+                          >
+                            <div className="model-header">
+                              <div className="i-ph:robot model-icon" />
+                              <div className="model-info">
+                                <div className="model-info-name">
+                                  <h5>{model.name}</h5>
+                                  {model.status && model.status !== 'idle' && (
+                                    <span className={classNames('model-status-badge', model.status)}>
+                                      {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+                                    </span>
+                                  )}
+                                </div>
+                                <ModelDetails model={model} />
+                              </div>
+                            </div>
+
+                            {model.error && (
+                              <div className="model-error-message">
+                                <FiX className="error-icon" />
+                                <span>{model.error}</span>
+                              </div>
+                            )}
+
+                            {model.progress && (
+                              <div className="model-progress">
+                                <div className="progress-info">
+                                  <span className="progress-status">{model.progress.status}</span>
+                                  <span className="progress-percentage">
+                                    {Math.round((model.progress.current / model.progress.total) * 100)}%
                                   </span>
+                                </div>
+                                <Progress
+                                  value={Math.round((model.progress.current / model.progress.total) * 100)}
+                                  className="progress-bar"
+                                />
+                              </div>
+                            )}
+
+                            <div className="model-actions">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUpdateOllamaModel(model.name)}
+                                disabled={model.status === 'updating'}
+                                className={classNames('action-button update', {
+                                  disabled: model.status === 'updating',
+                                })}
+                                aria-label="Update model"
+                              >
+                                {model.status === 'updating' ? (
+                                  <div className="update-text">
+                                    <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
+                                    <span className="text-sm">Updating...</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="i-ph:arrows-clockwise text-lg mr-1" />
+                                    Update
+                                  </>
                                 )}
-                              </div>
-                              <ModelDetails model={model} />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to delete ${model.name}?`)) {
+                                    handleDeleteOllamaModel(model.name);
+                                  }
+                                }}
+                                disabled={model.status === 'updating'}
+                                className={classNames('action-button delete', {
+                                  disabled: model.status === 'updating',
+                                })}
+                                aria-label="Delete model"
+                              >
+                                <div className="i-ph:trash text-lg mr-1" />
+                                Delete
+                              </Button>
                             </div>
-                            <ModelActions
-                              model={model}
-                              onUpdate={() => handleUpdateOllamaModel(model.name)}
-                              onDelete={() => {
-                                if (window.confirm(`Are you sure you want to delete ${model.name}?`)) {
-                                  handleDeleteOllamaModel(model.name);
-                                }
-                              }}
-                            />
-                          </div>
-                          {model.progress && (
-                            <div className="model-progress">
-                              <div className="progress-info">
-                                <span className="progress-status">{model.progress.status}</span>
-                                <span className="progress-percentage">
-                                  {Math.round((model.progress.current / model.progress.total) * 100)}%
-                                </span>
-                              </div>
-                              <Progress value={Math.round((model.progress.current / model.progress.total) * 100)} />
-                            </div>
-                          )}
-                        </motion.div>
-                      ))
+                          </motion.div>
+                        ))}
+                      </div>
                     )}
                   </div>
 
                   {/* Model Installation Section */}
-                  <OllamaModelInstaller onModelInstalled={fetchOllamaModels} />
+                  <OllamaModelInstaller
+                    onModelInstalled={fetchOllamaModels}
+                    baseUrl={provider.settings.baseUrl || OLLAMA_API_URL}
+                  />
                 </motion.div>
               )}
             </motion.div>
           ))}
 
-        {/* Other Providers Section */}
+        {/* Other Providers Section - Enhanced URL Configuration */}
         <div className="other-providers">
           <h3 className="section-title">Other Local Providers</h3>
           <div className="providers-grid">
@@ -576,7 +852,6 @@ export default function LocalProvidersTab() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.01 }}
                 >
                   {/* Provider Header */}
                   <div className="provider-header">
@@ -611,7 +886,7 @@ export default function LocalProvidersTab() {
                     />
                   </div>
 
-                  {/* URL Configuration Section */}
+                  {/* Enhanced URL Configuration Section */}
                   <AnimatePresence>
                     {provider.settings.enabled && URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && (
                       <motion.div
@@ -620,31 +895,66 @@ export default function LocalProvidersTab() {
                         exit={{ opacity: 0, height: 0 }}
                         className="url-config"
                       >
-                        <label className="url-label">API Endpoint</label>
+                        <div className="url-config-header">
+                          <label className="url-label">API Endpoint</label>
+                          {urlInputError && editingProvider === provider.name && (
+                            <span className="url-error">{urlInputError}</span>
+                          )}
+                        </div>
+
                         {editingProvider === provider.name ? (
-                          <input
-                            type="text"
-                            defaultValue={provider.settings.baseUrl}
-                            placeholder={`Enter ${provider.name} base URL`}
-                            className="url-input"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleUpdateBaseUrl(provider, e.currentTarget.value);
-                              } else if (e.key === 'Escape') {
-                                setEditingProvider(null);
-                              }
-                            }}
-                            onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
-                            autoFocus
-                          />
+                          <div className="url-edit-container">
+                            <Input
+                              ref={urlInputRef}
+                              type="text"
+                              value={urlInputValue}
+                              onChange={(e) => setUrlInputValue(e.target.value)}
+                              placeholder={`Enter ${provider.name} base URL`}
+                              className="url-input"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleUrlChange();
+                                } else if (e.key === 'Escape') {
+                                  setEditingProvider(null);
+                                }
+                              }}
+                            />
+                            <div className="url-edit-actions">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleUrlChange}
+                                className="url-action-button confirm"
+                                aria-label="Confirm URL change"
+                              >
+                                <FiCheck />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingProvider(null)}
+                                className="url-action-button cancel"
+                                aria-label="Cancel URL change"
+                              >
+                                <FiX />
+                              </Button>
+                            </div>
+                          </div>
                         ) : (
                           <div onClick={() => setEditingProvider(provider.name)} className="url-display">
                             <div className="url-content">
-                              <div className="i-ph:link url-icon" />
-                              <span>{provider.settings.baseUrl || 'Click to set base URL'}</span>
+                              <FiLink className="url-icon" />
+                              <span>{provider.settings.baseUrl || `Click to set ${provider.name} base URL`}</span>
                             </div>
+                            <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
+                              <FiEdit2 size={16} />
+                            </Button>
                           </div>
                         )}
+
+                        <div className="url-help-text">
+                          The API endpoint should point to your {provider.name} server
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
