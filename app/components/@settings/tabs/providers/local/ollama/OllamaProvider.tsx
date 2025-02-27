@@ -10,6 +10,8 @@ import { useModelList } from '~/components/@settings/tabs/providers/local/common
 import { motion } from 'framer-motion';
 import { BsRobot } from 'react-icons/bs';
 import { cn } from '~/utils/classNames';
+import OllamaModelInstaller from '~/components/@settings/tabs/providers/local/OllamaModelInstaller';
+import { Dialog, DialogRoot } from '~/components/ui/Dialog';
 
 interface OllamaProviderProps {
   onSettingsChange?: (settings: ProviderSettings) => void;
@@ -22,6 +24,7 @@ export default function OllamaProvider({ onSettingsChange: _onSettingsChange }: 
   const [urlInput, setUrlInput] = React.useState(settings?.baseUrl || 'http://localhost:11434');
   const [error, setError] = React.useState<string | null>(null);
   const [modelProgress, setModelProgress] = React.useState<Record<string, number>>({});
+  const [showModelInstaller, setShowModelInstaller] = React.useState(false);
 
   // Initialize API client when settings change
   React.useEffect(() => {
@@ -209,7 +212,12 @@ export default function OllamaProvider({ onSettingsChange: _onSettingsChange }: 
           {/* Models */}
           {isRunning && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-bolt-elements-textSecondary">Available Models</label>
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-bolt-elements-textSecondary">Available Models</label>
+                <Button size="sm" onClick={() => setShowModelInstaller(true)} className="text-sm">
+                  Advanced Model Installer
+                </Button>
+              </div>
               {error ? (
                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
                   {error}
@@ -276,6 +284,18 @@ export default function OllamaProvider({ onSettingsChange: _onSettingsChange }: 
           </div>
         </motion.div>
       )}
+
+      {/* Model Installer Dialog */}
+      <DialogRoot open={showModelInstaller} onOpenChange={setShowModelInstaller}>
+        <Dialog className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <OllamaModelInstaller
+            onModelInstalled={() => {
+              setShowModelInstaller(false);
+              refreshModels();
+            }}
+          />
+        </Dialog>
+      </DialogRoot>
     </div>
   );
 }
