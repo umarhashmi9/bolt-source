@@ -5,15 +5,15 @@ import { LOCAL_PROVIDERS, URL_CONFIGURABLE_PROVIDERS } from '~/lib/stores/settin
 import type { IProviderConfig } from '~/types/model';
 import { logStore } from '~/lib/stores/logs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { classNames } from '~/utils/classNames';
 import { BsRobot } from 'react-icons/bs';
 import type { IconType } from 'react-icons';
-import { BiChip } from 'react-icons/bi';
 import { TbBrandOpenai } from 'react-icons/tb';
 import { providerBaseUrlEnvKeys } from '~/utils/constants';
 import { useToast } from '~/components/ui/use-toast';
 import { Progress } from '~/components/ui/Progress';
 import OllamaModelInstaller from './OllamaModelInstaller';
+import { classNames } from '~/utils/classNames';
+import { FaServer } from 'react-icons/fa';
 
 // Add type for provider names to ensure type safety
 type ProviderName = 'Ollama' | 'LMStudio' | 'OpenAILike';
@@ -303,19 +303,19 @@ export default function LocalProvidersTab() {
 
   // Update model details display
   const ModelDetails = ({ model }: { model: OllamaModel }) => (
-    <div className="flex items-center gap-3 text-xs text-bolt-elements-textSecondary">
-      <div className="flex items-center gap-1">
-        <div className="i-ph:code text-purple-500" />
+    <div className="model-details">
+      <div className="model-detail">
+        <div className="i-ph:code detail-icon" />
         <span>{model.digest.substring(0, 7)}</span>
       </div>
       {model.details && (
         <>
-          <div className="flex items-center gap-1">
-            <div className="i-ph:database text-purple-500" />
+          <div className="model-detail">
+            <div className="i-ph:database detail-icon" />
             <span>{model.details.parameter_size}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <div className="i-ph:cube text-purple-500" />
+          <div className="model-detail">
+            <div className="i-ph:cube detail-icon" />
             <span>{model.details.quantization_level}</span>
           </div>
         </>
@@ -333,23 +333,17 @@ export default function LocalProvidersTab() {
     onUpdate: () => void;
     onDelete: () => void;
   }) => (
-    <div className="flex items-center gap-2">
+    <div className="model-actions">
       <motion.button
         onClick={onUpdate}
         disabled={model.status === 'updating'}
-        className={classNames(
-          'rounded-lg p-2',
-          'bg-purple-500/10 text-purple-500',
-          'hover:bg-purple-500/20',
-          'transition-all duration-200',
-          { 'opacity-50 cursor-not-allowed': model.status === 'updating' },
-        )}
+        className={`action-button update ${model.status === 'updating' ? 'disabled' : ''}`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         title="Update model"
       >
         {model.status === 'updating' ? (
-          <div className="flex items-center gap-2">
+          <div className="update-text">
             <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
             <span className="text-sm">Updating...</span>
           </div>
@@ -360,13 +354,7 @@ export default function LocalProvidersTab() {
       <motion.button
         onClick={onDelete}
         disabled={model.status === 'updating'}
-        className={classNames(
-          'rounded-lg p-2',
-          'bg-red-500/10 text-red-500',
-          'hover:bg-red-500/20',
-          'transition-all duration-200',
-          { 'opacity-50 cursor-not-allowed': model.status === 'updating' },
-        )}
+        className={`action-button delete ${model.status === 'updating' ? 'disabled' : ''}`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         title="Delete model"
@@ -377,47 +365,32 @@ export default function LocalProvidersTab() {
   );
 
   return (
-    <div
-      className={classNames(
-        'rounded-lg bg-bolt-elements-background text-bolt-elements-textPrimary shadow-sm p-4',
-        'hover:bg-bolt-elements-background-depth-2',
-        'transition-all duration-200',
-      )}
-      role="region"
-      aria-label="Local Providers Configuration"
-    >
+    <div className="local-providers" role="region" aria-label="Local Providers Configuration">
       <motion.div
-        className="space-y-6"
+        className="providers-container"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
         {/* Header section */}
-        <div className="flex items-center justify-between gap-4 border-b border-bolt-elements-borderColor pb-4">
-          <div className="flex items-center gap-3">
-            <motion.div
-              className={classNames(
-                'w-10 h-10 flex items-center justify-center rounded-xl',
-                'bg-purple-500/10 text-purple-500',
-              )}
-              whileHover={{ scale: 1.05 }}
-            >
-              <BiChip className="w-6 h-6" />
-            </motion.div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-bolt-elements-textPrimary">Local AI Models</h2>
-              </div>
-              <p className="text-sm text-bolt-elements-textSecondary">Configure and manage your local AI providers</p>
+        <div className="header-section">
+          <div className="header-content">
+            <div className="header-icon">
+              <FaServer />
+            </div>
+            <div className="header-text">
+              <h3 className="header-title">
+                Local Providers
+                <span className="provider-badge local">Local</span>
+              </h3>
+              <p className="header-description">Configure and manage local LLM providers</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-bolt-elements-textSecondary">Enable All</span>
+          <div className="toggle-all">
+            <span className="toggle-label">Enable All</span>
             <Switch
               checked={categoryEnabled}
-              onCheckedChange={handleToggleCategory}
-              aria-label="Toggle all local providers"
+              onCheckedChange={filteredProviders.length > 0 ? handleToggleCategory : undefined}
             />
           </div>
         </div>
@@ -428,40 +401,30 @@ export default function LocalProvidersTab() {
           .map((provider) => (
             <motion.div
               key={provider.name}
-              className={classNames(
-                'bg-bolt-elements-background-depth-2 rounded-xl',
-                'hover:bg-bolt-elements-background-depth-3',
-                'transition-all duration-200 p-5',
-                'relative overflow-hidden group',
-              )}
+              className="provider-card"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               whileHover={{ scale: 1.01 }}
             >
               {/* Provider Header */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <motion.div
-                    className={classNames(
-                      'w-12 h-12 flex items-center justify-center rounded-xl',
-                      'bg-bolt-elements-background-depth-3',
-                      provider.settings.enabled ? 'text-purple-500' : 'text-bolt-elements-textSecondary',
-                    )}
-                    whileHover={{ scale: 1.1, rotate: 5 }}
+              <div className="provider-header">
+                <div className="provider-info">
+                  <div
+                    className={classNames('provider-icon', {
+                      enabled: !!provider.settings.enabled,
+                    })}
                   >
                     {React.createElement(PROVIDER_ICONS[provider.name as ProviderName] || BsRobot, {
                       className: 'w-7 h-7',
                       'aria-label': `${provider.name} icon`,
                     })}
-                  </motion.div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-md font-semibold text-bolt-elements-textPrimary">{provider.name}</h3>
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">Local</span>
+                  </div>
+                  <div className="provider-text">
+                    <div className="provider-name">
+                      <h3>{provider.name}</h3>
+                      <span className="provider-badge local">Local</span>
                     </div>
-                    <p className="text-sm text-bolt-elements-textSecondary mt-1">
-                      {PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}
-                    </p>
+                    <p className="provider-description">{PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}</p>
                   </div>
                 </div>
                 <Switch
@@ -478,94 +441,73 @@ export default function LocalProvidersTab() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mt-4"
+                    className="url-config"
                   >
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm text-bolt-elements-textSecondary">API Endpoint</label>
-                      {editingProvider === provider.name ? (
-                        <input
-                          type="text"
-                          defaultValue={provider.settings.baseUrl || OLLAMA_API_URL}
-                          placeholder="Enter Ollama base URL"
-                          className={classNames(
-                            'w-full px-3 py-2 rounded-lg text-sm',
-                            'bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
-                            'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                            'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
-                            'transition-all duration-200',
-                          )}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleUpdateBaseUrl(provider, e.currentTarget.value);
-                            } else if (e.key === 'Escape') {
-                              setEditingProvider(null);
-                            }
-                          }}
-                          onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
-                          autoFocus
-                        />
-                      ) : (
-                        <div
-                          onClick={() => setEditingProvider(provider.name)}
-                          className={classNames(
-                            'w-full px-3 py-2 rounded-lg text-sm cursor-pointer',
-                            'bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
-                            'hover:border-purple-500/30 hover:bg-bolt-elements-background-depth-4',
-                            'transition-all duration-200',
-                          )}
-                        >
-                          <div className="flex items-center gap-2 text-bolt-elements-textSecondary">
-                            <div className="i-ph:link text-sm" />
-                            <span>{provider.settings.baseUrl || OLLAMA_API_URL}</span>
-                          </div>
+                    <label className="url-label">API Endpoint</label>
+                    {editingProvider === provider.name ? (
+                      <input
+                        type="text"
+                        defaultValue={provider.settings.baseUrl || OLLAMA_API_URL}
+                        placeholder="Enter Ollama base URL"
+                        className="url-input"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleUpdateBaseUrl(provider, e.currentTarget.value);
+                          } else if (e.key === 'Escape') {
+                            setEditingProvider(null);
+                          }
+                        }}
+                        onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
+                        autoFocus
+                      />
+                    ) : (
+                      <div onClick={() => setEditingProvider(provider.name)} className="url-display">
+                        <div className="url-content">
+                          <div className="i-ph:link url-icon" />
+                          <span>{provider.settings.baseUrl || OLLAMA_API_URL}</span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Ollama Models Section */}
               {provider.settings.enabled && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="i-ph:cube-duotone text-purple-500" />
-                      <h4 className="text-sm font-medium text-bolt-elements-textPrimary">Installed Models</h4>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="models-section">
+                  <div className="models-header">
+                    <div className="models-title">
+                      <div className="i-ph:cube-duotone models-icon" />
+                      <h4>Installed Models</h4>
                     </div>
                     {isLoadingModels ? (
                       <div className="flex items-center gap-2">
                         <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
-                        <span className="text-sm text-bolt-elements-textSecondary">Loading models...</span>
+                        <span className="models-count">Loading models...</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-bolt-elements-textSecondary">
-                        {ollamaModels.length} models available
-                      </span>
+                      <span className="models-count">{ollamaModels.length} models available</span>
                     )}
                   </div>
 
-                  <div className="space-y-3">
+                  <div>
                     {isLoadingModels ? (
-                      <div className="space-y-3">
+                      <div className="models-loading">
                         {Array.from({ length: 3 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="h-20 w-full bg-bolt-elements-background-depth-3 rounded-lg animate-pulse"
-                          />
+                          <div key={i} className="model-placeholder" />
                         ))}
                       </div>
                     ) : ollamaModels.length === 0 ? (
-                      <div className="text-center py-8 text-bolt-elements-textSecondary">
-                        <div className="i-ph:cube-transparent text-4xl mx-auto mb-2" />
-                        <p>No models installed yet</p>
-                        <p className="text-sm text-bolt-elements-textTertiary px-1">
+                      <div className="models-empty">
+                        <div className="i-ph:cube-transparent empty-icon" />
+                        <p className="empty-message">No models installed yet</p>
+                        <p className="empty-help">
                           Browse models at{' '}
                           <a
                             href="https://ollama.com/library"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-purple-500 hover:underline inline-flex items-center gap-0.5 text-base font-medium"
+                            className="library-link"
                           >
                             ollama.com/library
                             <div className="i-ph:arrow-square-out text-xs" />
@@ -575,21 +517,16 @@ export default function LocalProvidersTab() {
                       </div>
                     ) : (
                       ollamaModels.map((model) => (
-                        <motion.div
-                          key={model.name}
-                          className={classNames(
-                            'p-4 rounded-xl',
-                            'bg-bolt-elements-background-depth-3',
-                            'hover:bg-bolt-elements-background-depth-4',
-                            'transition-all duration-200',
-                          )}
-                          whileHover={{ scale: 1.01 }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <h5 className="text-sm font-medium text-bolt-elements-textPrimary">{model.name}</h5>
-                                <ModelStatusBadge status={model.status} />
+                        <motion.div key={model.name} className="model-item" whileHover={{ scale: 1.01 }}>
+                          <div className="model-item-header">
+                            <div className="model-info">
+                              <div className="model-info-name">
+                                <h5>{model.name}</h5>
+                                {model.status && model.status !== 'idle' && (
+                                  <span className={classNames('model-status-badge', model.status)}>
+                                    {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+                                  </span>
+                                )}
                               </div>
                               <ModelDetails model={model} />
                             </div>
@@ -604,15 +541,14 @@ export default function LocalProvidersTab() {
                             />
                           </div>
                           {model.progress && (
-                            <div className="mt-3">
-                              <Progress
-                                value={Math.round((model.progress.current / model.progress.total) * 100)}
-                                className="h-1"
-                              />
-                              <div className="flex justify-between mt-1 text-xs text-bolt-elements-textSecondary">
-                                <span>{model.progress.status}</span>
-                                <span>{Math.round((model.progress.current / model.progress.total) * 100)}%</span>
+                            <div className="model-progress">
+                              <div className="progress-info">
+                                <span className="progress-status">{model.progress.status}</span>
+                                <span className="progress-percentage">
+                                  {Math.round((model.progress.current / model.progress.total) * 100)}%
+                                </span>
                               </div>
+                              <Progress value={Math.round((model.progress.current / model.progress.total) * 100)} />
                             </div>
                           )}
                         </motion.div>
@@ -628,58 +564,44 @@ export default function LocalProvidersTab() {
           ))}
 
         {/* Other Providers Section */}
-        <div className="border-t border-bolt-elements-borderColor pt-6 mt-8">
-          <h3 className="text-lg font-semibold text-bolt-elements-textPrimary mb-4">Other Local Providers</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="other-providers">
+          <h3 className="section-title">Other Local Providers</h3>
+          <div className="providers-grid">
             {filteredProviders
               .filter((provider) => provider.name !== 'Ollama')
               .map((provider, index) => (
                 <motion.div
                   key={provider.name}
-                  className={classNames(
-                    'bg-bolt-elements-background-depth-2 rounded-xl',
-                    'hover:bg-bolt-elements-background-depth-3',
-                    'transition-all duration-200 p-5',
-                    'relative overflow-hidden group',
-                  )}
+                  className="provider-card"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ scale: 1.01 }}
                 >
                   {/* Provider Header */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <motion.div
-                        className={classNames(
-                          'w-12 h-12 flex items-center justify-center rounded-xl',
-                          'bg-bolt-elements-background-depth-3',
-                          provider.settings.enabled ? 'text-purple-500' : 'text-bolt-elements-textSecondary',
-                        )}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
+                  <div className="provider-header">
+                    <div className="provider-info">
+                      <div
+                        className={classNames('provider-icon', {
+                          enabled: !!provider.settings.enabled,
+                        })}
                       >
                         {React.createElement(PROVIDER_ICONS[provider.name as ProviderName] || BsRobot, {
                           className: 'w-7 h-7',
                           'aria-label': `${provider.name} icon`,
                         })}
-                      </motion.div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-md font-semibold text-bolt-elements-textPrimary">{provider.name}</h3>
+                      </div>
+                      <div className="provider-text">
+                        <div className="provider-name">
+                          <h3>{provider.name}</h3>
                           <div className="flex gap-1">
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">
-                              Local
-                            </span>
+                            <span className="provider-badge local">Local</span>
                             {URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && (
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-purple-500/10 text-purple-500">
-                                Configurable
-                              </span>
+                              <span className="provider-badge configurable">Configurable</span>
                             )}
                           </div>
                         </div>
-                        <p className="text-sm text-bolt-elements-textSecondary mt-1">
-                          {PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}
-                        </p>
+                        <p className="provider-description">{PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}</p>
                       </div>
                     </div>
                     <Switch
@@ -696,49 +618,33 @@ export default function LocalProvidersTab() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mt-4"
+                        className="url-config"
                       >
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm text-bolt-elements-textSecondary">API Endpoint</label>
-                          {editingProvider === provider.name ? (
-                            <input
-                              type="text"
-                              defaultValue={provider.settings.baseUrl}
-                              placeholder={`Enter ${provider.name} base URL`}
-                              className={classNames(
-                                'w-full px-3 py-2 rounded-lg text-sm',
-                                'bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
-                                'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                                'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
-                                'transition-all duration-200',
-                              )}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleUpdateBaseUrl(provider, e.currentTarget.value);
-                                } else if (e.key === 'Escape') {
-                                  setEditingProvider(null);
-                                }
-                              }}
-                              onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
-                              autoFocus
-                            />
-                          ) : (
-                            <div
-                              onClick={() => setEditingProvider(provider.name)}
-                              className={classNames(
-                                'w-full px-3 py-2 rounded-lg text-sm cursor-pointer',
-                                'bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
-                                'hover:border-purple-500/30 hover:bg-bolt-elements-background-depth-4',
-                                'transition-all duration-200',
-                              )}
-                            >
-                              <div className="flex items-center gap-2 text-bolt-elements-textSecondary">
-                                <div className="i-ph:link text-sm" />
-                                <span>{provider.settings.baseUrl || 'Click to set base URL'}</span>
-                              </div>
+                        <label className="url-label">API Endpoint</label>
+                        {editingProvider === provider.name ? (
+                          <input
+                            type="text"
+                            defaultValue={provider.settings.baseUrl}
+                            placeholder={`Enter ${provider.name} base URL`}
+                            className="url-input"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleUpdateBaseUrl(provider, e.currentTarget.value);
+                              } else if (e.key === 'Escape') {
+                                setEditingProvider(null);
+                              }
+                            }}
+                            onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
+                            autoFocus
+                          />
+                        ) : (
+                          <div onClick={() => setEditingProvider(provider.name)} className="url-display">
+                            <div className="url-content">
+                              <div className="i-ph:link url-icon" />
+                              <span>{provider.settings.baseUrl || 'Click to set base URL'}</span>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -748,30 +654,5 @@ export default function LocalProvidersTab() {
         </div>
       </motion.div>
     </div>
-  );
-}
-
-// Helper component for model status badge
-function ModelStatusBadge({ status }: { status?: string }) {
-  if (!status || status === 'idle') {
-    return null;
-  }
-
-  const statusConfig = {
-    updating: { bg: 'bg-yellow-500/10', text: 'text-yellow-500', label: 'Updating' },
-    updated: { bg: 'bg-green-500/10', text: 'text-green-500', label: 'Updated' },
-    error: { bg: 'bg-red-500/10', text: 'text-red-500', label: 'Error' },
-  };
-
-  const config = statusConfig[status as keyof typeof statusConfig];
-
-  if (!config) {
-    return null;
-  }
-
-  return (
-    <span className={classNames('px-2 py-0.5 rounded-full text-xs font-medium', config.bg, config.text)}>
-      {config.label}
-    </span>
   );
 }

@@ -5,6 +5,9 @@ import { Progress } from '~/components/ui/Progress';
 import { useToast } from '~/components/ui/use-toast';
 import { useSettings } from '~/lib/hooks/useSettings';
 
+// Create a CSS module for OllamaModelInstaller styles
+import '~/styles/components/ollama.scss';
+
 interface OllamaModelInstallerProps {
   onModelInstalled: () => void;
 }
@@ -382,25 +385,21 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
   const allTags = Array.from(new Set(POPULAR_MODELS.flatMap((model) => model.tags)));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between pt-6">
-        <div className="flex items-center gap-3">
-          <OllamaIcon className="w-8 h-8 text-purple-500" />
+    <div className="ollama-installer">
+      <div className="installer-header">
+        <div className="installer-title">
+          <OllamaIcon className="installer-icon" />
           <div>
-            <h3 className="text-lg font-semibold text-bolt-elements-textPrimary">Ollama Models</h3>
-            <p className="text-sm text-bolt-elements-textSecondary mt-1">Install and manage your Ollama models</p>
+            <h3 className="installer-title-text">Ollama Models</h3>
+            <p className="installer-subtitle">Install and manage your Ollama models</p>
           </div>
         </div>
         <motion.button
           onClick={handleCheckUpdates}
+          className={classNames('check-updates-btn', {
+            updating: isChecking,
+          })}
           disabled={isChecking}
-          className={classNames(
-            'px-4 py-2 rounded-lg',
-            'bg-purple-500/10 text-purple-500',
-            'hover:bg-purple-500/20',
-            'transition-all duration-200',
-            'flex items-center gap-2',
-          )}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
@@ -413,143 +412,104 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
         </motion.button>
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <div className="space-y-1">
-            <input
-              type="text"
-              className={classNames(
-                'w-full px-4 py-3 rounded-xl',
-                'bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor',
-                'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
-                'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
-                'transition-all duration-200',
-              )}
-              placeholder="Search models or enter custom model name..."
-              value={searchQuery || modelString}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSearchQuery(value);
-                setModelString(value);
-              }}
-              disabled={isInstalling}
-            />
-            <p className="text-sm text-bolt-elements-textSecondary px-1">
-              Browse models at{' '}
-              <a
-                href="https://ollama.com/library"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-500 hover:underline inline-flex items-center gap-1 text-base font-medium"
-              >
-                ollama.com/library
-                <div className="i-ph:arrow-square-out text-sm" />
-              </a>{' '}
-              and copy model names to install
-            </p>
-          </div>
+      <div className="search-container">
+        <div className="search-input-wrapper">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search models or enter custom model name..."
+            value={searchQuery || modelString}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchQuery(value);
+              setModelString(value);
+            }}
+            disabled={isInstalling}
+          />
+          <p className="search-help-text">
+            Browse models at{' '}
+            <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="library-link">
+              ollama.com/library
+              <div className="i-ph:arrow-square-out text-sm" />
+            </a>{' '}
+            and copy model names to install
+          </p>
         </div>
         <motion.button
           onClick={() => handleInstallModel(modelString)}
+          className={classNames('install-btn', {
+            disabled: !modelString || isInstalling,
+          })}
           disabled={!modelString || isInstalling}
-          className={classNames(
-            'rounded-lg px-4 py-2',
-            'bg-purple-500 text-white text-sm',
-            'hover:bg-purple-600',
-            'transition-all duration-200',
-            'flex items-center gap-2',
-            { 'opacity-50 cursor-not-allowed': !modelString || isInstalling },
-          )}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
           {isInstalling ? (
-            <div className="flex items-center gap-2">
+            <div className="btn-content">
               <div className="i-ph:spinner-gap-bold animate-spin w-4 h-4" />
               <span>Installing...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <OllamaIcon className="w-4 h-4" />
+            <div className="btn-content">
+              <OllamaIcon className="btn-icon" />
               <span>Install Model</span>
             </div>
           )}
         </motion.button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="tag-filters">
         {allTags.map((tag) => (
           <button
             key={tag}
             onClick={() => {
               setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
             }}
-            className={classNames(
-              'px-3 py-1 rounded-full text-xs font-medium transition-all duration-200',
-              selectedTags.includes(tag)
-                ? 'bg-purple-500 text-white'
-                : 'bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-4',
-            )}
+            className={classNames('tag-filter', {
+              active: selectedTags.includes(tag),
+            })}
           >
             {tag}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-2">
+      <div className="model-grid">
         {filteredModels.map((model) => (
-          <motion.div
-            key={model.name}
-            className={classNames(
-              'flex items-start gap-2 p-3 rounded-lg',
-              'bg-bolt-elements-background-depth-3',
-              'hover:bg-bolt-elements-background-depth-4',
-              'transition-all duration-200',
-              'relative group',
-            )}
-          >
-            <OllamaIcon className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <div className="flex items-start justify-between">
+          <motion.div key={model.name} className="model-card">
+            <OllamaIcon className="model-icon" />
+            <div className="model-details">
+              <div className="model-header">
                 <div>
-                  <p className="text-bolt-elements-textPrimary font-mono text-sm">{model.name}</p>
-                  <p className="text-xs text-bolt-elements-textSecondary mt-0.5">{model.desc}</p>
+                  <p className="model-name">{model.name}</p>
+                  <p className="model-description">{model.desc}</p>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-bolt-elements-textTertiary">{model.size}</span>
+                <div className="model-meta">
+                  <span className="model-size">{model.size}</span>
                   {model.installedVersion && (
-                    <div className="mt-0.5 flex flex-col items-end gap-0.5">
-                      <span className="text-xs text-bolt-elements-textTertiary">v{model.installedVersion}</span>
+                    <div className="model-version-info">
+                      <span className="model-installed-version">v{model.installedVersion}</span>
                       {model.needsUpdate && model.latestVersion && (
-                        <span className="text-xs text-purple-500">v{model.latestVersion} available</span>
+                        <span className="model-update-available">v{model.latestVersion} available</span>
                       )}
                     </div>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-1">
+              <div className="model-footer">
+                <div className="model-tags">
                   {model.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-1.5 py-0.5 rounded-full text-[10px] bg-bolt-elements-background-depth-4 text-bolt-elements-textTertiary"
-                    >
+                    <span key={tag} className="model-tag">
                       {tag}
                     </span>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="model-actions">
                   {model.installedVersion ? (
                     model.needsUpdate ? (
                       <motion.button
                         onClick={() => handleUpdateModel(model.name)}
-                        className={classNames(
-                          'px-2 py-0.5 rounded-lg text-xs',
-                          'bg-purple-500 text-white',
-                          'hover:bg-purple-600',
-                          'transition-all duration-200',
-                          'flex items-center gap-1',
-                        )}
+                        className="update-model-btn"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
@@ -557,18 +517,12 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
                         Update
                       </motion.button>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-lg text-xs text-green-500 bg-green-500/10">Up to date</span>
+                      <span className="model-up-to-date">Up to date</span>
                     )
                   ) : (
                     <motion.button
                       onClick={() => handleInstallModel(model.name)}
-                      className={classNames(
-                        'px-2 py-0.5 rounded-lg text-xs',
-                        'bg-purple-500 text-white',
-                        'hover:bg-purple-600',
-                        'transition-all duration-200',
-                        'flex items-center gap-1',
-                      )}
+                      className="install-model-btn"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -584,18 +538,18 @@ export default function OllamaModelInstaller({ onModelInstalled }: OllamaModelIn
       </div>
 
       {installProgress && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-bolt-elements-textSecondary">{installProgress.status}</span>
-            <div className="flex items-center gap-4">
-              <span className="text-bolt-elements-textTertiary">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="progress-container">
+          <div className="progress-info">
+            <span className="progress-status">{installProgress.status}</span>
+            <div className="progress-stats">
+              <span className="progress-size">
                 {installProgress.downloadedSize} / {installProgress.totalSize}
               </span>
-              <span className="text-bolt-elements-textTertiary">{installProgress.speed}</span>
-              <span className="text-bolt-elements-textSecondary">{Math.round(installProgress.progress)}%</span>
+              <span className="progress-speed">{installProgress.speed}</span>
+              <span className="progress-percentage">{Math.round(installProgress.progress)}%</span>
             </div>
           </div>
-          <Progress value={installProgress.progress} className="h-1" />
+          <Progress value={installProgress.progress} className="progress-bar" />
         </motion.div>
       )}
     </div>
