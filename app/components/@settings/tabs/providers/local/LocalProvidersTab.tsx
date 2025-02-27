@@ -16,7 +16,7 @@ import { classNames } from '~/utils/classNames';
 import { FaServer } from 'react-icons/fa';
 import { Button } from '~/components/ui/Button';
 import { Input } from '~/components/ui/Input';
-import { FiLink, FiCheck, FiX, FiEdit2 } from 'react-icons/fi';
+import { FiLink, FiCheck, FiX, FiEdit2, FiWifi, FiWifiOff } from 'react-icons/fi';
 
 // Add type for provider names to ensure type safety
 type ProviderName = 'Ollama' | 'LMStudio' | 'OpenAILike';
@@ -37,6 +37,26 @@ const PROVIDER_DESCRIPTIONS: Record<ProviderName, string> = {
 
 // Add a constant for the Ollama API base URL
 const OLLAMA_API_URL = 'http://127.0.0.1:11434';
+
+// Add connection check endpoints for each provider
+const PROVIDER_CONNECTION_ENDPOINTS: Record<string, string> = {
+  Ollama: '/api/tags',
+  LMStudio: '/v1/models',
+  OpenAILike: '/v1/models',
+};
+
+// Add connection status type
+type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'unknown';
+
+// Add interface for connection status tracking
+interface ProviderConnectionStatus {
+  status: ConnectionStatus;
+  lastChecked: number;
+  error?: string;
+}
+
+// Add type for connection status map
+type ConnectionStatusMap = Record<string, ProviderConnectionStatus>;
 
 interface OllamaModel {
   name: string;
@@ -85,6 +105,12 @@ export default function LocalProvidersTab() {
   const [urlInputError, setUrlInputError] = useState<string | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Add state for connection status
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusMap>({});
+
+  // Add ref to track if we're currently checking connections
+  const checkingConnectionsRef = useRef<boolean>(false);
 
   // Add a ref to track if we've already fetched models
   const lastFetchRef = useRef(false);
@@ -141,7 +167,189 @@ export default function LocalProvidersTab() {
       return a.name.localeCompare(b.name);
     });
     setFilteredProviders(sorted);
+
+    // Check connection status for all providers when the list changes
+    checkAllProviderConnections();
   }, [providers, updateProviderSettings]);
+
+  // Add effect to check connection status periodically for enabled providers
+  useEffect(() => {
+    // Check connections initially
+    checkAllProviderConnections();
+
+    // Set up interval to check connections every 30 seconds
+    const intervalId = setInterval(() => {
+      checkAllProviderConnections();
+    }, 30000);
+
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, [filteredProviders]);
+
+  // Add function to check connection for all providers
+  const checkAllProviderConnections = useCallback(async () => {
+    // Prevent multiple simultaneous checks
+    if (checkingConnectionsRef.current) {
+      return;
+    }
+
+    checkingConnectionsRef.current = true;
+
+    try {
+      // Check each enabled provider
+      for (const provider of filteredProviders) {
+        if (provider.settings.enabled) {
+          // Set status to checking
+          setConnectionStatus((prev) => ({
+            ...prev,
+            [provider.name]: {
+              ...prev[provider.name],
+              status: 'checking',
+              lastChecked: Date.now(),
+            },
+          }));
+
+          // Check connection
+          const result = await checkProviderConnection(provider.name, provider.settings.baseUrl);
+
+          // Update status
+          setConnectionStatus((prev) => ({
+            ...prev,
+            [provider.name]: {
+              status: result.isConnected ? 'connected' : 'disconnected',
+              error: result.errorMessage,
+              lastChecked: Date.now(),
+            },
+          }));
+        }
+      }
+    } finally {
+      checkingConnectionsRef.current = false;
+    }
+  }, [filteredProviders]);
+
+  // Add general provider connection check function
+  const checkProviderConnection = async (
+    providerName: string,
+    baseUrl?: string,
+  ): Promise<{ isConnected: boolean; errorMessage?: string }> => {
+    if (!baseUrl) {
+      // Use default URL if none provided
+      if (providerName === 'Ollama') {
+        baseUrl = OLLAMA_API_URL;
+      } else if (providerName === 'LMStudio') {
+        baseUrl = 'http://127.0.0.1:1234'; // Default LMStudio URL
+      } else {
+        return { isConnected: false, errorMessage: 'No base URL configured' };
+      }
+    }
+
+    // Get the appropriate endpoint for this provider
+    const endpoint = PROVIDER_CONNECTION_ENDPOINTS[providerName] || '/v1/models';
+
+    try {
+      console.log(`Checking connection to ${providerName} at ${baseUrl}${endpoint}`);
+
+      // For LMStudio, we need to handle the connection differently due to potential CORS issues
+      if (providerName === 'LMStudio') {
+        try {
+          // Use our server-side proxy to avoid CORS issues
+          const proxyUrl = new URL('/api/lmstudio-proxy/v1/models', window.location.origin);
+          proxyUrl.searchParams.set('baseUrl', baseUrl);
+
+          console.log(`Using proxy for LMStudio: ${proxyUrl.toString()}`);
+
+          const response = await fetch(proxyUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            signal: AbortSignal.timeout(5000),
+          });
+
+          console.log(`${providerName} connection check response:`, response.status, response.statusText);
+
+          if (response.ok) {
+            // Try to parse the response to verify it's valid
+            const data = await response.json();
+            console.log(`${providerName} response data:`, data);
+
+            return { isConnected: true };
+          } else {
+            return {
+              isConnected: false,
+              errorMessage: `Connection failed: ${response.statusText} (${response.status})`,
+            };
+          }
+        } catch (error) {
+          console.error(`Connection check error for ${providerName}:`, error);
+          return {
+            isConnected: false,
+            errorMessage:
+              error instanceof Error ? `Connection failed: ${error.message}` : 'Connection failed: Unknown error',
+          };
+        }
+      } else {
+        // For other providers, use the standard connection check
+        const response = await fetch(`${baseUrl}${endpoint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(5000),
+        });
+
+        // Log the response status
+        console.log(`${providerName} connection check response:`, response.status, response.statusText);
+
+        if (!response.ok) {
+          return {
+            isConnected: false,
+            errorMessage: `Connection failed: ${response.statusText} (${response.status})`,
+          };
+        }
+
+        return { isConnected: true };
+      }
+    } catch (error) {
+      console.error(`Connection check error for ${providerName}:`, error);
+
+      return {
+        isConnected: false,
+        errorMessage:
+          error instanceof Error ? `Connection failed: ${error.message}` : 'Connection failed: Unknown error',
+      };
+    }
+  };
+
+  // Update the existing checkOllamaConnection to use the new general function
+  const checkOllamaConnection = async (url: string): Promise<{ isConnected: boolean; errorMessage?: string }> => {
+    try {
+      setIsLoadingModels(true);
+      return await checkProviderConnection('Ollama', url);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  // Add a component to display connection status
+  const ConnectionStatusIndicator = ({ providerName }: { providerName: string }) => {
+    const status = connectionStatus[providerName] || { status: 'unknown', lastChecked: 0 };
+
+    return (
+      <div
+        className="connection-status-indicator"
+        title={`Status: ${status.status}${status.error ? ` - ${status.error}` : ''}`}
+      >
+        {status.status === 'connected' && <FiWifi className="connection-icon connected" />}
+        {status.status === 'disconnected' && <FiWifiOff className="connection-icon disconnected" />}
+        {status.status === 'checking' && (
+          <div className="i-ph:spinner-gap-bold animate-spin connection-icon checking" />
+        )}
+        {status.status === 'unknown' && <FiWifi className="connection-icon unknown" />}
+      </div>
+    );
+  };
 
   // Add effect to update category toggle state based on provider states
   useEffect(() => {
@@ -348,40 +556,6 @@ export default function LocalProvidersTab() {
       return { isValid: true };
     } catch (_) {
       return { isValid: false, errorMessage: 'Invalid URL format' };
-    }
-  };
-
-  const checkOllamaConnection = async (url: string): Promise<{ isConnected: boolean; errorMessage?: string }> => {
-    try {
-      setIsLoadingModels(true);
-
-      // Add a timeout to prevent hanging on connection issues
-      const response = await fetch(`${url}/api/tags`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      });
-
-      if (!response.ok) {
-        return {
-          isConnected: false,
-          errorMessage: `Connection failed: ${response.statusText}`,
-        };
-      }
-
-      return { isConnected: true };
-    } catch (error) {
-      console.error('Connection check error:', error);
-
-      return {
-        isConnected: false,
-        errorMessage:
-          error instanceof Error ? `Connection failed: ${error.message}` : 'Connection failed: Unknown error',
-      };
-    } finally {
-      setIsLoadingModels(false);
     }
   };
 
@@ -631,6 +805,7 @@ export default function LocalProvidersTab() {
                     <div className="provider-name">
                       <h3>{provider.name}</h3>
                       <span className="provider-badge local">Local</span>
+                      {provider.settings.enabled && <ConnectionStatusIndicator providerName={provider.name} />}
                     </div>
                     <p className="provider-description">{PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}</p>
                   </div>
@@ -700,9 +875,40 @@ export default function LocalProvidersTab() {
                           <FiLink className="url-icon" />
                           <span>{provider.settings.baseUrl || OLLAMA_API_URL}</span>
                         </div>
-                        <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
-                          <FiEdit2 size={16} />
-                        </Button>
+                        <div className="url-actions">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              checkProviderConnection(provider.name, provider.settings.baseUrl).then((result) => {
+                                setConnectionStatus((prev) => ({
+                                  ...prev,
+                                  [provider.name]: {
+                                    status: result.isConnected ? 'connected' : 'disconnected',
+                                    error: result.errorMessage,
+                                    lastChecked: Date.now(),
+                                  },
+                                }));
+
+                                if (result.isConnected) {
+                                  toast(`Successfully connected to ${provider.name}`);
+                                } else {
+                                  toast(`Failed to connect to ${provider.name}: ${result.errorMessage}`, {
+                                    type: 'error',
+                                  });
+                                }
+                              });
+                            }}
+                            className="url-check-button"
+                            aria-label="Check connection"
+                          >
+                            <div className="i-ph:arrows-clockwise" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
+                            <FiEdit2 size={16} />
+                          </Button>
+                        </div>
                       </div>
                     )}
 
@@ -905,6 +1111,7 @@ export default function LocalProvidersTab() {
                             {URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && (
                               <span className="provider-badge configurable">Configurable</span>
                             )}
+                            {provider.settings.enabled && <ConnectionStatusIndicator providerName={provider.name} />}
                           </div>
                         </div>
                         <p className="provider-description">{PROVIDER_DESCRIPTIONS[provider.name as ProviderName]}</p>
@@ -977,9 +1184,40 @@ export default function LocalProvidersTab() {
                               <FiLink className="url-icon" />
                               <span>{provider.settings.baseUrl || `Click to set ${provider.name} base URL`}</span>
                             </div>
-                            <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
-                              <FiEdit2 size={16} />
-                            </Button>
+                            <div className="url-actions">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  checkProviderConnection(provider.name, provider.settings.baseUrl).then((result) => {
+                                    setConnectionStatus((prev) => ({
+                                      ...prev,
+                                      [provider.name]: {
+                                        status: result.isConnected ? 'connected' : 'disconnected',
+                                        error: result.errorMessage,
+                                        lastChecked: Date.now(),
+                                      },
+                                    }));
+
+                                    if (result.isConnected) {
+                                      toast(`Successfully connected to ${provider.name}`);
+                                    } else {
+                                      toast(`Failed to connect to ${provider.name}: ${result.errorMessage}`, {
+                                        type: 'error',
+                                      });
+                                    }
+                                  });
+                                }}
+                                className="url-check-button"
+                                aria-label="Check connection"
+                              >
+                                <div className="i-ph:arrows-clockwise" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="url-edit-button" aria-label="Edit URL">
+                                <FiEdit2 size={16} />
+                              </Button>
+                            </div>
                           </div>
                         )}
 

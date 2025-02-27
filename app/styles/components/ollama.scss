@@ -40,17 +40,23 @@
     }
 
     .check-updates-btn {
-      display: flex;
-      align-items: center;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
       gap: 0.25rem;
       font-size: 0.875rem;
-      background-color: transparent !important;
+      background-color: var(--bolt-elements-background-depth-2) !important;
       border: 1px solid var(--bolt-elements-borderColor) !important;
       color: var(--bolt-elements-textPrimary) !important;
       transition: all 0.2s ease;
+      padding: 6px 12px !important;
+      height: auto !important;
+      min-height: 32px !important;
+      border-radius: 6px !important;
+      white-space: nowrap !important;
 
       &:hover:not(:disabled) {
-        background-color: var(--bolt-elements-background-depth-4) !important;
+        background-color: var(--bolt-elements-background-depth-3) !important;
         border-color: var(--bolt-elements-borderColorActive) !important;
         color: var(--bolt-elements-button-primary-text) !important;
       }
@@ -78,14 +84,17 @@
     }
 
     .retry-button {
-      display: flex;
-      align-items: center;
+      display: flex !important;
+      align-items: center !important;
       gap: 0.25rem;
       font-size: 0.75rem;
       background-color: transparent !important;
       border: 1px solid var(--bolt-elements-borderColor) !important;
       color: var(--bolt-elements-textPrimary) !important;
       transition: all 0.2s ease;
+      padding: 4px 8px !important;
+      height: auto !important;
+      min-height: 28px !important;
 
       &:hover:not(:disabled) {
         background-color: var(--bolt-elements-background-depth-4) !important;
@@ -99,6 +108,7 @@
     display: flex;
     gap: 0.75rem;
     margin-bottom: 1rem;
+    align-items: flex-start;
 
     .search-input-wrapper {
       flex: 1;
@@ -109,6 +119,19 @@
       .search-input {
         width: 100%;
         font-size: 0.875rem;
+        background-color: var(--bolt-elements-background-depth-2) !important;
+        border: 1px solid var(--bolt-elements-borderColor) !important;
+        color: var(--bolt-elements-textPrimary) !important;
+        border-radius: 6px !important;
+        padding: 8px 12px !important;
+        height: auto !important;
+        min-height: 36px !important;
+
+        &:focus {
+          border-color: var(--bolt-elements-borderColorActive) !important;
+          outline: none !important;
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+        }
       }
 
       .search-help-text {
@@ -132,17 +155,24 @@
     }
 
     .install-btn {
-      display: flex;
-      align-items: center;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
       gap: 0.5rem;
       font-size: 0.875rem;
-      background-color: var(--bolt-elements-background-depth-4) !important;
+      background-color: var(--bolt-elements-background-depth-2) !important;
       border: 1px solid var(--bolt-elements-borderColor) !important;
       color: var(--bolt-elements-textPrimary) !important;
       transition: all 0.2s ease;
+      padding: 6px 12px !important;
+      height: auto !important;
+      min-height: 36px !important;
+      min-width: 120px !important;
+      border-radius: 6px !important;
+      white-space: nowrap !important;
 
       &:hover:not(:disabled) {
-        background-color: var(--bolt-elements-background-depth-5) !important;
+        background-color: var(--bolt-elements-background-depth-3) !important;
         border-color: var(--bolt-elements-borderColorActive) !important;
         color: var(--bolt-elements-button-primary-text) !important;
       }
@@ -153,14 +183,17 @@
       }
 
       .btn-content {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100%;
       }
 
       .btn-icon {
         width: 1rem;
         height: 1rem;
+        flex-shrink: 0;
+        margin-right: 0.5rem;
       }
     }
   }
@@ -177,6 +210,9 @@
       border: 1px solid var(--bolt-elements-borderColor) !important;
       color: var(--bolt-elements-textSecondary) !important;
       transition: all 0.2s ease;
+      padding: 4px 8px !important;
+      height: auto !important;
+      min-height: 24px !important;
 
       &:hover:not(:disabled) {
         background-color: var(--bolt-elements-background-depth-4) !important;
@@ -318,14 +354,17 @@
           .update-model-btn,
           .install-model-btn,
           .delete-model-btn {
-            display: flex;
-            align-items: center;
+            display: flex !important;
+            align-items: center !important;
             gap: 0.25rem;
             font-size: 0.75rem;
             background-color: transparent !important;
             border: 1px solid var(--bolt-elements-borderColor) !important;
             color: var(--bolt-elements-textPrimary) !important;
             transition: all 0.2s ease;
+            padding: 4px 8px !important;
+            height: auto !important;
+            min-height: 24px !important;
 
             &:hover:not(:disabled) {
               background-color: var(--bolt-elements-background-depth-4) !important;
@@ -447,5 +486,103 @@
     100% {
       opacity: 0.5;
     }
+  }
+}
+
+// Add styles for connection status indicators
+.connection-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+
+  .connection-icon {
+    width: 16px;
+    height: 16px;
+
+    &.connected {
+      color: #10b981; // Green color for connected status
+    }
+
+    &.disconnected {
+      color: #ef4444; // Red color for disconnected status
+    }
+
+    &.checking {
+      color: #f59e0b; // Amber color for checking status
+    }
+
+    &.unknown {
+      color: #9ca3af; // Gray color for unknown status
+      opacity: 0.6;
+    }
+  }
+}
+
+// Add styles for URL actions container
+.url-actions {
+  display: flex;
+  gap: 4px;
+}
+
+// Fix ghost button issues for URL action buttons
+.url-check-button,
+.url-edit-button {
+  color: #6b7280;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 6px !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+
+  &:hover {
+    color: #4b5563;
+    background-color: rgba(0, 0, 0, 0.05) !important;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  }
+}
+
+// Add styles for URL action buttons in edit mode
+.url-action-button {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 6px !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+
+  &.confirm {
+    color: #10b981;
+
+    &:hover {
+      background-color: rgba(16, 185, 129, 0.1) !important;
+    }
+  }
+
+  &.cancel {
+    color: #ef4444;
+
+    &:hover {
+      background-color: rgba(239, 68, 68, 0.1) !important;
+    }
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
   }
 }
