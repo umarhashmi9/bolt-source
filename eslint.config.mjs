@@ -23,6 +23,9 @@ export default [
       'no-eval': ['error'],
       'linebreak-style': ['error', 'unix'],
       'arrow-spacing': ['error', { before: true, after: true }],
+      '@blitz/newline-before-return': 'off',
+      'padding-line-between-statements': 'off',
+      curly: 'off',
     },
   },
   {

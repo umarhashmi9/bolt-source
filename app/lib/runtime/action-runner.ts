@@ -333,7 +333,7 @@ export class ActionRunner {
       type: 'file',
       filePath: historyPath,
       content: JSON.stringify(history),
-      changeSource: 'auto-save'
+      changeSource: 'auto-save',
     } as any);
   }
 
