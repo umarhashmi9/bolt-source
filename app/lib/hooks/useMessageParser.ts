@@ -23,14 +23,14 @@ const messageParser = new StreamingMessageParser({
       logger.trace('onActionOpen', data.action);
 
       // we only add shell actions when when the close tag got parsed because only then we have the content
-      if (data.action.type !== 'shell') {
+      if (data.action.type === 'file') {
         workbenchStore.addAction(data);
       }
     },
     onActionClose: (data) => {
       logger.trace('onActionClose', data.action);
 
-      if (data.action.type === 'shell') {
+      if (data.action.type !== 'file') {
         workbenchStore.addAction(data);
       }
 
@@ -42,6 +42,10 @@ const messageParser = new StreamingMessageParser({
     },
   },
 });
+const extractTextContent = (message: Message) =>
+  Array.isArray(message.content)
+    ? (message.content.find((item) => item.type === 'text')?.text as string) || ''
+    : message.content;
 
 export function useMessageParser() {
   const [parsedMessages, setParsedMessages] = useState<{ [key: number]: string }>({});
@@ -55,9 +59,8 @@ export function useMessageParser() {
     }
 
     for (const [index, message] of messages.entries()) {
-      if (message.role === 'assistant') {
-        const newParsedContent = messageParser.parse(message.id, message.content);
-
+      if (message.role === 'assistant' || message.role === 'user') {
+        const newParsedContent = messageParser.parse(message.id, extractTextContent(message));
         setParsedMessages((prevParsed) => ({
           ...prevParsed,
           [index]: !reset ? (prevParsed[index] || '') + newParsedContent : newParsedContent,

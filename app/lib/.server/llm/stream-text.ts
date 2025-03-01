@@ -1,81 +1,59 @@
-import { convertToCoreMessages, streamText as _streamText } from 'ai';
-import { getModel } from '~/lib/.server/llm/model';
-import { MAX_TOKENS } from './constants';
-import { getSystemPrompt } from './prompts';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER, getModelList, MODEL_REGEX, PROVIDER_REGEX } from '~/utils/constants';
-
-interface ToolResult<Name extends string, Args, Result> {
-  toolCallId: string;
-  toolName: Name;
-  args: Args;
-  result: Result;
-}
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  toolInvocations?: ToolResult<string, unknown, unknown>[];
-  model?: string;
-}
+import { convertToCoreMessages, streamText as _streamText, type Message } from 'ai';
+import { MAX_TOKENS, type FileMap } from './constants';
+import { getSystemPrompt } from '~/lib/common/prompts/prompts';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODIFICATIONS_TAG_NAME, PROVIDER_LIST, WORK_DIR } from '~/utils/constants';
+import type { IProviderSetting } from '~/types/model';
+import { PromptLibrary } from '~/lib/common/prompt-library';
+import { allowedHTMLElements } from '~/utils/markdown';
+import { LLMManager } from '~/lib/modules/llm/manager';
+import { createScopedLogger } from '~/utils/logger';
+import { createFilesContext, extractPropertiesFromMessage } from './utils';
+import { getFilePaths } from './select-context';
 
 export type Messages = Message[];
 
 export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
 
-function extractPropertiesFromMessage(message: Message): { model: string; provider: string; content: string } {
-  const textContent = Array.isArray(message.content)
-    ? message.content.find((item) => item.type === 'text')?.text || ''
-    : message.content;
+const logger = createScopedLogger('stream-text');
 
-  const modelMatch = textContent.match(MODEL_REGEX);
-  const providerMatch = textContent.match(PROVIDER_REGEX);
-
-  /*
-   * Extract model
-   * const modelMatch = message.content.match(MODEL_REGEX);
-   */
-  const model = modelMatch ? modelMatch[1] : DEFAULT_MODEL;
-
-  /*
-   * Extract provider
-   * const providerMatch = message.content.match(PROVIDER_REGEX);
-   */
-  const provider = providerMatch ? providerMatch[1] : DEFAULT_PROVIDER.name;
-
-  const cleanedContent = Array.isArray(message.content)
-    ? message.content.map((item) => {
-        if (item.type === 'text') {
-          return {
-            type: 'text',
-            text: item.text?.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, ''),
-          };
-        }
-
-        return item; // Preserve image_url and other types as is
-      })
-    : textContent.replace(MODEL_REGEX, '').replace(PROVIDER_REGEX, '');
-
-  return { model, provider, content: cleanedContent };
-}
-
-export async function streamText(
-  messages: Messages,
-  env: Env,
-  options?: StreamingOptions,
-  apiKeys?: Record<string, string>,
-) {
+export async function streamText(props: {
+  messages: Omit<Message, 'id'>[];
+  env?: Env;
+  options?: StreamingOptions;
+  apiKeys?: Record<string, string>;
+  files?: FileMap;
+  providerSettings?: Record<string, IProviderSetting>;
+  promptId?: string;
+  contextOptimization?: boolean;
+  contextFiles?: FileMap;
+  summary?: string;
+  messageSliceId?: number;
+}) {
+  const {
+    messages,
+    env: serverEnv,
+    options,
+    apiKeys,
+    files,
+    providerSettings,
+    promptId,
+    contextOptimization,
+    contextFiles,
+    summary,
+  } = props;
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  const MODEL_LIST = await getModelList(apiKeys || {});
-  const processedMessages = messages.map((message) => {
+  let processedMessages = messages.map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
-
-      if (MODEL_LIST.find((m) => m.name === model)) {
-        currentModel = model;
-      }
-
+      currentModel = model;
       currentProvider = provider;
+
+      return { ...message, content };
+    } else if (message.role == 'assistant') {
+      let content = message.content;
+      content = content.replace(/<div class=\\"__boltThought__\\">.*?<\/div>/s, '');
+      content = content.replace(/<think>.*?<\/think>/s, '');
 
       return { ...message, content };
     }
@@ -83,13 +61,94 @@ export async function streamText(
     return message;
   });
 
-  const modelDetails = MODEL_LIST.find((m) => m.name === currentModel);
+  const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
+  const staticModels = LLMManager.getInstance().getStaticModelListFromProvider(provider);
+  let modelDetails = staticModels.find((m) => m.name === currentModel);
+
+  if (!modelDetails) {
+    const modelsList = [
+      ...(provider.staticModels || []),
+      ...(await LLMManager.getInstance().getModelListFromProvider(provider, {
+        apiKeys,
+        providerSettings,
+        serverEnv: serverEnv as any,
+      })),
+    ];
+
+    if (!modelsList.length) {
+      throw new Error(`No models found for provider ${provider.name}`);
+    }
+
+    modelDetails = modelsList.find((m) => m.name === currentModel);
+
+    if (!modelDetails) {
+      // Fallback to first model
+      logger.warn(
+        `MODEL [${currentModel}] not found in provider [${provider.name}]. Falling back to first model. ${modelsList[0].name}`,
+      );
+      modelDetails = modelsList[0];
+    }
+  }
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
-  return _streamText({
-    model: getModel(currentProvider, currentModel, env, apiKeys) as any,
-    system: getSystemPrompt(),
+  let systemPrompt =
+    PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+      cwd: WORK_DIR,
+      allowedHtmlElements: allowedHTMLElements,
+      modificationTagName: MODIFICATIONS_TAG_NAME,
+    }) ?? getSystemPrompt();
+
+  if (files && contextFiles && contextOptimization) {
+    const codeContext = createFilesContext(contextFiles, true);
+    const filePaths = getFilePaths(files);
+
+    systemPrompt = `${systemPrompt}
+Below are all the files present in the project:
+---
+${filePaths.join('\n')}
+---
+
+Below is the artifact containing the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
+CONTEXT BUFFER:
+---
+${codeContext}
+---
+`;
+
+    if (summary) {
+      systemPrompt = `${systemPrompt}
+      below is the chat history till now
+CHAT SUMMARY:
+---
+${props.summary}
+---
+`;
+
+      if (props.messageSliceId) {
+        processedMessages = processedMessages.slice(props.messageSliceId);
+      } else {
+        const lastMessage = processedMessages.pop();
+
+        if (lastMessage) {
+          processedMessages = [lastMessage];
+        }
+      }
+    }
+  }
+
+  logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
+
+  // console.log(systemPrompt,processedMessages);
+
+  return await _streamText({
+    model: provider.getModelInstance({
+      model: modelDetails.name,
+      serverEnv,
+      apiKeys,
+      providerSettings,
+    }),
+    system: systemPrompt,
     maxTokens: dynamicMaxTokens,
     messages: convertToCoreMessages(processedMessages as any),
     ...options,

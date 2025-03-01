@@ -2,6 +2,9 @@ import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { FileMap } from '~/lib/stores/files';
 import { classNames } from '~/utils/classNames';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import type { FileHistory } from '~/types/actions';
+import { diffLines, type Change } from 'diff';
 
 const logger = createScopedLogger('FileTree');
 
@@ -18,6 +21,7 @@ interface Props {
   allowFolderSelection?: boolean;
   hiddenFiles?: Array<string | RegExp>;
   unsavedFiles?: Set<string>;
+  fileHistory?: Record<string, FileHistory>;
   className?: string;
 }
 
@@ -33,6 +37,7 @@ export const FileTree = memo(
     hiddenFiles,
     className,
     unsavedFiles,
+    fileHistory = {},
   }: Props) => {
     renderLogger.trace('FileTree');
 
@@ -110,6 +115,22 @@ export const FileTree = memo(
       });
     };
 
+    const onCopyPath = (fileOrFolder: FileNode | FolderNode) => {
+      try {
+        navigator.clipboard.writeText(fileOrFolder.fullPath);
+      } catch (error) {
+        logger.error(error);
+      }
+    };
+
+    const onCopyRelativePath = (fileOrFolder: FileNode | FolderNode) => {
+      try {
+        navigator.clipboard.writeText(fileOrFolder.fullPath.substring((rootFolder || '').length));
+      } catch (error) {
+        logger.error(error);
+      }
+    };
+
     return (
       <div className={classNames('text-sm', className, 'overflow-y-auto')}>
         {filteredFileList.map((fileOrFolder) => {
@@ -121,6 +142,13 @@ export const FileTree = memo(
                   selected={selectedFile === fileOrFolder.fullPath}
                   file={fileOrFolder}
                   unsavedChanges={unsavedFiles?.has(fileOrFolder.fullPath)}
+                  fileHistory={fileHistory}
+                  onCopyPath={() => {
+                    onCopyPath(fileOrFolder);
+                  }}
+                  onCopyRelativePath={() => {
+                    onCopyRelativePath(fileOrFolder);
+                  }}
                   onClick={() => {
                     onFileSelect?.(fileOrFolder.fullPath);
                   }}
@@ -134,6 +162,12 @@ export const FileTree = memo(
                   folder={fileOrFolder}
                   selected={allowFolderSelection && selectedFile === fileOrFolder.fullPath}
                   collapsed={collapsedFolders.has(fileOrFolder.fullPath)}
+                  onCopyPath={() => {
+                    onCopyPath(fileOrFolder);
+                  }}
+                  onCopyRelativePath={() => {
+                    onCopyRelativePath(fileOrFolder);
+                  }}
                   onClick={() => {
                     toggleCollapseState(fileOrFolder.fullPath);
                   }}
@@ -156,26 +190,67 @@ interface FolderProps {
   folder: FolderNode;
   collapsed: boolean;
   selected?: boolean;
+  onCopyPath: () => void;
+  onCopyRelativePath: () => void;
   onClick: () => void;
 }
 
-function Folder({ folder: { depth, name }, collapsed, selected = false, onClick }: FolderProps) {
+interface FolderContextMenuProps {
+  onCopyPath?: () => void;
+  onCopyRelativePath?: () => void;
+  children: ReactNode;
+}
+
+function ContextMenuItem({ onSelect, children }: { onSelect?: () => void; children: ReactNode }) {
   return (
-    <NodeButton
-      className={classNames('group', {
-        'bg-transparent text-bolt-elements-item-contentDefault hover:text-bolt-elements-item-contentActive hover:bg-bolt-elements-item-backgroundActive':
-          !selected,
-        'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent': selected,
-      })}
-      depth={depth}
-      iconClasses={classNames({
-        'i-ph:caret-right scale-98': collapsed,
-        'i-ph:caret-down scale-98': !collapsed,
-      })}
-      onClick={onClick}
+    <ContextMenu.Item
+      onSelect={onSelect}
+      className="flex items-center gap-2 px-2 py-1.5 outline-0 text-sm text-bolt-elements-textPrimary cursor-pointer ws-nowrap text-bolt-elements-item-contentDefault hover:text-bolt-elements-item-contentActive hover:bg-bolt-elements-item-backgroundActive rounded-md"
     >
-      {name}
-    </NodeButton>
+      <span className="size-4 shrink-0"></span>
+      <span>{children}</span>
+    </ContextMenu.Item>
+  );
+}
+
+function FileContextMenu({ onCopyPath, onCopyRelativePath, children }: FolderContextMenuProps) {
+  return (
+    <ContextMenu.Root>
+      <ContextMenu.Trigger>{children}</ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content
+          style={{ zIndex: 998 }}
+          className="border border-bolt-elements-borderColor rounded-md z-context-menu bg-bolt-elements-background-depth-1 dark:bg-bolt-elements-background-depth-2 data-[state=open]:animate-in animate-duration-100 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98 w-56"
+        >
+          <ContextMenu.Group className="p-1 border-b-px border-solid border-bolt-elements-borderColor">
+            <ContextMenuItem onSelect={onCopyPath}>Copy path</ContextMenuItem>
+            <ContextMenuItem onSelect={onCopyRelativePath}>Copy relative path</ContextMenuItem>
+          </ContextMenu.Group>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  );
+}
+
+function Folder({ folder, collapsed, selected = false, onCopyPath, onCopyRelativePath, onClick }: FolderProps) {
+  return (
+    <FileContextMenu onCopyPath={onCopyPath} onCopyRelativePath={onCopyRelativePath}>
+      <NodeButton
+        className={classNames('group', {
+          'bg-transparent text-bolt-elements-item-contentDefault hover:text-bolt-elements-item-contentActive hover:bg-bolt-elements-item-backgroundActive':
+            !selected,
+          'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent': selected,
+        })}
+        depth={folder.depth}
+        iconClasses={classNames({
+          'i-ph:caret-right scale-98': collapsed,
+          'i-ph:caret-down scale-98': !collapsed,
+        })}
+        onClick={onClick}
+      >
+        {folder.name}
+      </NodeButton>
+    </FileContextMenu>
   );
 }
 
@@ -183,31 +258,96 @@ interface FileProps {
   file: FileNode;
   selected: boolean;
   unsavedChanges?: boolean;
+  fileHistory?: Record<string, FileHistory>;
+  onCopyPath: () => void;
+  onCopyRelativePath: () => void;
   onClick: () => void;
 }
 
-function File({ file: { depth, name }, onClick, selected, unsavedChanges = false }: FileProps) {
+function File({
+  file: { depth, name, fullPath },
+  onClick,
+  onCopyPath,
+  onCopyRelativePath,
+  selected,
+  unsavedChanges = false,
+  fileHistory = {},
+}: FileProps) {
+  const fileModifications = fileHistory[fullPath];
+
+  // const hasModifications = fileModifications !== undefined;
+
+  // Calculate added and removed lines from the most recent changes
+  const { additions, deletions } = useMemo(() => {
+    if (!fileModifications?.originalContent) {
+      return { additions: 0, deletions: 0 };
+    }
+
+    // Usar a mesma lógica do DiffView para processar as mudanças
+    const normalizedOriginal = fileModifications.originalContent.replace(/\r\n/g, '\n');
+    const normalizedCurrent =
+      fileModifications.versions[fileModifications.versions.length - 1]?.content.replace(/\r\n/g, '\n') || '';
+
+    if (normalizedOriginal === normalizedCurrent) {
+      return { additions: 0, deletions: 0 };
+    }
+
+    const changes = diffLines(normalizedOriginal, normalizedCurrent, {
+      newlineIsToken: false,
+      ignoreWhitespace: true,
+      ignoreCase: false,
+    });
+
+    return changes.reduce(
+      (acc: { additions: number; deletions: number }, change: Change) => {
+        if (change.added) {
+          acc.additions += change.value.split('\n').length;
+        }
+
+        if (change.removed) {
+          acc.deletions += change.value.split('\n').length;
+        }
+
+        return acc;
+      },
+      { additions: 0, deletions: 0 },
+    );
+  }, [fileModifications]);
+
+  const showStats = additions > 0 || deletions > 0;
+
   return (
-    <NodeButton
-      className={classNames('group', {
-        'bg-transparent hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-item-contentDefault': !selected,
-        'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent': selected,
-      })}
-      depth={depth}
-      iconClasses={classNames('i-ph:file-duotone scale-98', {
-        'group-hover:text-bolt-elements-item-contentActive': !selected,
-      })}
-      onClick={onClick}
-    >
-      <div
-        className={classNames('flex items-center', {
+    <FileContextMenu onCopyPath={onCopyPath} onCopyRelativePath={onCopyRelativePath}>
+      <NodeButton
+        className={classNames('group', {
+          'bg-transparent hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-item-contentDefault':
+            !selected,
+          'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent': selected,
+        })}
+        depth={depth}
+        iconClasses={classNames('i-ph:file-duotone scale-98', {
           'group-hover:text-bolt-elements-item-contentActive': !selected,
         })}
+        onClick={onClick}
       >
-        <div className="flex-1 truncate pr-2">{name}</div>
-        {unsavedChanges && <span className="i-ph:circle-fill scale-68 shrink-0 text-orange-500" />}
-      </div>
-    </NodeButton>
+        <div
+          className={classNames('flex items-center', {
+            'group-hover:text-bolt-elements-item-contentActive': !selected,
+          })}
+        >
+          <div className="flex-1 truncate pr-2">{name}</div>
+          <div className="flex items-center gap-1">
+            {showStats && (
+              <div className="flex items-center gap-1 text-xs">
+                {additions > 0 && <span className="text-green-500">+{additions}</span>}
+                {deletions > 0 && <span className="text-red-500">-{deletions}</span>}
+              </div>
+            )}
+            {unsavedChanges && <span className="i-ph:circle-fill scale-68 shrink-0 text-orange-500" />}
+          </div>
+        </div>
+      </NodeButton>
+    </FileContextMenu>
   );
 }
 
