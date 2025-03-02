@@ -38,11 +38,11 @@ const WINDOW_SIZES: WindowSize[] = [
     hasFrame: true,
     frameType: 'tablet',
   },
-  { name: 'Small Laptop', width: 1280, height: 800, icon: 'i-ph:laptop', hasFrame: true, frameType: 'laptop' },
-  { name: 'Laptop', width: 1366, height: 768, icon: 'i-ph:laptop', hasFrame: true, frameType: 'laptop' },
-  { name: 'Large Laptop', width: 1440, height: 900, icon: 'i-ph:laptop', hasFrame: true, frameType: 'laptop' },
-  { name: 'Desktop', width: 1920, height: 1080, icon: 'i-ph:monitor', hasFrame: true, frameType: 'desktop' },
-  { name: '4K Display', width: 3840, height: 2160, icon: 'i-ph:monitor', hasFrame: true, frameType: 'desktop' },
+  { name: 'Small Laptop', width: 1280, height: 800, icon: 'i-ph:laptop' },
+  { name: 'Laptop', width: 1366, height: 768, icon: 'i-ph:laptop' },
+  { name: 'Large Laptop', width: 1440, height: 900, icon: 'i-ph:laptop' },
+  { name: 'Desktop', width: 1920, height: 1080, icon: 'i-ph:monitor' },
+  { name: '4K Display', width: 3840, height: 2160, icon: 'i-ph:monitor' },
 ];
 
 export const Preview = memo(() => {
@@ -75,7 +75,6 @@ export const Preview = memo(() => {
     startX: 0,
     startWidthPercent: 37.5,
     windowWidth: window.innerWidth,
-    pointerId: null as number | null,
   });
 
   // Reduce scaling factor to make resizing less sensitive
@@ -83,9 +82,9 @@ export const Preview = memo(() => {
 
   const [isWindowSizeDropdownOpen, setIsWindowSizeDropdownOpen] = useState(false);
   const [selectedWindowSize, setSelectedWindowSize] = useState<WindowSize>(WINDOW_SIZES[0]);
+
   const [isLandscape, setIsLandscape] = useState(false);
   const [showDeviceFrame, setShowDeviceFrame] = useState(true);
-  const [showDeviceFrameInPreview, setShowDeviceFrameInPreview] = useState(false);
 
   useEffect(() => {
     if (!activePreview) {
@@ -163,176 +162,63 @@ export const Preview = memo(() => {
     setIsDeviceModeOn((prev) => !prev);
   };
 
-  const startResizing = (e: React.PointerEvent, side: ResizeSide) => {
+  const startResizing = (e: React.MouseEvent, side: ResizeSide) => {
     if (!isDeviceModeOn) {
       return;
     }
-
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
 
     document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ew-resize';
 
-    resizingState.current = {
-      isResizing: true,
-      side,
-      startX: e.clientX,
-      startWidthPercent: widthPercent,
-      windowWidth: window.innerWidth,
-      pointerId: e.pointerId,
-    };
+    resizingState.current.isResizing = true;
+    resizingState.current.side = side;
+    resizingState.current.startX = e.clientX;
+    resizingState.current.startWidthPercent = widthPercent;
+    resizingState.current.windowWidth = window.innerWidth;
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    e.preventDefault();
   };
 
-  const ResizeHandle = ({ side }: { side: ResizeSide }) => {
-    if (!side) {
-      return null;
-    }
-
-    return (
-      <div
-        className={`resize-handle-${side}`}
-        onPointerDown={(e) => startResizing(e, side)}
-        style={{
-          position: 'absolute',
-          top: 0,
-          ...(side === 'left' ? { left: 0, marginLeft: '-7px' } : { right: 0, marginRight: '-7px' }),
-          width: '15px',
-          height: '100%',
-          cursor: 'ew-resize',
-          background: 'var(--bolt-elements-background-depth-4, rgba(0,0,0,.3))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background 0.2s',
-          userSelect: 'none',
-          touchAction: 'none',
-          zIndex: 10,
-        }}
-        onMouseOver={(e) =>
-          (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-4, rgba(0,0,0,.3))')
-        }
-        onMouseOut={(e) =>
-          (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-3, rgba(0,0,0,.15))')
-        }
-        title="Drag to resize width"
-      >
-        <GripIcon />
-      </div>
-    );
-  };
-
-  useEffect(() => {
-    // Skip if not in device mode
-    if (!isDeviceModeOn) {
+  const onMouseMove = (e: MouseEvent) => {
+    if (!resizingState.current.isResizing) {
       return;
     }
 
-    const handlePointerMove = (e: PointerEvent) => {
-      const state = resizingState.current;
+    const dx = e.clientX - resizingState.current.startX;
+    const windowWidth = resizingState.current.windowWidth;
 
-      if (!state.isResizing || e.pointerId !== state.pointerId) {
-        return;
-      }
+    const dxPercent = (dx / windowWidth) * 100 * SCALING_FACTOR;
 
-      const dx = e.clientX - state.startX;
-      const dxPercent = (dx / state.windowWidth) * 100 * SCALING_FACTOR;
+    let newWidthPercent = resizingState.current.startWidthPercent;
 
-      let newWidthPercent = state.startWidthPercent;
-
-      if (state.side === 'right') {
-        newWidthPercent = state.startWidthPercent + dxPercent;
-      } else if (state.side === 'left') {
-        newWidthPercent = state.startWidthPercent - dxPercent;
-      }
-
-      // Limit width percentage between 10% and 90%
-      newWidthPercent = Math.max(10, Math.min(newWidthPercent, 90));
-
-      // Force a synchronous update to ensure the UI reflects the change immediately
-      setWidthPercent(newWidthPercent);
-
-      // Calculate and update the actual pixel width
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const newWidth = Math.round((containerWidth * newWidthPercent) / 100);
-        setCurrentWidth(newWidth);
-
-        // Apply the width directly to the container for immediate feedback
-        const previewContainer = containerRef.current.querySelector('div[style*="width"]');
-
-        if (previewContainer) {
-          (previewContainer as HTMLElement).style.width = `${newWidthPercent}%`;
-        }
-      }
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      const state = resizingState.current;
-
-      if (!state.isResizing || e.pointerId !== state.pointerId) {
-        return;
-      }
-
-      // Find all resize handles
-      const handles = document.querySelectorAll('.resize-handle-left, .resize-handle-right');
-
-      // Release pointer capture from any handle that has it
-      handles.forEach((handle) => {
-        if ((handle as HTMLElement).hasPointerCapture?.(e.pointerId)) {
-          (handle as HTMLElement).releasePointerCapture(e.pointerId);
-        }
-      });
-
-      // Reset state
-      resizingState.current = {
-        ...resizingState.current,
-        isResizing: false,
-        side: null,
-        pointerId: null,
-      };
-
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-
-    // Add event listeners
-    document.addEventListener('pointermove', handlePointerMove, { passive: false });
-    document.addEventListener('pointerup', handlePointerUp);
-    document.addEventListener('pointercancel', handlePointerUp);
-
-    // Define cleanup function
-    function cleanupResizeListeners() {
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-      document.removeEventListener('pointercancel', handlePointerUp);
-
-      // Release any lingering pointer captures
-      if (resizingState.current.pointerId !== null) {
-        const handles = document.querySelectorAll('.resize-handle-left, .resize-handle-right');
-        handles.forEach((handle) => {
-          if ((handle as HTMLElement).hasPointerCapture?.(resizingState.current.pointerId!)) {
-            (handle as HTMLElement).releasePointerCapture(resizingState.current.pointerId!);
-          }
-        });
-
-        // Reset state
-        resizingState.current = {
-          ...resizingState.current,
-          isResizing: false,
-          side: null,
-          pointerId: null,
-        };
-
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
-      }
+    if (resizingState.current.side === 'right') {
+      newWidthPercent = resizingState.current.startWidthPercent + dxPercent;
+    } else if (resizingState.current.side === 'left') {
+      newWidthPercent = resizingState.current.startWidthPercent - dxPercent;
     }
 
-    // Return the cleanup function
-    // eslint-disable-next-line consistent-return
-    return cleanupResizeListeners;
-  }, [isDeviceModeOn, SCALING_FACTOR]);
+    // Limit width percentage between 10% and 90%
+    newWidthPercent = Math.max(10, Math.min(newWidthPercent, 90));
+
+    setWidthPercent(newWidthPercent);
+
+    // Calculate and update the actual pixel width
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.clientWidth;
+      setCurrentWidth(Math.round((containerWidth * newWidthPercent) / 100));
+    }
+  };
+
+  const onMouseUp = () => {
+    resizingState.current.isResizing = false;
+    resizingState.current.side = null;
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+
+    document.body.style.userSelect = '';
+  };
 
   useEffect(() => {
     const handleWindowResize = () => {
@@ -409,11 +295,11 @@ export const Preview = memo(() => {
           height = size.width;
         }
 
-        // Create a window with device frame if enabled
+        // Create a more reliable approach by using a wrapper page
         if (showDeviceFrame && size.hasFrame) {
           // Calculate frame dimensions
-          const frameWidth = size.frameType === 'mobile' ? (isLandscape ? 120 : 40) : 60; // Width padding on each side
-          const frameHeight = size.frameType === 'mobile' ? (isLandscape ? 80 : 80) : isLandscape ? 60 : 100; // Height padding on top and bottom
+          const frameWidth = size.frameType === 'mobile' ? 40 : 60; // 20px or 30px on each side
+          const frameHeight = size.frameType === 'mobile' ? 80 : 100; // 40px or 50px on top and bottom
 
           // Create a window with the correct dimensions first
           const newWindow = window.open(
@@ -428,26 +314,19 @@ export const Preview = memo(() => {
           }
 
           // Create the HTML content for the frame
-          const frameColor = getFrameColor();
+          const frameColor = '#111';
           const frameRadius = size.frameType === 'mobile' ? '36px' : '20px';
-          const framePadding =
-            size.frameType === 'mobile'
-              ? isLandscape
-                ? '40px 60px'
-                : '40px 20px'
-              : isLandscape
-                ? '30px 50px'
-                : '50px 30px';
+          const framePadding = size.frameType === 'mobile' ? '40px 20px' : '50px 30px';
 
           // Position notch and home button based on orientation
           const notchTop = isLandscape ? '50%' : '20px';
-          const notchLeft = isLandscape ? '30px' : '50%';
+          const notchLeft = isLandscape ? '20px' : '50%';
           const notchTransform = isLandscape ? 'translateY(-50%)' : 'translateX(-50%)';
           const notchWidth = isLandscape ? '8px' : size.frameType === 'mobile' ? '60px' : '80px';
           const notchHeight = isLandscape ? (size.frameType === 'mobile' ? '60px' : '80px') : '8px';
 
           const homeBottom = isLandscape ? '50%' : '15px';
-          const homeRight = isLandscape ? '30px' : '50%';
+          const homeRight = isLandscape ? '15px' : '50%';
           const homeTransform = isLandscape ? 'translateY(50%)' : 'translateX(50%)';
           const homeWidth = isLandscape ? '4px' : '40px';
           const homeHeight = isLandscape ? '40px' : '4px';
@@ -530,11 +409,38 @@ export const Preview = memo(() => {
                   background: white;
                   display: block;
                 }
+                
+                .controls {
+                  position: absolute;
+                  top: -60px;
+                  left: 0;
+                  right: 0;
+                  display: flex;
+                  justify-content: center;
+                  gap: 10px;
+                }
+                
+                .button {
+                  background: #6D28D9;
+                  color: white;
+                  border: none;
+                  border-radius: 4px;
+                  padding: 4px 10px;
+                  font-size: 12px;
+                  cursor: pointer;
+                  transition: background 0.2s;
+                }
+                
+                .button:hover {
+                  background: #5b21b6;
+                }
               </style>
             </head>
             <body>
               <div class="device-container">
-                <div class="device-name">${size.name} ${isLandscape ? '(Landscape)' : '(Portrait)'}</div>
+                <div class="controls">
+                  <div class="device-name">${size.name} ${isLandscape ? '(Landscape)' : '(Portrait)'}</div>
+                </div>
                 <div class="device-frame">
                   <iframe src="${previewUrl}" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin" allow="cross-origin-isolated"></iframe>
                 </div>
@@ -547,6 +453,8 @@ export const Preview = memo(() => {
           newWindow.document.open();
           newWindow.document.write(htmlContent);
           newWindow.document.close();
+
+          newWindow.focus();
         } else {
           // Standard window without frame
           const newWindow = window.open(
@@ -564,69 +472,6 @@ export const Preview = memo(() => {
       }
     }
   };
-
-  // Function to get the correct frame padding based on orientation
-  const getFramePadding = useCallback(() => {
-    if (!selectedWindowSize) {
-      return '40px 20px';
-    }
-
-    const isMobile = selectedWindowSize.frameType === 'mobile';
-
-    if (isLandscape) {
-      // Increase horizontal padding in landscape mode to ensure full device frame is visible
-      return isMobile ? '40px 60px' : '30px 50px';
-    }
-
-    return isMobile ? '40px 20px' : '50px 30px';
-  }, [isLandscape, selectedWindowSize]);
-
-  // Function to get the scale factor for the device frame
-  const getDeviceScale = useCallback(() => {
-    // Always return 1 to ensure the device frame is shown at its exact size
-    return 1;
-  }, [isLandscape, selectedWindowSize, widthPercent]);
-
-  // Update the device scale when needed
-  useEffect(() => {
-    /*
-     * Intentionally disabled - we want to maintain scale of 1
-     * No dynamic scaling to ensure device frame matches external window exactly
-     */
-    return () => {
-      // Cleanup function intentionally left empty - no event listeners to remove
-    };
-  }, [isDeviceModeOn, showDeviceFrameInPreview, getDeviceScale, isLandscape, selectedWindowSize]);
-
-  // Function to get the frame color based on dark mode
-  const getFrameColor = useCallback(() => {
-    // Check if the document has a dark class or data-theme="dark"
-    const isDarkMode =
-      document.documentElement.classList.contains('dark') ||
-      document.documentElement.getAttribute('data-theme') === 'dark' ||
-      window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    // Return a darker color for light mode, lighter color for dark mode
-    return isDarkMode ? '#555' : '#111';
-  }, []);
-
-  // Effect to handle color scheme changes
-  useEffect(() => {
-    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handleColorSchemeChange = () => {
-      // Force a re-render when color scheme changes
-      if (showDeviceFrameInPreview) {
-        setShowDeviceFrameInPreview(true);
-      }
-    };
-
-    darkModeMediaQuery.addEventListener('change', handleColorSchemeChange);
-
-    return () => {
-      darkModeMediaQuery.removeEventListener('change', handleColorSchemeChange);
-    };
-  }, [showDeviceFrameInPreview]);
 
   return (
     <div
@@ -685,21 +530,6 @@ export const Preview = memo(() => {
             onClick={toggleDeviceMode}
             title={isDeviceModeOn ? 'Switch to Responsive Mode' : 'Switch to Device Mode'}
           />
-
-          {isDeviceModeOn && (
-            <>
-              <IconButton
-                icon="i-ph:rotate-right"
-                onClick={() => setIsLandscape(!isLandscape)}
-                title={isLandscape ? 'Switch to Portrait' : 'Switch to Landscape'}
-              />
-              <IconButton
-                icon={showDeviceFrameInPreview ? 'i-ph:device-mobile' : 'i-ph:device-mobile-slash'}
-                onClick={() => setShowDeviceFrameInPreview(!showDeviceFrameInPreview)}
-                title={showDeviceFrameInPreview ? 'Hide Device Frame' : 'Show Device Frame'}
-              />
-            </>
-          )}
 
           <IconButton
             icon="i-ph:layout-light"
@@ -786,7 +616,7 @@ export const Preview = memo(() => {
                       <div
                         className={`${size.icon} w-5 h-5 text-[#6B7280] dark:text-gray-400 group-hover:text-[#6D28D9] dark:group-hover:text-[#6D28D9] transition-colors duration-200`}
                       />
-                      <div className="flex-grow flex flex-col">
+                      <div className="flex flex-col">
                         <span className="font-medium group-hover:text-[#6D28D9] dark:group-hover:text-[#6D28D9] transition-colors duration-200">
                           {size.name}
                         </span>
@@ -797,23 +627,6 @@ export const Preview = memo(() => {
                           {size.hasFrame && showDeviceFrame ? ' (with frame)' : ''}
                         </span>
                       </div>
-                      {selectedWindowSize.name === size.name && (
-                        <div className="text-[#6D28D9] dark:text-[#6D28D9]">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                          </svg>
-                        </div>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -826,110 +639,24 @@ export const Preview = memo(() => {
       <div className="flex-1 border-t border-bolt-elements-borderColor flex justify-center items-center overflow-auto">
         <div
           style={{
-            width: isDeviceModeOn ? (showDeviceFrameInPreview ? '100%' : `${widthPercent}%`) : '100%',
+            width: isDeviceModeOn ? `${widthPercent}%` : '100%',
             height: '100%',
-            overflow: 'auto',
+            overflow: 'visible',
             background: 'var(--bolt-elements-background-depth-1)',
             position: 'relative',
             display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
           }}
         >
           {activePreview ? (
             <>
-              {isDeviceModeOn && showDeviceFrameInPreview ? (
-                <div
-                  className="device-wrapper"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    width: '100%',
-                    height: '100%',
-                    padding: '0',
-                    overflow: 'auto',
-                    transition: 'all 0.3s ease',
-                    position: 'relative',
-                  }}
-                >
-                  <div
-                    className="device-frame-container"
-                    style={{
-                      position: 'relative',
-                      borderRadius: selectedWindowSize.frameType === 'mobile' ? '36px' : '20px',
-                      background: getFrameColor(),
-                      padding: getFramePadding(),
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-                      overflow: 'hidden',
-                      transform: 'scale(1)',
-                      transformOrigin: 'center center',
-                      transition: 'all 0.3s ease',
-                      margin: '40px',
-                      width: isLandscape
-                        ? `${selectedWindowSize.height + (selectedWindowSize.frameType === 'mobile' ? 120 : 60)}px`
-                        : `${selectedWindowSize.width + (selectedWindowSize.frameType === 'mobile' ? 40 : 60)}px`,
-                      height: isLandscape
-                        ? `${selectedWindowSize.width + (selectedWindowSize.frameType === 'mobile' ? 80 : 60)}px`
-                        : `${selectedWindowSize.height + (selectedWindowSize.frameType === 'mobile' ? 80 : 100)}px`,
-                    }}
-                  >
-                    {/* Notch - positioned based on orientation */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: isLandscape ? '50%' : '20px',
-                        left: isLandscape ? '30px' : '50%',
-                        transform: isLandscape ? 'translateY(-50%)' : 'translateX(-50%)',
-                        width: isLandscape ? '8px' : selectedWindowSize.frameType === 'mobile' ? '60px' : '80px',
-                        height: isLandscape ? (selectedWindowSize.frameType === 'mobile' ? '60px' : '80px') : '8px',
-                        background: '#333',
-                        borderRadius: '4px',
-                        zIndex: 2,
-                      }}
-                    />
-
-                    {/* Home button - positioned based on orientation */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: isLandscape ? '50%' : '15px',
-                        right: isLandscape ? '30px' : '50%',
-                        transform: isLandscape ? 'translateY(50%)' : 'translateX(50%)',
-                        width: isLandscape ? '4px' : '40px',
-                        height: isLandscape ? '40px' : '4px',
-                        background: '#333',
-                        borderRadius: '50%',
-                        zIndex: 2,
-                      }}
-                    />
-
-                    <iframe
-                      ref={iframeRef}
-                      title="preview"
-                      style={{
-                        border: 'none',
-                        width: isLandscape ? `${selectedWindowSize.height}px` : `${selectedWindowSize.width}px`,
-                        height: isLandscape ? `${selectedWindowSize.width}px` : `${selectedWindowSize.height}px`,
-                        background: 'white',
-                        display: 'block',
-                      }}
-                      src={iframeUrl}
-                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                      allow="cross-origin-isolated"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <iframe
-                  ref={iframeRef}
-                  title="preview"
-                  className="border-none w-full h-full bg-bolt-elements-background-depth-1"
-                  src={iframeUrl}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                  allow="cross-origin-isolated"
-                />
-              )}
+              <iframe
+                ref={iframeRef}
+                title="preview"
+                className="border-none w-full h-full bg-bolt-elements-background-depth-1"
+                src={iframeUrl}
+                sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
+                allow="cross-origin-isolated"
+              />
               <ScreenshotSelector
                 isSelectionMode={isSelectionMode}
                 setIsSelectionMode={setIsSelectionMode}
@@ -942,7 +669,7 @@ export const Preview = memo(() => {
             </div>
           )}
 
-          {isDeviceModeOn && !showDeviceFrameInPreview && (
+          {isDeviceModeOn && (
             <>
               {/* Width indicator */}
               <div
@@ -964,8 +691,63 @@ export const Preview = memo(() => {
                 {currentWidth}px
               </div>
 
-              <ResizeHandle side="left" />
-              <ResizeHandle side="right" />
+              <div
+                onMouseDown={(e) => startResizing(e, 'left')}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '15px',
+                  marginLeft: '-7px', // Move handle closer to the edge
+                  height: '100%',
+                  cursor: 'ew-resize',
+                  background: 'var(--bolt-elements-background-depth-3, rgba(0,0,0,.15))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s',
+                  userSelect: 'none',
+                  zIndex: 10,
+                }}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-4, rgba(0,0,0,.3))')
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-3, rgba(0,0,0,.15))')
+                }
+                title="Drag to resize width"
+              >
+                <GripIcon />
+              </div>
+
+              <div
+                onMouseDown={(e) => startResizing(e, 'right')}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  width: '15px',
+                  marginRight: '-7px', // Move handle closer to the edge
+                  height: '100%',
+                  cursor: 'ew-resize',
+                  background: 'var(--bolt-elements-background-depth-3, rgba(0,0,0,.15))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s',
+                  userSelect: 'none',
+                  zIndex: 10,
+                }}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-4, rgba(0,0,0,.3))')
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.background = 'var(--bolt-elements-background-depth-3, rgba(0,0,0,.15))')
+                }
+                title="Drag to resize width"
+              >
+                <GripIcon />
+              </div>
             </>
           )}
         </div>
