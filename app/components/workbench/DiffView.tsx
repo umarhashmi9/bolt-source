@@ -48,7 +48,9 @@ const FullscreenButton = memo(({ onClick, isFullscreen }: FullscreenButtonProps)
 ));
 
 const FullscreenOverlay = memo(({ isFullscreen, children }: { isFullscreen: boolean; children: React.ReactNode }) => {
-  if (!isFullscreen) return <>{children}</>;
+  if (!isFullscreen) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-6">
@@ -112,6 +114,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
     // Compare lines directly for more accurate diff
     let i = 0,
       j = 0;
+
     while (i < beforeLines.length || j < afterLines.length) {
       if (i < beforeLines.length && j < afterLines.length && beforeLines[i] === afterLines[j]) {
         // Unchanged line
@@ -171,6 +174,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
 
             // Find common prefix and suffix
             let prefixLength = 0;
+
             while (
               prefixLength < beforeLine.length &&
               prefixLength < afterLine.length &&
@@ -180,6 +184,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
             }
 
             let suffixLength = 0;
+
             while (
               suffixLength < beforeLine.length - prefixLength &&
               suffixLength < afterLine.length - prefixLength &&
@@ -210,6 +215,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
                 });
                 i++;
               }
+
               if (afterMiddle) {
                 lineChanges.after.add(j);
                 unifiedBlocks.push({
@@ -238,6 +244,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
                 });
                 i++;
               }
+
               if (j < afterLines.length) {
                 lineChanges.after.add(j);
                 unifiedBlocks.push({
@@ -263,6 +270,7 @@ const processChanges = (beforeCode: string, afterCode: string) => {
               });
               i++;
             }
+
             if (j < afterLines.length) {
               lineChanges.after.add(j);
               unifiedBlocks.push({
@@ -480,7 +488,9 @@ const FileInfo = memo(
   }) => {
     // Calculate additions and deletions from the current document
     const { additions, deletions } = useMemo(() => {
-      if (!hasChanges) return { additions: 0, deletions: 0 };
+      if (!hasChanges) {
+        return { additions: 0, deletions: 0 };
+      }
 
       const changes = diffLines(beforeCode, afterCode, {
         newlineIsToken: false,
@@ -493,9 +503,11 @@ const FileInfo = memo(
           if (change.added) {
             acc.additions += change.value.split('\n').length;
           }
+
           if (change.removed) {
             acc.deletions += change.value.split('\n').length;
           }
+
           return acc;
         },
         { additions: 0, deletions: 0 },
@@ -530,63 +542,63 @@ const FileInfo = memo(
   },
 );
 
-const InlineDiffComparison = memo(
-  ({ beforeCode, afterCode, filename, language, lightTheme, darkTheme }: CodeComparisonProps) => {
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [highlighter, setHighlighter] = useState<any>(null);
-    const theme = useStore(themeStore);
+const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language }: CodeComparisonProps) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [highlighter, setHighlighter] = useState<any>(null);
+  const theme = useStore(themeStore);
 
-    const toggleFullscreen = useCallback(() => {
-      setIsFullscreen((prev) => !prev);
-    }, []);
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
 
-    const { unifiedBlocks, hasChanges, isBinary, error } = useProcessChanges(beforeCode, afterCode);
+  const { unifiedBlocks, hasChanges, isBinary, error } = useProcessChanges(beforeCode, afterCode);
 
-    useEffect(() => {
-      getHighlighter({
-        themes: ['github-dark', 'github-light'],
-        langs: ['typescript', 'javascript', 'json', 'html', 'css', 'jsx', 'tsx'],
-      }).then(setHighlighter);
-    }, []);
+  useEffect(() => {
+    getHighlighter({
+      themes: ['github-dark', 'github-light'],
+      langs: ['typescript', 'javascript', 'json', 'html', 'css', 'jsx', 'tsx'],
+    }).then(setHighlighter);
+  }, []);
 
-    if (isBinary || error) return renderContentWarning(isBinary ? 'binary' : 'error');
+  if (isBinary || error) {
+    return renderContentWarning(isBinary ? 'binary' : 'error');
+  }
 
-    return (
-      <FullscreenOverlay isFullscreen={isFullscreen}>
-        <div className="w-full h-full flex flex-col">
-          <FileInfo
-            filename={filename}
-            hasChanges={hasChanges}
-            onToggleFullscreen={toggleFullscreen}
-            isFullscreen={isFullscreen}
-            beforeCode={beforeCode}
-            afterCode={afterCode}
-          />
-          <div className={diffPanelStyles}>
-            {hasChanges ? (
-              <div className="overflow-x-auto min-w-full">
-                {unifiedBlocks.map((block, index) => (
-                  <CodeLine
-                    key={`${block.lineNumber}-${index}`}
-                    lineNumber={block.lineNumber}
-                    content={block.content}
-                    type={block.type}
-                    highlighter={highlighter}
-                    language={language}
-                    block={block}
-                    theme={theme}
-                  />
-                ))}
-              </div>
-            ) : (
-              <NoChangesView beforeCode={beforeCode} language={language} highlighter={highlighter} theme={theme} />
-            )}
-          </div>
+  return (
+    <FullscreenOverlay isFullscreen={isFullscreen}>
+      <div className="w-full h-full flex flex-col">
+        <FileInfo
+          filename={filename}
+          hasChanges={hasChanges}
+          onToggleFullscreen={toggleFullscreen}
+          isFullscreen={isFullscreen}
+          beforeCode={beforeCode}
+          afterCode={afterCode}
+        />
+        <div className={diffPanelStyles}>
+          {hasChanges ? (
+            <div className="overflow-x-auto min-w-full">
+              {unifiedBlocks.map((block, index) => (
+                <CodeLine
+                  key={`${block.lineNumber}-${index}`}
+                  lineNumber={block.lineNumber}
+                  content={block.content}
+                  type={block.type}
+                  highlighter={highlighter}
+                  language={language}
+                  block={block}
+                  theme={theme}
+                />
+              ))}
+            </div>
+          ) : (
+            <NoChangesView beforeCode={beforeCode} language={language} highlighter={highlighter} theme={theme} />
+          )}
         </div>
-      </FullscreenOverlay>
-    );
-  },
-);
+      </div>
+    </FullscreenOverlay>
+  );
+});
 
 interface DiffViewProps {
   fileHistory: Record<string, FileHistory>;
@@ -594,7 +606,7 @@ interface DiffViewProps {
   actionRunner: ActionRunner;
 }
 
-export const DiffView = memo(({ fileHistory, setFileHistory, actionRunner }: DiffViewProps) => {
+export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) => {
   const files = useStore(workbenchStore.files) as FileMap;
   const selectedFile = useStore(workbenchStore.selectedFile);
   const currentDocument = useStore(workbenchStore.currentDocument) as EditorDocument;
@@ -603,7 +615,10 @@ export const DiffView = memo(({ fileHistory, setFileHistory, actionRunner }: Dif
   useEffect(() => {
     if (selectedFile && currentDocument) {
       const file = files[selectedFile];
-      if (!file || !('content' in file)) return;
+
+      if (!file || !('content' in file)) {
+        return;
+      }
 
       const existingHistory = fileHistory[selectedFile];
       const currentContent = currentDocument.value;
@@ -634,6 +649,7 @@ export const DiffView = memo(({ fileHistory, setFileHistory, actionRunner }: Dif
             },
           }));
         }
+
         return;
       }
 

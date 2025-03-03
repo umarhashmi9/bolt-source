@@ -5,7 +5,6 @@ import { memo, useCallback, useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { Popover, Transition } from '@headlessui/react';
 import { diffLines, type Change } from 'diff';
-import { formatDistanceToNow as formatDistance } from 'date-fns';
 import { ActionRunner } from '~/lib/runtime/action-runner';
 import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 import type { FileHistory } from '~/types/actions';
@@ -25,7 +24,6 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { PushToGitHubDialog } from '~/components/@settings/tabs/connections/components/PushToGitHubDialog';
-import Cookies from 'js-cookie';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -182,7 +180,9 @@ const FileModifiedDropdown = memo(
                                     {(() => {
                                       // Calculate diff stats
                                       const { additions, deletions } = (() => {
-                                        if (!history.originalContent) return { additions: 0, deletions: 0 };
+                                        if (!history.originalContent) {
+                                          return { additions: 0, deletions: 0 };
+                                        }
 
                                         const normalizedOriginal = history.originalContent.replace(/\r\n/g, '\n');
                                         const normalizedCurrent =
@@ -206,9 +206,11 @@ const FileModifiedDropdown = memo(
                                             if (change.added) {
                                               acc.additions += change.value.split('\n').length;
                                             }
+
                                             if (change.removed) {
                                               acc.deletions += change.value.split('\n').length;
                                             }
+
                                             return acc;
                                           },
                                           { additions: 0, deletions: 0 },
@@ -281,7 +283,7 @@ export const Workbench = memo(
     const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
     const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
 
-    const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
+    // const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
 
     const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
     const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -451,6 +453,7 @@ export const Workbench = memo(
               try {
                 const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
                 await workbenchStore.pushToGitHub(repoName, commitMessage, username, token);
+
                 const repoUrl = `https://github.com/${username}/${repoName}`;
 
                 if (updateChatMestaData && !metadata?.gitUrl) {

@@ -4,11 +4,6 @@ import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
 import { genericMemo } from '~/utils/react';
 
-interface SliderOption<T> {
-  value: T;
-  text: string;
-}
-
 export type SliderOptions<T> = {
   left: { value: T; text: string };
   middle?: { value: T; text: string };
