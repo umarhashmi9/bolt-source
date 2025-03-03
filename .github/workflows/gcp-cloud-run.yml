@@ -1,0 +1,102 @@
+name: Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_BASE_NAME: 'chatandbuild-frontend'
+  SLACK_BASE_USERNAME: 'ChatAndBuild.com'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Git Short SHA
+        id: vars
+        run: echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_ENV
+
+      - name: Set Deployment Variables
+        id: env
+        run: |
+          echo "SERVICE_NAME=$SERVICE_BASE_NAME-${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "REGION=asia-southeast1" >> $GITHUB_ENV
+
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "DEPLOY_ENV=PRODUCTION" >> $GITHUB_ENV
+            echo "APP_URL=https://chatandbuild.com" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ENV=STAGING" >> $GITHUB_ENV
+            echo "APP_URL=https://staging.chatandbuild.com" >> $GITHUB_ENV
+          fi
+
+          echo "SLACK_USERNAME=${{ env.SLACK_BASE_USERNAME }} - ${{ env.DEPLOY_ENV }}" >> $GITHUB_ENV
+
+      - name: Install Doppler CLI
+        run: |
+          curl -Ls https://cli.doppler.com/install.sh | sudo sh
+
+      - name: Authenticate Doppler & setup project
+        run: |
+          doppler configure set token ${{ secrets.DOPPLER_TOKEN }}
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            doppler setup --project $SERVICE_BASE_NAME --config prd
+          else
+            doppler setup --project $SERVICE_BASE_NAME --config stg
+          fi
+
+      - name: Fetch Doppler Secrets
+        run: |
+          doppler secrets download --no-file --format yaml > .env.yaml
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE="gcr.io/$PROJECT_ID/$SERVICE_BASE_NAME:${{ env.SHORT_SHA }}"
+          docker build -f deployment/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image gcr.io/$PROJECT_ID/$SERVICE_BASE_NAME:${{ env.SHORT_SHA }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --cpu 1 \
+            --env-vars-file .env.yaml
+
+      - name: Send Slack Notification
+        if: always()
+        run: |
+          STATUS="SUCCEED! 🎉"
+          COLOR="good"
+          if [[ "${{ job.status }}" != "success" ]]; then
+            STATUS="FAILED ❌"
+            COLOR="danger"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' --data "{
+            \"text\": \"<!channel> *${{ env.APP_URL }} - ${{ env.DEPLOY_ENV }} build is $STATUS*\",
+            \"username\": \"${{ env.SLACK_USERNAME }}\",
+            \"icon_emoji\": \":pivoteer-1:\"
+          }" ${{ secrets.SLACK_WEBHOOK_URL }}

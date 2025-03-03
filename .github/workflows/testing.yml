@@ -1,0 +1,42 @@
+name: Run Tests
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+env:
+  NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: node:20.18.0
+    defaults:
+      run:
+        working-directory: ./
+
+    strategy:
+      matrix:
+        node-version: [20.18.0]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install pnpm
+        run: npm i -g pnpm
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Run test
+        run: pnpm run test
+
+      - name: Run build
+        run: pnpm run build
