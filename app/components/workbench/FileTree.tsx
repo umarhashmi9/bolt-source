@@ -274,11 +274,14 @@ function File({
   fileHistory = {},
 }: FileProps) {
   const fileModifications = fileHistory[fullPath];
-  const hasModifications = fileModifications !== undefined;
+
+  // const hasModifications = fileModifications !== undefined;
 
   // Calculate added and removed lines from the most recent changes
   const { additions, deletions } = useMemo(() => {
-    if (!fileModifications?.originalContent) return { additions: 0, deletions: 0 };
+    if (!fileModifications?.originalContent) {
+      return { additions: 0, deletions: 0 };
+    }
 
     // Usar a mesma lógica do DiffView para processar as mudanças
     const normalizedOriginal = fileModifications.originalContent.replace(/\r\n/g, '\n');
@@ -300,9 +303,11 @@ function File({
         if (change.added) {
           acc.additions += change.value.split('\n').length;
         }
+
         if (change.removed) {
           acc.deletions += change.value.split('\n').length;
         }
+
         return acc;
       },
       { additions: 0, deletions: 0 },
