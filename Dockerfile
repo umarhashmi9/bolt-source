@@ -129,5 +129,6 @@ ENV GROQ_API_KEY=${GROQ_API_KEY} \
 
 RUN mkdir -p ${WORKDIR}/run
 
+RUN pnpm run build
 RUN pnpm runtime:express_build
 CMD pnpm runtime:express
