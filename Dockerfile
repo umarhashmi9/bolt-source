@@ -18,7 +18,7 @@ COPY . .
 EXPOSE 5173
 
 # Production image
-FROM base AS bolt-ai-production
+FROM base AS bolt-diy-production
 
 # Define environment variables with default values or let them be overridden
 ARG GROQ_API_KEY
@@ -60,7 +60,7 @@ RUN pnpm run build
 CMD [ "pnpm", "run", "dockerstart"]
 
 # Development image
-FROM base AS bolt-ai-development
+FROM base AS bolt-diy-development
 
 # Define the same environment variables for development
 ARG GROQ_API_KEY
@@ -93,3 +93,42 @@ ENV GROQ_API_KEY=${GROQ_API_KEY} \
 
 RUN mkdir -p ${WORKDIR}/run
 CMD pnpm run dev --host
+
+
+# Express image
+FROM base AS bolt-diy-express
+
+# Define the same environment variables for development
+ARG GROQ_API_KEY
+ARG HuggingFace 
+ARG OPENAI_API_KEY
+ARG ANTHROPIC_API_KEY
+ARG OPEN_ROUTER_API_KEY
+ARG GOOGLE_GENERATIVE_AI_API_KEY
+ARG OLLAMA_API_BASE_URL
+ARG XAI_API_KEY
+ARG TOGETHER_API_KEY
+ARG TOGETHER_API_BASE_URL
+ARG VITE_LOG_LEVEL=debug
+ARG DEFAULT_NUM_CTX
+
+ENV GROQ_API_KEY=${GROQ_API_KEY} \
+    HuggingFace_API_KEY=${HuggingFace_API_KEY} \
+    OPENAI_API_KEY=${OPENAI_API_KEY} \
+    ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY} \
+    OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY} \
+    GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY} \
+    OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL} \
+    XAI_API_KEY=${XAI_API_KEY} \
+    TOGETHER_API_KEY=${TOGETHER_API_KEY} \
+    TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL} \
+    AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG} \
+    VITE_LOG_LEVEL=${VITE_LOG_LEVEL} \
+    DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX}\
+    RUNNING_IN_DOCKER=true
+
+RUN mkdir -p ${WORKDIR}/run
+
+RUN pnpm run build
+RUN pnpm runtime:express_build
+CMD pnpm runtime:express

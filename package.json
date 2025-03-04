@@ -6,6 +6,9 @@
   "sideEffects": false,
   "type": "module",
   "version": "0.0.7",
+  "workspaces": [
+    "runtimes/bolt-diy-express"
+  ],
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
     "build": "remix vite:build",
@@ -25,7 +28,10 @@
     "typegen": "wrangler types",
     "preview": "pnpm run build && pnpm run start",
     "prepare": "husky",
-    "clean": "node scripts/clean.js"
+    "clean": "node scripts/clean.js",
+    "setup-runtime:express": "pnpm install --filter bolt-diy-express install",
+    "runtime:express_build": "pnpm run setup-runtime:express && pnpm --filter bolt-diy-express build",
+    "runtime:express": "pnpm --filter bolt-diy-express start"
   },
   "engines": {
     "node": ">=18.18.0"
