@@ -1,11 +1,12 @@
 import { useStore } from '@nanostores/react';
+import { ClientOnly } from 'remix-utils/client-only';
 import type { LinksFunction } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -70,16 +71,14 @@ export const Head = createHead(() => (
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const theme = useStore(themeStore);
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     document.querySelector('html')?.setAttribute('data-theme', theme);
-    setIsClient(true);
   }, [theme]);
 
   return (
     <>
-      {isClient ? <DndProvider backend={HTML5Backend}>{children}</DndProvider> : children}
+      <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>
       <ScrollRestoration />
       <Scripts />
     </>
