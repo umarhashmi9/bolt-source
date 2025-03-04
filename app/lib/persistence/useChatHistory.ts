@@ -1,7 +1,7 @@
 import { useLoaderData, useNavigate, useSearchParams } from '@remix-run/react';
 import { useState, useEffect, useCallback } from 'react';
 import { atom } from 'nanostores';
-import type { Message } from 'ai';
+import { generateId, type JSONValue, type Message } from 'ai';
 import { toast } from 'react-toastify';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { logStore } from '~/lib/stores/logs'; // Import logStore
@@ -19,6 +19,7 @@ import type { FileMap } from '~/lib/stores/files';
 import type { Snapshot } from './types';
 import { webcontainer } from '~/lib/webcontainer';
 import { createCommandsMessage, detectProjectCommands } from '~/utils/projectCommands';
+import type { ContextAnnotation } from '~/types/context';
 
 export interface ChatHistoryItem {
   id: string;
@@ -65,6 +66,7 @@ export function useChatHistory() {
           if (storedMessages && storedMessages.messages.length > 0) {
             const snapshotStr = localStorage.getItem(`snapshot:${mixedId}`);
             const snapshot: Snapshot = snapshotStr ? JSON.parse(snapshotStr) : { chatIndex: 0, files: {} };
+            const summary = snapshot.summary;
 
             const rewindId = searchParams.get('rewindTo');
             let startingIdx = 0;
@@ -77,7 +79,7 @@ export function useChatHistory() {
               startingIdx = snapshotIndex;
             }
 
-            if (storedMessages.messages[snapshotIndex].id == rewindId) {
+            if (snapshotIndex > 0 && storedMessages.messages[snapshotIndex].id == rewindId) {
               startingIdx = 0;
             }
 
@@ -108,36 +110,17 @@ export function useChatHistory() {
 
               filteredMessages = [
                 {
-                  id: `${Date.now()}`,
+                  id: generateId(),
                   role: 'user',
-                  content: `
-                  here is the conversation till now, i have removed all the artifacts and the files and only kept the chats
-                  ${archivedMessages
-                    .map((message) => {
-                      return `
-                    ${message.role}: ${`${message.content || ''}`.replace(
-                      /<boltArtifact[^>]*>[\s\S]*?<\/boltArtifact>/g,
-                      '{{artifact removed}}',
-                    )}
-                    `;
-                    })
-                    .join('\n')}
+                  content: `Restore project from snapshot
                   `,
-
                   annotations: ['no-store', 'hidden'],
                 },
                 {
                   id: storedMessages.messages[snapshotIndex].id,
                   role: 'assistant',
-                  content: ` 📦 Chat Restored from snapshot, You can revert this message to load the full chat history`,
-
-                  annotations: ['no-store'],
-                },
-                {
-                  id: `${Date.now()}`,
-                  role: 'assistant',
-                  content: ` Below are the files and content of the files restored:
-                  <boltArtifact id="imported-files" title="Importing Project Files" type="bundled">
+                  content: ` 📦 Chat Restored from snapshot, You can revert this message to load the full chat history
+                  <boltArtifact id="imported-files" title="Project Files Snapshot" type="bundled">
                   ${Object.entries(snapshot?.files || {})
                     .filter((x) => !x[0].endsWith('lock.json'))
                     .map(([key, value]) => {
@@ -154,36 +137,46 @@ ${value.content}
                     .join('\n')}
                   </boltArtifact>
                   `,
-                  annotations: ['no-store'],
+                  annotations: [
+                    'no-store',
+                    ...(summary
+                      ? [
+                          {
+                            chatId: storedMessages.messages[snapshotIndex].id,
+                            type: 'chatSummary',
+                            summary,
+                          } satisfies ContextAnnotation,
+                        ]
+                      : []),
+                  ],
                 },
                 ...(commands !== null
                   ? [
                       {
+                        id: `${storedMessages.messages[snapshotIndex].id}-2`,
+                        role: 'user' as const,
+                        content: `setup project`,
+                        annotations: ['no-store', 'hidden'],
+                      },
+                      {
                         ...commands,
-                        annotations: ['no-store', ...(commands.annotations || [])],
+                        id: `${storedMessages.messages[snapshotIndex].id}-3`,
+                        annotations: [
+                          'no-store',
+                          ...(commands.annotations || []),
+                          ...(summary
+                            ? [
+                                {
+                                  chatId: `${storedMessages.messages[snapshotIndex].id}-3`,
+                                  type: 'chatSummary',
+                                  summary,
+                                } satisfies ContextAnnotation,
+                              ]
+                            : []),
+                        ],
                       },
                     ]
                   : []),
-                {
-                  id: `${Date.now()}`,
-                  role: 'assistant',
-                  content: ` Below are the files and content of the files restored:
-                  ### here are all the files present in the  Project
-                  ${Object.entries(snapshot.files || {})
-                    .filter((x) => !x[0].endsWith('lock.json'))
-                    .map(([key, value]) => {
-                      if (value?.type === 'file') {
-                        return `
-                      #### ${key}
-                      `;
-                      }
-
-                      return ``;
-                    })
-                    .join('\n')}
-                  `,
-                  annotations: ['no-store', 'hidden'],
-                },
                 ...filteredMessages,
               ];
               restoreSnapshot(mixedId);
@@ -202,6 +195,8 @@ ${value.content}
           setReady(true);
         })
         .catch((error) => {
+          console.error(error);
+
           logStore.logError('Failed to load chat messages', error);
           toast.error(error.message);
         });
@@ -209,7 +204,7 @@ ${value.content}
   }, [mixedId]);
 
   const takeSnapshot = useCallback(
-    async (chatIdx: string, files: FileMap, _chatId?: string | undefined) => {
+    async (chatIdx: string, files: FileMap, _chatId?: string | undefined, chatSummary?: string) => {
       const id = _chatId || chatId;
 
       if (!id) {
@@ -219,6 +214,7 @@ ${value.content}
       const snapshot: Snapshot = {
         chatIndex: chatIdx,
         files,
+        summary: chatSummary,
       };
       localStorage.setItem(`snapshot:${id}`, JSON.stringify(snapshot));
     },
@@ -294,7 +290,22 @@ ${value.content}
         setUrlId(urlId);
       }
 
-      takeSnapshot(messages[messages.length - 1].id, workbenchStore.files.get(), _urlId);
+      let chatSummary: string | undefined = undefined;
+      const lastMessage = messages[messages.length - 1];
+
+      if (lastMessage.role === 'assistant') {
+        const annotations = lastMessage.annotations as JSONValue[];
+        const filteredAnnotations = (annotations?.filter(
+          (annotation: JSONValue) =>
+            annotation && typeof annotation === 'object' && Object.keys(annotation).includes('type'),
+        ) || []) as { type: string; value: any } & { [key: string]: any }[];
+
+        if (filteredAnnotations.find((annotation) => annotation.type === 'chatSummary')) {
+          chatSummary = filteredAnnotations.find((annotation) => annotation.type === 'chatSummary')?.summary;
+        }
+      }
+
+      takeSnapshot(messages[messages.length - 1].id, workbenchStore.files.get(), _urlId, chatSummary);
 
       if (!description.get() && firstArtifact?.title) {
         description.set(firstArtifact?.title);
