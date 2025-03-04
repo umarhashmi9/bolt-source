@@ -219,6 +219,13 @@ export async function selectContext(props: {
     onFinish(resp);
   }
 
+  const totalFiles = Object.keys(filteredFiles).length;
+  logger.info(`Total files: ${totalFiles}`);
+
+  if (totalFiles == 0) {
+    throw new Error(`Bolt failed to select files`);
+  }
+
   return filteredFiles;
 
   // generateText({
