@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
-import Cookies from 'js-cookie';
 
 interface GitHubUserResponse {
   login: string;
@@ -88,6 +87,7 @@ export default function GithubConnection() {
       });
 
       if (!response.ok) {
+<<<<<<< HEAD
         throw new Error('Invalid token or unauthorized');
       }
 
@@ -109,6 +109,32 @@ export default function GithubConnection() {
 
       toast.success('Successfully connected to GitHub');
     } catch (error) {
+=======
+        throw new Error('Failed to fetch user data');
+      }
+
+      const userData = (await response.json()) as GitHubUserResponse;
+
+      setConnection({
+        user: userData,
+        token,
+        tokenType: import.meta.env.VITE_GITHUB_TOKEN_TYPE || 'classic',
+      });
+
+      localStorage.setItem(
+        'github_connection',
+        JSON.stringify({
+          user: userData,
+          token,
+          tokenType: import.meta.env.VITE_GITHUB_TOKEN_TYPE || 'classic',
+        }),
+      );
+
+      fetchGitHubStats(token);
+      toast.success('Successfully connected to GitHub');
+    } catch (error) {
+      console.error('Auth error:', error);
+>>>>>>> 0fd8ec4 (backwards compatible old import template)
       logStore.logError('Failed to authenticate with GitHub', { error });
       toast.error('Failed to connect to GitHub');
       setConnection({ user: null, token: '', tokenType: 'classic' });
