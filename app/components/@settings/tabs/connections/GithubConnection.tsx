@@ -161,32 +161,6 @@ export function GithubConnection() {
     }
   };
 
-  useEffect(() => {
-    const savedConnection = localStorage.getItem('github_connection');
-
-    if (savedConnection) {
-      const parsed = JSON.parse(savedConnection);
-
-      if (!parsed.tokenType) {
-        parsed.tokenType = 'classic';
-      }
-
-      setConnection(parsed);
-
-      if (parsed.user && parsed.token) {
-        fetchGitHubStats(parsed.token);
-      }
-    } else if (import.meta.env.VITE_GITHUB_ACCESS_TOKEN) {
-      fetchGithubUser(import.meta.env.VITE_GITHUB_ACCESS_TOKEN);
-    }
-
-    setIsLoading(false);
-  }, []);
-
-  if (isLoading || isConnecting || isFetchingStats) {
-    return <LoadingSpinner />;
-  }
-
   const fetchGithubUser = async (token: string) => {
     try {
       setIsConnecting(true);
@@ -226,6 +200,32 @@ export function GithubConnection() {
       setIsConnecting(false);
     }
   };
+
+  useEffect(() => {
+    const savedConnection = localStorage.getItem('github_connection');
+
+    if (savedConnection) {
+      const parsed = JSON.parse(savedConnection);
+
+      if (!parsed.tokenType) {
+        parsed.tokenType = 'classic';
+      }
+
+      setConnection(parsed);
+
+      if (parsed.user && parsed.token) {
+        fetchGitHubStats(parsed.token);
+      }
+    } else if (import.meta.env.VITE_GITHUB_ACCESS_TOKEN) {
+      fetchGithubUser(import.meta.env.VITE_GITHUB_ACCESS_TOKEN);
+    }
+
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading || isConnecting || isFetchingStats) {
+    return <LoadingSpinner />;
+  }
 
   const handleConnect = async (event: React.FormEvent) => {
     event.preventDefault();
