@@ -200,7 +200,7 @@ export function GithubConnection() {
       setIsFetchingStats(false);
     }
   };
-  
+
   useEffect(() => {
     const savedConnection = localStorage.getItem('github_connection');
 
