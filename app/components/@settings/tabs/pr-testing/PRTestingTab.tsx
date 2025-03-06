@@ -369,12 +369,69 @@ function PrTestingTab() {
     }
 
     return (
-      <div className="font-mono text-xs bg-bolt-elements-bg-depth-3 p-3 rounded-md border border-bolt-elements-borderColor overflow-auto max-h-60">
-        {logs.map((log, index) => (
-          <div key={index} className="whitespace-pre-wrap mb-1">
-            {log}
+      <div className="bg-bolt-elements-bg-depth-2 dark:bg-bolt-elements-bg-depth-3 rounded-md border border-bolt-elements-borderColor overflow-auto max-h-80 transition-all duration-200">
+        <div className="sticky top-0 bg-bolt-elements-bg-depth-1 dark:bg-bolt-elements-bg-depth-2 border-b border-bolt-elements-borderColor px-3 py-2 flex justify-between items-center">
+          <div className="text-xs font-medium text-bolt-elements-textPrimary">Setup Logs ({logs.length})</div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(logs.join('\n'));
+            }}
+            className="p-1 rounded-md hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-all duration-200"
+            title="Copy all logs"
+          >
+            <FiCopy className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="p-3 font-mono text-xs space-y-1">
+          {logs.map((log, index) => {
+            // Parse the log to extract timestamp and message
+            const timestampMatch = log.match(/\[(.*?)\]/);
+            const timestamp = timestampMatch ? timestampMatch[1] : '';
+            const message = timestampMatch ? log.substring(timestampMatch[0].length).trim() : log;
+
+            // Determine if this is a success, error, or info message
+            const isSuccess = message.toLowerCase().includes('success') || message.toLowerCase().includes('started');
+            const isError = message.toLowerCase().includes('error') || message.toLowerCase().includes('fail');
+
+            return (
+              <div
+                key={index}
+                className={classNames(
+                  'py-1 px-2 rounded whitespace-pre-wrap border-l-2 transition-all duration-200',
+                  isSuccess
+                    ? 'border-l-bolt-elements-icon-success bg-bolt-elements-icon-success bg-opacity-5'
+                    : isError
+                      ? 'border-l-bolt-elements-button-danger-background bg-bolt-elements-button-danger-background bg-opacity-5'
+                      : 'border-l-bolt-elements-borderColor',
+                )}
+              >
+                <span className="text-bolt-elements-textSecondary mr-2 select-none">{index + 1}.</span>
+                <span className="text-bolt-elements-textSecondary select-none">[{timestamp}]</span>
+                <span
+                  className={classNames(
+                    'ml-2',
+                    isSuccess
+                      ? 'text-bolt-elements-icon-success'
+                      : isError
+                        ? 'text-bolt-elements-button-danger-text'
+                        : 'text-bolt-elements-textPrimary',
+                  )}
+                >
+                  {message}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {isCloning && (
+          <div className="px-3 py-2 border-t border-bolt-elements-borderColor bg-bolt-elements-bg-depth-1 dark:bg-bolt-elements-bg-depth-2 flex items-center gap-2">
+            <div className="animate-spin w-3 h-3 text-bolt-elements-item-contentAccent">
+              <FiRefreshCw className="w-3 h-3" />
+            </div>
+            <span className="text-xs text-bolt-elements-textSecondary">Updating logs...</span>
           </div>
-        ))}
+        )}
       </div>
     );
   };
@@ -716,6 +773,14 @@ function PrTestingTab() {
                                   Running
                                 </span>
                               )}
+                              {(() => {
+                                const logs = setupLogs.get(pr.number);
+                                return logs && logs.length > 0 ? (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent">
+                                    {logs.length}
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                             {expandedSections.setupLogs ? (
                               <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
