@@ -1,68 +1,120 @@
 /**
- * Custom implementation of path-browserify that provides both named exports and a default export
- * This is needed because isomorphic-git expects named exports from path-browserify
+ * This is a minimal shim for the Node.js path module
+ * It provides just enough functionality for isomorphic-git to work in the browser
  */
 
-// Path utilities
-export function join(...parts: string[]): string {
-  return parts.join('/').replace(/\/+/g, '/');
-}
+export const join = (...parts: string[]): string => {
+  return parts
+    .map((part, i) => {
+      if (i === 0) {
+        return part.trim().replace(/[\/]*$/g, '');
+      } else {
+        return part.trim().replace(/(^[\/]*|[\/]*$)/g, '');
+      }
+    })
+    .filter((x) => x.length)
+    .join('/');
+};
 
-export function dirname(path: string): string {
-  if (!path || !path.includes('/')) {
+export const resolve = (...parts: string[]): string => {
+  let resolvedPath = '';
+  let resolvedAbsolute = false;
+
+  for (let i = parts.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+    const path = i >= 0 ? parts[i] : '/';
+
+    // Skip empty entries
+    if (!path) {
+      continue;
+    }
+
+    resolvedPath = path + '/' + resolvedPath;
+    resolvedAbsolute = path.charAt(0) === '/';
+  }
+
+  // Normalize the path
+  resolvedPath = resolvedPath.replace(/\/\/+/g, '/');
+
+  return (resolvedAbsolute ? '/' : '') + resolvedPath;
+};
+
+export const dirname = (path: string): string => {
+  if (!path) {
     return '.';
   }
 
+  // Strip trailing slashes
   path = path.replace(/\/+$/, '');
 
-  return path.split('/').slice(0, -1).join('/') || '/';
-}
+  // Get dirname
+  const lastSlash = path.lastIndexOf('/');
 
-export function basename(path: string, ext?: string): string {
-  path = path.replace(/\/+$/, '');
-
-  const base = path.split('/').pop() || '';
-
-  if (ext && base.endsWith(ext)) {
-    return base.slice(0, -ext.length);
+  if (lastSlash === -1) {
+    return '.';
   }
 
-  return base;
-}
+  if (lastSlash === 0) {
+    return '/';
+  }
 
-export function extname(path: string): string {
-  const base = path.split('/').pop() || '';
-  const lastDotIndex = base.lastIndexOf('.');
+  return path.slice(0, lastSlash);
+};
 
-  return lastDotIndex === -1 || lastDotIndex === 0 ? '' : base.slice(lastDotIndex);
-}
-
-export function relative(from: string, to: string): string {
-  from = from.replace(/\/+$/, '');
-  to = to.replace(/\/+$/, '');
-
-  if (from === to) {
+export const basename = (path: string, ext?: string): string => {
+  if (!path) {
     return '';
   }
 
-  if (to.startsWith(from + '/')) {
-    return to.slice(from.length + 1);
+  // Get basename
+  const lastSlash = path.lastIndexOf('/');
+  path = lastSlash === -1 ? path : path.slice(lastSlash + 1);
+
+  // Remove extension if specified
+  if (ext && path.endsWith(ext)) {
+    path = path.slice(0, -ext.length);
   }
 
-  return to;
-}
+  return path;
+};
 
-export function resolve(...parts: string[]): string {
-  return parts.join('/').replace(/\/+/g, '/');
-}
+export const extname = (path: string): string => {
+  if (!path) {
+    return '';
+  }
 
-export function normalize(path: string): string {
-  return path.replace(/\/+/g, '/');
-}
+  const lastDot = path.lastIndexOf('.');
+  const lastSlash = path.lastIndexOf('/');
 
-export function isAbsolute(path: string): boolean {
+  // If there's no dot, or the last dot is before the last slash, there's no extension
+  if (lastDot === -1 || (lastSlash !== -1 && lastDot < lastSlash)) {
+    return '';
+  }
+
+  return path.slice(lastDot);
+};
+
+export const sep = '/';
+export const delimiter = ':';
+
+export const isAbsolute = (path: string): boolean => {
   return path.startsWith('/');
-}
+};
+
+export const normalize = (path: string): string => {
+  if (!path) {
+    return '.';
+  }
+
+  // Replace backslashes with forward slashes
+  path = path.replace(/\\/g, '/');
+
+  // Remove duplicate slashes
+  path = path.replace(/\/\/+/g, '/');
+
+  return path;
+};
+
+// Add the missing functions
 
 export interface ParsedPath {
   root: string;
@@ -72,58 +124,108 @@ export interface ParsedPath {
   name: string;
 }
 
-export function parse(path: string): ParsedPath {
-  const dir = dirname(path);
-  const base = basename(path);
-  const ext = extname(path);
-  const name = base.slice(0, base.length - ext.length);
+export const parse = (pathString: string): ParsedPath => {
+  const parsed: ParsedPath = {
+    root: '',
+    dir: '',
+    base: '',
+    ext: '',
+    name: '',
+  };
 
-  return { root: '', dir, base, ext, name };
-}
+  if (!pathString) {
+    return parsed;
+  }
 
-export function format(pathObject: ParsedPath): string {
-  const { dir, base } = pathObject;
+  // Get the root
+  if (pathString.startsWith('/')) {
+    parsed.root = '/';
+  }
 
-  return (dir ? dir + '/' : '') + base;
-}
+  // Get the extension and base
+  parsed.ext = extname(pathString);
+  parsed.base = basename(pathString);
 
-export const sep = '/';
-export const delimiter = ':';
+  // Get the name (base without extension)
+  parsed.name = parsed.ext ? parsed.base.slice(0, -parsed.ext.length) : parsed.base;
 
-// Create posix and win32 objects that reference the same functions
-export const posix = {
+  // Get the directory
+  parsed.dir = dirname(pathString);
+
+  return parsed;
+};
+
+export const format = (pathObject: Partial<ParsedPath>): string => {
+  if (!pathObject) {
+    return '';
+  }
+
+  // If dir and root are specified, only use dir
+  const dir = pathObject.dir || pathObject.root || '';
+
+  // If base is specified, use it
+  let base = pathObject.base || '';
+
+  // If no base is specified but name and ext are, use them
+  if (!base && pathObject.name) {
+    base = pathObject.name;
+
+    if (pathObject.ext) {
+      base += pathObject.ext;
+    }
+  }
+
+  // Join dir and base
+  if (!dir) {
+    return base;
+  }
+
+  if (!base) {
+    return dir;
+  }
+
+  return dir + (dir.endsWith('/') ? '' : '/') + base;
+};
+
+export const relative = (from: string, to: string): string => {
+  // Normalize paths
+  from = resolve(from);
+  to = resolve(to);
+
+  if (from === to) {
+    return '';
+  }
+
+  // Split paths into segments
+  const fromParts = from.split('/').filter(Boolean);
+  const toParts = to.split('/').filter(Boolean);
+
+  // Find common prefix
+  let i = 0;
+
+  while (i < fromParts.length && i < toParts.length && fromParts[i] === toParts[i]) {
+    i++;
+  }
+
+  // Build relative path
+  const upCount = fromParts.length - i;
+  const relativePath = [...Array(upCount).fill('..'), ...toParts.slice(i)];
+
+  return relativePath.join('/') || '.';
+};
+
+// Also export as default for compatibility
+export default {
   join,
+  resolve,
   dirname,
   basename,
   extname,
-  relative,
-  resolve,
-  normalize,
-  isAbsolute,
-  parse,
-  format,
   sep,
   delimiter,
-};
-
-export const win32 = posix;
-
-// Default export for compatibility with CommonJS imports
-const pathBrowserify = {
-  join,
-  dirname,
-  basename,
-  extname,
-  relative,
-  resolve,
-  normalize,
   isAbsolute,
+  normalize,
   parse,
   format,
-  sep,
-  delimiter,
-  posix,
-  win32,
+  relative,
 };
-
-export default pathBrowserify;
