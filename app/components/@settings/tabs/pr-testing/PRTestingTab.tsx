@@ -89,32 +89,67 @@ function PrTestingTab() {
     commits: boolean;
     files: boolean;
     serverInfo: boolean;
+    setupLogs: boolean;
   }>({
     description: false,
     commits: false,
     files: false,
     serverInfo: true,
+    setupLogs: true,
   });
   const [testingPRs, setTestingPRs] = useState<Set<number>>(new Set());
   const [serverInfo, setServerInfo] = useState<
     Map<number, { port: number; url: string; pid: number; tempDir: string }>
   >(new Map());
+  const [setupLogs, setSetupLogs] = useState<Map<number, string[]>>(new Map());
 
   useEffect(() => {
     fetchPullRequests();
   }, [filterState]);
 
   useEffect(() => {
-    const prService = PRTestingService.getInstance();
-    const activePRs = new Set<number>();
+    const loadActiveTests = async () => {
+      const prService = PRTestingService.getInstance();
+      const activePRs = new Set<number>();
 
-    pullRequests.forEach((pr) => {
-      if (prService.isTestActive(pr.number)) {
-        activePRs.add(pr.number);
+      for (const pr of pullRequests) {
+        const isActive = await prService.isTestActive(pr.number);
+
+        if (isActive) {
+          activePRs.add(pr.number);
+        }
       }
-    });
 
-    setTestingPRs(activePRs);
+      setTestingPRs(activePRs);
+
+      // Load server information and setup logs for active PRs
+      const newServerInfo = new Map<number, { port: number; url: string; pid: number; tempDir: string }>();
+      const newSetupLogs = new Map<number, string[]>();
+
+      // Convert Set to Array for iteration
+      const prNumbers = Array.from(activePRs);
+
+      for (const prNumber of prNumbers) {
+        // Load server info
+        const info = await prService.getServerInfo(prNumber);
+
+        if (info) {
+          newServerInfo.set(prNumber, info);
+        }
+
+        // Load setup logs
+        const logs = await prService.getSetupLogs(prNumber);
+
+        if (logs.length > 0) {
+          newSetupLogs.set(prNumber, logs);
+        }
+      }
+
+      setServerInfo(newServerInfo);
+      setSetupLogs(newSetupLogs);
+    };
+
+    loadActiveTests();
   }, [pullRequests]);
 
   const fetchPullRequests = async () => {
@@ -163,7 +198,39 @@ function PrTestingTab() {
 
     try {
       const prService = PRTestingService.getInstance();
+
+      // Clear previous logs
+      setSetupLogs((prev) => {
+        const newLogs = new Map(prev);
+        newLogs.set(pr.number, []);
+
+        return newLogs;
+      });
+
+      // Start polling for logs
+      const logInterval = setInterval(async () => {
+        const logs = await prService.getSetupLogs(pr.number);
+        setSetupLogs((prev) => {
+          const newLogs = new Map(prev);
+          newLogs.set(pr.number, [...logs]);
+
+          return newLogs;
+        });
+      }, 1000);
+
       const result = await prService.testPullRequest(pr);
+
+      // Stop polling for logs
+      clearInterval(logInterval);
+
+      // Get final logs
+      const finalLogs = await prService.getSetupLogs(pr.number);
+      setSetupLogs((prev) => {
+        const newLogs = new Map(prev);
+        newLogs.set(pr.number, [...finalLogs]);
+
+        return newLogs;
+      });
 
       if (result.success) {
         toast.success(result.message);
@@ -292,6 +359,24 @@ function PrTestingTab() {
     }
 
     return null;
+  };
+
+  const renderSetupLogs = (prNumber: number) => {
+    const logs = setupLogs.get(prNumber) || [];
+
+    if (logs.length === 0) {
+      return <div className="text-sm text-bolt-elements-textSecondary italic">No setup logs available.</div>;
+    }
+
+    return (
+      <div className="font-mono text-xs bg-bolt-elements-bg-depth-3 p-3 rounded-md border border-bolt-elements-borderColor overflow-auto max-h-60">
+        {logs.map((log, index) => (
+          <div key={index} className="whitespace-pre-wrap mb-1">
+            {log}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -608,6 +693,38 @@ function PrTestingTab() {
                               )}
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Setup Logs Section - Show for all PRs being tested */}
+                      {testingPRs.has(pr.number) && (
+                        <div className="mb-4">
+                          <div
+                            className="flex items-center justify-between cursor-pointer py-2 hover:bg-bolt-elements-item-backgroundActive rounded-md px-2 -mx-2 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSection('setupLogs');
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <FiFileText className="w-4 h-4 text-bolt-elements-icon-primary" />
+                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white">
+                                Setup Logs
+                              </h4>
+                              {isCloning && pr.number === selectedPR?.number && (
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent animate-pulse">
+                                  Running
+                                </span>
+                              )}
+                            </div>
+                            {expandedSections.setupLogs ? (
+                              <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
+                            ) : (
+                              <FiChevronDown className="w-4 h-4 text-bolt-elements-textSecondary" />
+                            )}
+                          </div>
+
+                          {expandedSections.setupLogs && <div className="mt-2">{renderSetupLogs(pr.number)}</div>}
                         </div>
                       )}
 

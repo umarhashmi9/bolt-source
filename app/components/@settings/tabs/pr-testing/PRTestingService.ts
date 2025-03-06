@@ -41,10 +41,23 @@ export class PRTestingService {
   private static _instance: PRTestingService;
   private _token: string | null = null;
   private _activeTests: Map<number, { pid?: number; tempDir?: string }> = new Map();
+  private _initialized: boolean = false;
+  private _initPromise: Promise<void> | null = null;
+  private _setupLogs: Map<number, string[]> = new Map();
 
   private constructor() {
     // Initialize the service
     this._loadToken();
+    this._initPromise = this._initialize();
+  }
+
+  private async _initialize(): Promise<void> {
+    try {
+      await this._loadActiveTests();
+      this._initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize PR Testing Service:', error);
+    }
   }
 
   static getInstance(): PRTestingService {
@@ -128,6 +141,8 @@ export class PRTestingService {
 
   async testPullRequest(pr: PullRequest): Promise<PRTestingResult> {
     try {
+      await this.ensureInitialized();
+
       // Check if there's already an active test for this PR
       if (this._activeTests.has(pr.number)) {
         return {
@@ -136,24 +151,42 @@ export class PRTestingService {
         };
       }
 
+      // Initialize setup logs for this PR
+      this._setupLogs.set(pr.number, []);
+      this._addSetupLog(pr.number, `Starting test for PR #${pr.number}: ${pr.title}`);
+
       // Clone the PR
+      this._addSetupLog(pr.number, `Cloning repository from ${pr.head.repo.clone_url}...`);
+
       const cloneResponse = await this._clonePR(pr);
 
       if (!cloneResponse.success || !cloneResponse.data) {
+        this._addSetupLog(pr.number, `Failed to clone PR: ${cloneResponse.message}`);
         return {
           success: false,
           message: cloneResponse.message,
         };
       }
 
+      this._addSetupLog(pr.number, `Successfully cloned PR to ${cloneResponse.data.tempDir}`);
+
       // Start the application
+      this._addSetupLog(pr.number, `Starting application...`);
+
       const startResponse = await this._startApp(pr.number, cloneResponse.data.tempDir);
 
       if (!startResponse.success || !startResponse.data) {
+        this._addSetupLog(pr.number, `Failed to start application: ${startResponse.message}`);
         return {
           success: false,
           message: startResponse.message,
         };
+      }
+
+      this._addSetupLog(pr.number, `Application started successfully with PID ${startResponse.data.pid}`);
+
+      if (startResponse.data.port) {
+        this._addSetupLog(pr.number, `Server running at http://localhost:${startResponse.data.port}`);
       }
 
       // Store the active test
@@ -172,7 +205,9 @@ export class PRTestingService {
         },
       };
     } catch (error) {
+      this._addSetupLog(pr.number, `Error testing PR: ${error instanceof Error ? error.message : 'Unknown error'}`);
       logStore.logError('Failed to test PR', { error, pr });
+
       return {
         success: false,
         message: `Failed to test PR #${pr.number}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -182,6 +217,8 @@ export class PRTestingService {
 
   async stopTest(prNumber: number): Promise<PRTestingResult> {
     try {
+      await this.ensureInitialized();
+
       const activeTest = this._activeTests.get(prNumber);
 
       if (!activeTest || !activeTest.pid || !activeTest.tempDir) {
@@ -372,11 +409,161 @@ export class PRTestingService {
     }
   }
 
-  isTestActive(prNumber: number): boolean {
+  async isTestActive(prNumber: number): Promise<boolean> {
+    await this.ensureInitialized();
     return this._activeTests.has(prNumber);
   }
 
-  getActiveTest(prNumber: number): { pid?: number; tempDir?: string } | undefined {
+  async getActiveTest(prNumber: number): Promise<{ pid?: number; tempDir?: string } | undefined> {
+    await this.ensureInitialized();
     return this._activeTests.get(prNumber);
+  }
+
+  async _loadActiveTests(): Promise<void> {
+    try {
+      const response = await fetch('/api/pr-testing/active-tests');
+
+      if (!response.ok) {
+        throw new Error(`Failed to load active tests: ${response.statusText}`);
+      }
+
+      const activeTests = (await response.json()) as {
+        success: boolean;
+        data?: Array<{
+          prNumber: number;
+          pid: number;
+          tempDir: string;
+          port: number;
+        }>;
+      };
+
+      if (activeTests.success && activeTests.data) {
+        // Clear existing active tests
+        this._activeTests.clear();
+
+        // Add active tests from server
+        activeTests.data.forEach((test) => {
+          this._activeTests.set(test.prNumber, {
+            pid: test.pid,
+            tempDir: test.tempDir,
+          });
+        });
+
+        console.log('Loaded active tests:', this._activeTests);
+      }
+    } catch (error) {
+      logStore.logError('Failed to load active tests', { error });
+      console.error('Failed to load active tests:', error);
+    }
+  }
+
+  async getServerInfo(prNumber: number): Promise<{ port: number; url: string; pid: number; tempDir: string } | null> {
+    try {
+      const response = await fetch(`/api/pr-testing/server-info/${prNumber}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to get server info: ${response.statusText}`);
+      }
+
+      const result = (await response.json()) as {
+        success: boolean;
+        data?: {
+          port: number;
+          pid: number;
+          tempDir: string;
+        };
+      };
+
+      if (result.success && result.data) {
+        return {
+          port: result.data.port,
+          url: `http://localhost:${result.data.port}`,
+          pid: result.data.pid,
+          tempDir: result.data.tempDir,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      logStore.logError('Failed to get server info', { error, prNumber });
+      console.error('Failed to get server info:', error);
+
+      return null;
+    }
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (!this._initialized && this._initPromise) {
+      await this._initPromise;
+    }
+  }
+
+  private _addSetupLog(prNumber: number, message: string): void {
+    const logs = this._setupLogs.get(prNumber) || [];
+    const timestamp = new Date().toISOString();
+    logs.push(`[${timestamp}] ${message}`);
+    this._setupLogs.set(prNumber, logs);
+    console.log(`PR #${prNumber}: ${message}`);
+
+    // Also send the log to the server
+    this._sendLogToServer(prNumber, message).catch((error) => {
+      console.error('Failed to send log to server:', error);
+    });
+  }
+
+  private async _sendLogToServer(prNumber: number, message: string): Promise<void> {
+    try {
+      const response = await fetch('/api/pr-testing/add-log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prNumber,
+          message,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send log to server: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error sending log to server:', error);
+    }
+  }
+
+  async getSetupLogs(prNumber: number): Promise<string[]> {
+    // First, return any in-memory logs we have
+    const inMemoryLogs = this._setupLogs.get(prNumber) || [];
+
+    // Then try to fetch logs from the server
+    try {
+      const response = await fetch(`/api/pr-testing/setup-logs/${prNumber}`);
+
+      if (!response.ok) {
+        return inMemoryLogs;
+      }
+
+      const result = (await response.json()) as {
+        success: boolean;
+        data?: string[];
+      };
+
+      if (result.success && result.data) {
+        // Merge server logs with in-memory logs, avoiding duplicates
+        const serverLogs = result.data;
+        const allLogs = new Set([...serverLogs, ...inMemoryLogs]);
+
+        // Update in-memory logs
+        this._setupLogs.set(prNumber, [...allLogs]);
+
+        return [...allLogs];
+      }
+
+      return inMemoryLogs;
+    } catch (error) {
+      console.error('Failed to get setup logs from server:', error);
+      return inMemoryLogs;
+    }
   }
 }

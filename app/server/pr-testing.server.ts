@@ -186,6 +186,7 @@ export async function startApp(params: StartAppParams) {
         tempDir,
         startCommand: 'npm run dev',
         port: 5174, // Fixed port for the first PR
+        setupLogs: [], // Initialize empty setup logs array
       };
 
       fs.writeFileSync(path.join(prTestingDir, `pr-${prNumber}.json`), JSON.stringify(processInfo, null, 2), 'utf-8');
@@ -290,6 +291,109 @@ export async function stopApp(params: StopAppParams) {
     return {
       success: false,
       message: `Failed to stop application: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+// Add a new function to store setup logs
+export async function addSetupLog(params: { prNumber: number; message: string }) {
+  const { prNumber, message } = params;
+
+  try {
+    // Get the .pr-testing directory
+    const prTestingDir = path.join(os.tmpdir(), '.pr-testing');
+
+    // If the directory doesn't exist, return an error
+    if (!fs.existsSync(prTestingDir)) {
+      return {
+        success: false,
+        message: 'No active PR tests found',
+      };
+    }
+
+    // Check if the PR test file exists
+    const prFilePath = path.join(prTestingDir, `pr-${prNumber}.json`);
+
+    if (!fs.existsSync(prFilePath)) {
+      return {
+        success: false,
+        message: `No active test found for PR #${prNumber}`,
+      };
+    }
+
+    // Read the PR test file
+    const fileContent = fs.readFileSync(prFilePath, 'utf-8');
+    const data = JSON.parse(fileContent);
+
+    // Add the log message with timestamp
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${message}`;
+
+    // Initialize setupLogs array if it doesn't exist
+    if (!data.setupLogs) {
+      data.setupLogs = [];
+    }
+
+    // Add the log message
+    data.setupLogs.push(logMessage);
+
+    // Write the updated data back to the file
+    fs.writeFileSync(prFilePath, JSON.stringify(data, null, 2), 'utf-8');
+
+    return {
+      success: true,
+      message: 'Log added successfully',
+    };
+  } catch (error) {
+    console.error('Error adding setup log:', error);
+
+    return {
+      success: false,
+      message: `Failed to add setup log: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+// Add a new function to get setup logs
+export async function getSetupLogs(prNumber: number) {
+  try {
+    // Get the .pr-testing directory
+    const prTestingDir = path.join(os.tmpdir(), '.pr-testing');
+
+    // If the directory doesn't exist, return an empty array
+    if (!fs.existsSync(prTestingDir)) {
+      return {
+        success: true,
+        data: [],
+      };
+    }
+
+    // Check if the PR test file exists
+    const prFilePath = path.join(prTestingDir, `pr-${prNumber}.json`);
+
+    if (!fs.existsSync(prFilePath)) {
+      return {
+        success: true,
+        data: [],
+      };
+    }
+
+    // Read the PR test file
+    const fileContent = fs.readFileSync(prFilePath, 'utf-8');
+    const data = JSON.parse(fileContent);
+
+    // Return the setup logs
+    return {
+      success: true,
+      data: data.setupLogs || [],
+    };
+  } catch (error) {
+    console.error('Error getting setup logs:', error);
+
+    return {
+      success: false,
+      message: `Failed to get setup logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      data: [],
     };
   }
 }
