@@ -17,7 +17,12 @@ import {
   FiCode,
   FiGitCommit,
   FiFileText,
+  FiServer,
+  FiCopy,
+  FiAlertCircle,
 } from 'react-icons/fi';
+import { useStore } from '@nanostores/react';
+import { themeStore } from '~/lib/stores/theme';
 
 // Custom PR icon component for better visibility
 const PullRequestIcon = ({ state, className }: { state: string; className?: string }) => {
@@ -36,7 +41,40 @@ const PullRequestIcon = ({ state, className }: { state: string; className?: stri
   );
 };
 
+// Custom styled search input
+interface StyledSearchInputProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string;
+}
+
+const StyledSearchInput = ({ value, onChange, placeholder }: StyledSearchInputProps) => {
+  const theme = useStore(themeStore);
+  const isDark = theme === 'dark';
+
+  return (
+    <div className="relative w-full sm:w-64">
+      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bolt-elements-textSecondary" />
+      <input
+        type="text"
+        placeholder={placeholder}
+        style={{
+          color: isDark ? 'white' : 'black',
+          backgroundColor: isDark ? '#1a1a1a' : 'white',
+          padding: '0.5rem 1rem 0.5rem 2.5rem',
+          borderRadius: '0.375rem',
+          width: '100%',
+          border: '1px solid var(--bolt-elements-borderColor)',
+        }}
+        value={value}
+        onChange={onChange}
+      />
+    </div>
+  );
+};
+
 function PrTestingTab() {
+  const theme = useStore(themeStore);
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
@@ -50,12 +88,17 @@ function PrTestingTab() {
     description: boolean;
     commits: boolean;
     files: boolean;
+    serverInfo: boolean;
   }>({
-    description: true,
+    description: false,
     commits: false,
     files: false,
+    serverInfo: true,
   });
   const [testingPRs, setTestingPRs] = useState<Set<number>>(new Set());
+  const [serverInfo, setServerInfo] = useState<
+    Map<number, { port: number; url: string; pid: number; tempDir: string }>
+  >(new Map());
 
   useEffect(() => {
     fetchPullRequests();
@@ -126,6 +169,24 @@ function PrTestingTab() {
         toast.success(result.message);
         setTestingPRs((prev) => new Set(prev).add(pr.number));
 
+        if (result.data?.port && result.data?.pid && result.data?.tempDir) {
+          const port = result.data.port;
+          const pid = result.data.pid;
+          const tempDir = result.data.tempDir;
+
+          setServerInfo((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(pr.number, {
+              port,
+              url: `http://localhost:${port}`,
+              pid,
+              tempDir,
+            });
+
+            return newMap;
+          });
+        }
+
         if (selectedPR?.number === pr.number) {
           await handleSelectPR(pr);
         }
@@ -147,11 +208,19 @@ function PrTestingTab() {
 
       if (result.success) {
         toast.success(result.message);
+
         setTestingPRs((prev) => {
           const newSet = new Set(prev);
           newSet.delete(pr.number);
 
           return newSet;
+        });
+
+        setServerInfo((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(pr.number);
+
+          return newMap;
         });
 
         if (selectedPR?.number === pr.number) {
@@ -173,6 +242,18 @@ function PrTestingTab() {
     }));
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        toast.success('Copied to clipboard');
+      },
+      (err) => {
+        toast.error('Failed to copy to clipboard');
+        console.error('Could not copy text: ', err);
+      },
+    );
+  };
+
   const filteredPRs = pullRequests.filter(
     (pr) =>
       pr.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -180,8 +261,43 @@ function PrTestingTab() {
       pr.number.toString().includes(searchQuery),
   );
 
+  const renderServerInfo = (prNumber: number) => {
+    if (testingPRs.has(prNumber) && serverInfo.has(prNumber)) {
+      const info = serverInfo.get(prNumber);
+      return (
+        <div className="mt-1 flex items-center gap-2 text-xs">
+          <FiServer className="w-3.5 h-3.5 text-bolt-elements-icon-success" />
+          <span className="text-bolt-elements-textSecondary">Running at:</span>
+          <a
+            href={info?.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-bolt-elements-item-contentAccent hover:underline truncate max-w-[150px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {info?.url}
+          </a>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(info?.url || '');
+            }}
+            className="p-0.5 rounded-md hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary"
+            title="Copy URL"
+          >
+            <FiCopy className="w-3 h-3" />
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="space-y-4">
+      {/* Debug Theme */}
+      <div className="text-xs text-bolt-elements-textSecondary mb-2">Current theme: {theme}</div>
       {/* Header */}
       <motion.div
         className="flex items-center gap-2 mb-2"
@@ -190,38 +306,30 @@ function PrTestingTab() {
         transition={{ delay: 0.1 }}
       >
         <PullRequestIcon state="open" className="w-5 h-5" />
-        <h2 className="text-lg font-medium text-bolt-elements-textPrimary">PR Testing</h2>
+        <h2 className="text-lg font-medium text-bolt-elements-textPrimary dark:text-white">PR Testing</h2>
         {!isLoading && pullRequests.filter((pr) => pr.state === 'open').length > 0 && (
-          <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+          <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent">
             {pullRequests.filter((pr) => pr.state === 'open').length} open
           </span>
         )}
       </motion.div>
       <p className="text-sm text-bolt-elements-textSecondary mb-6">Test pull requests from the GitHub repository</p>
 
-      {/* Search and Filter Controls */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <div className="flex-1">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiSearch className="w-4 h-4 text-bolt-elements-textSecondary" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-bolt-elements-border rounded-md bg-bolt-elements-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Search pull requests..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
+        <StyledSearchInput
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search pull requests..."
+        />
         <div className="flex gap-2">
           <button
             className={classNames(
               'px-3 py-2 rounded-md text-sm font-medium',
+              'transition-all duration-200',
               filterState === 'open'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
-                : 'bg-bolt-elements-background text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary',
+                ? 'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent'
+                : 'bg-bolt-elements-bg-depth-1 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive',
             )}
             onClick={() => setFilterState('open')}
           >
@@ -230,9 +338,10 @@ function PrTestingTab() {
           <button
             className={classNames(
               'px-3 py-2 rounded-md text-sm font-medium',
+              'transition-all duration-200',
               filterState === 'closed'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
-                : 'bg-bolt-elements-background text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary',
+                ? 'bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text'
+                : 'bg-bolt-elements-bg-depth-1 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive',
             )}
             onClick={() => setFilterState('closed')}
           >
@@ -241,16 +350,22 @@ function PrTestingTab() {
           <button
             className={classNames(
               'px-3 py-2 rounded-md text-sm font-medium',
+              'transition-all duration-200',
               filterState === 'all'
-                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100'
-                : 'bg-bolt-elements-background text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary',
+                ? 'bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text'
+                : 'bg-bolt-elements-bg-depth-1 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive',
             )}
             onClick={() => setFilterState('all')}
           >
             All
           </button>
           <button
-            className="px-3 py-2 rounded-md text-sm font-medium bg-bolt-elements-background text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary"
+            className={classNames(
+              'px-3 py-2 rounded-md text-sm font-medium',
+              'bg-bolt-elements-bg-depth-1 text-bolt-elements-textSecondary',
+              'hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive',
+              'transition-all duration-200',
+            )}
             onClick={fetchPullRequests}
           >
             <FiRefreshCw className="w-4 h-4" />
@@ -261,7 +376,7 @@ function PrTestingTab() {
       {/* Pull Requests List */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin w-8 h-8 text-purple-500">
+          <div className="animate-spin w-8 h-8 text-bolt-elements-item-contentAccent">
             <FiRefreshCw className="w-8 h-8" />
           </div>
         </div>
@@ -274,9 +389,14 @@ function PrTestingTab() {
           {filteredPRs.map((pr) => (
             <motion.div
               key={pr.number}
-              className="bg-bolt-elements-card rounded-lg border border-bolt-elements-border p-4 hover:border-purple-500/50 transition-colors cursor-pointer"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              className={classNames(
+                'rounded-lg border cursor-pointer',
+                'transition-all duration-200',
+                selectedPR?.number === pr.number
+                  ? 'border-accent-500 shadow-md'
+                  : 'border-bolt-elements-borderColor hover:border-accent-300',
+                'bg-bolt-elements-bg-depth-1 hover:bg-bolt-elements-item-backgroundActive',
+              )}
               onClick={() => handleSelectPR(pr)}
             >
               <div className="flex items-start justify-between">
@@ -284,26 +404,30 @@ function PrTestingTab() {
                   <PullRequestIcon state={pr.state} className="w-6 h-6" />
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-bolt-elements-textPrimary">{pr.title}</h3>
-                      <span className="text-xs text-bolt-elements-textSecondary">#{pr.number}</span>
+                      <h3 className="font-medium text-bolt-elements-textPrimary dark:text-white transition-theme">
+                        {pr.title}
+                      </h3>
+                      <span className="text-xs text-bolt-elements-textSecondary transition-theme">#{pr.number}</span>
                       {testingPRs.has(pr.number) && (
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-icon-success bg-opacity-10 text-bolt-elements-icon-success transition-theme">
                           Testing
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-bolt-elements-textSecondary mt-1">
+                    <div className="text-xs text-bolt-elements-textSecondary transition-theme">
                       Opened by{' '}
                       <a
                         href={pr.user.html_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-purple-500 hover:underline"
+                        className="text-bolt-elements-item-contentAccent hover:underline transition-theme"
                       >
                         {pr.user.login}
                       </a>{' '}
                       {formatDistanceToNow(new Date(pr.created_at))} ago
                     </div>
+
+                    {renderServerInfo(pr.number)}
                     {pr.labels.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {pr.labels.map((label) => (
@@ -328,14 +452,14 @@ function PrTestingTab() {
                     href={pr.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 rounded-md bg-bolt-elements-background text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors"
+                    className="p-2 rounded-md bg-bolt-elements-bg-depth-2 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <FiExternalLink className="w-4 h-4" />
                   </a>
                   {testingPRs.has(pr.number) ? (
                     <button
-                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text hover:bg-bolt-elements-button-danger-backgroundHover transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStopTest(pr);
@@ -345,7 +469,7 @@ function PrTestingTab() {
                     </button>
                   ) : (
                     <button
-                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800 transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text hover:bg-bolt-elements-button-primary-backgroundHover transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleTestPR(pr);
@@ -366,7 +490,7 @@ function PrTestingTab() {
 
               {selectedPR?.number === pr.number && (
                 <motion.div
-                  className="mt-4 pt-4 border-t border-bolt-elements-border"
+                  className="mt-4 pt-4 border-t border-bolt-elements-borderColor"
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                 >
@@ -378,18 +502,129 @@ function PrTestingTab() {
                     </div>
                   ) : (
                     <>
+                      {/* Server Information Section - Show only for active tests */}
+                      {testingPRs.has(pr.number) && (
+                        <div className="mb-4">
+                          <div
+                            className="flex items-center justify-between cursor-pointer py-2 hover:bg-bolt-elements-item-backgroundActive rounded-md px-2 -mx-2 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSection('serverInfo');
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <FiServer className="w-4 h-4 text-bolt-elements-icon-success" />
+                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white">
+                                Server Information
+                              </h4>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent">
+                                Active
+                              </span>
+                            </div>
+                            {expandedSections.serverInfo ? (
+                              <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
+                            ) : (
+                              <FiChevronDown className="w-4 h-4 text-bolt-elements-textSecondary" />
+                            )}
+                          </div>
+
+                          {expandedSections.serverInfo && (
+                            <div className="p-3 bg-bolt-elements-bg-depth-1 dark:bg-bolt-elements-bg-depth-3 rounded-md border border-bolt-elements-borderColor transition-all duration-200">
+                              {serverInfo.has(pr.number) ? (
+                                <div className="space-y-3">
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white transition-all duration-200">
+                                      Server URL
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={serverInfo.get(pr.number)?.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-bolt-elements-item-contentAccent hover:underline transition-all duration-200"
+                                      >
+                                        {serverInfo.get(pr.number)?.url}
+                                      </a>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(serverInfo.get(pr.number)?.url || '');
+                                        }}
+                                        className="p-1 rounded-md hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-all duration-200"
+                                        title="Copy URL"
+                                      >
+                                        <FiCopy className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white transition-all duration-200">
+                                      Process ID
+                                    </div>
+                                    <div className="text-sm text-bolt-elements-textSecondary transition-all duration-200">
+                                      {serverInfo.get(pr.number)?.pid}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white transition-all duration-200">
+                                      Temporary Directory
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="text-sm text-bolt-elements-textSecondary truncate max-w-[300px] transition-all duration-200">
+                                        {serverInfo.get(pr.number)?.tempDir}
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          copyToClipboard(serverInfo.get(pr.number)?.tempDir || '');
+                                        }}
+                                        className="p-1 rounded-md hover:bg-bolt-elements-item-backgroundActive text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-all duration-200"
+                                        title="Copy path"
+                                      >
+                                        <FiCopy className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-2 p-2 bg-bolt-elements-cta-background rounded-md border border-bolt-elements-borderColor transition-all duration-200">
+                                    <div className="flex items-start gap-2">
+                                      <FiAlertCircle className="w-4 h-4 text-bolt-elements-icon-secondary mt-0.5 transition-all duration-200" />
+                                      <div className="text-xs text-bolt-elements-cta-text transition-all duration-200">
+                                        <p className="font-medium">Important:</p>
+                                        <p>
+                                          Remember to stop the test when you're done to free up resources. The server
+                                          will be automatically stopped when you close the application.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-sm text-bolt-elements-textSecondary">
+                                  Server information not available. The PR test may still be starting up.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Description Section */}
                       <div className="mb-4">
                         <div
-                          className="flex items-center justify-between cursor-pointer py-2"
+                          className="flex items-center justify-between cursor-pointer py-2 hover:bg-bolt-elements-item-backgroundActive rounded-md px-2 -mx-2 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleSection('description');
                           }}
                         >
                           <div className="flex items-center gap-2">
-                            <FiFileText className="w-4 h-4 text-purple-500" />
-                            <h4 className="text-sm font-medium text-bolt-elements-textPrimary">Description</h4>
+                            <FiFileText className="w-4 h-4 text-bolt-elements-icon-primary" />
+                            <h4 className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white">
+                              Description
+                            </h4>
                           </div>
                           {expandedSections.description ? (
                             <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
@@ -399,7 +634,7 @@ function PrTestingTab() {
                         </div>
 
                         {expandedSections.description && (
-                          <div className="text-sm text-bolt-elements-textSecondary whitespace-pre-line p-3 bg-bolt-elements-background rounded-md">
+                          <div className="text-sm text-bolt-elements-textSecondary whitespace-pre-line p-3 bg-bolt-elements-bg-depth-2 dark:bg-bolt-elements-bg-depth-3 rounded-md">
                             {pr.body || 'No description provided.'}
                           </div>
                         )}
@@ -409,17 +644,20 @@ function PrTestingTab() {
                       {prCommits.length > 0 && (
                         <div className="mb-4">
                           <div
-                            className="flex items-center justify-between cursor-pointer py-2"
+                            className="flex items-center justify-between cursor-pointer py-2 hover:bg-bolt-elements-item-backgroundActive rounded-md px-2 -mx-2 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleSection('commits');
                             }}
                           >
                             <div className="flex items-center gap-2">
-                              <FiGitCommit className="w-4 h-4 text-purple-500" />
-                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary">
-                                Commits ({prCommits.length})
+                              <FiGitCommit className="w-4 h-4 text-bolt-elements-icon-primary" />
+                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white">
+                                Commits
                               </h4>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent transition-theme">
+                                {prCommits.length}
+                              </span>
                             </div>
                             {expandedSections.commits ? (
                               <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
@@ -429,33 +667,32 @@ function PrTestingTab() {
                           </div>
 
                           {expandedSections.commits && (
-                            <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-bolt-elements-background rounded-md">
-                              {prCommits.map((commit) => (
-                                <div
-                                  key={commit.sha}
-                                  className="text-xs p-2 rounded-md bg-bolt-elements-card border border-bolt-elements-border"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <FiGitCommit className="w-3.5 h-3.5 text-bolt-elements-textSecondary" />
-                                    <a
-                                      href={commit.html_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="font-mono text-purple-500 hover:underline"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {commit.sha.substring(0, 7)}
-                                    </a>
-                                    <span className="text-bolt-elements-textPrimary">
-                                      {commit.commit.message.split('\n')[0]}
-                                    </span>
+                            <div className="p-3 bg-bolt-elements-bg-depth-1 dark:bg-bolt-elements-bg-depth-3 rounded-md border border-bolt-elements-borderColor transition-all duration-200">
+                              <div className="space-y-3">
+                                {prCommits.map((commit) => (
+                                  <div key={commit.sha} className="text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <FiGitCommit className="w-3.5 h-3.5 text-bolt-elements-icon-primary transition-theme" />
+                                      <a
+                                        href={commit.html_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-mono text-xs text-bolt-elements-item-contentAccent hover:underline transition-theme"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {commit.sha.substring(0, 7)}
+                                      </a>
+                                    </div>
+                                    <div className="ml-5 mt-1 text-bolt-elements-textPrimary dark:text-white transition-theme">
+                                      {commit.commit.message}
+                                    </div>
+                                    <div className="ml-5 mt-1 text-xs text-bolt-elements-textSecondary transition-theme">
+                                      by {commit.author?.login || commit.commit.author.name}{' '}
+                                      {formatDistanceToNow(new Date(commit.commit.author.date))} ago
+                                    </div>
                                   </div>
-                                  <div className="mt-1 text-bolt-elements-textSecondary">
-                                    by {commit.author?.login || commit.commit.author.name} •{' '}
-                                    {formatDistanceToNow(new Date(commit.commit.author.date))} ago
-                                  </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -465,17 +702,20 @@ function PrTestingTab() {
                       {prFiles.length > 0 && (
                         <div className="mb-4">
                           <div
-                            className="flex items-center justify-between cursor-pointer py-2"
+                            className="flex items-center justify-between cursor-pointer py-2 hover:bg-bolt-elements-item-backgroundActive rounded-md px-2 -mx-2 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleSection('files');
                             }}
                           >
                             <div className="flex items-center gap-2">
-                              <FiCode className="w-4 h-4 text-purple-500" />
-                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary">
-                                Changed Files ({prFiles.length})
+                              <FiCode className="w-4 h-4 text-bolt-elements-icon-primary" />
+                              <h4 className="text-sm font-medium text-bolt-elements-textPrimary dark:text-white">
+                                Changed Files
                               </h4>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent">
+                                {prFiles.length}
+                              </span>
                             </div>
                             {expandedSections.files ? (
                               <FiChevronUp className="w-4 h-4 text-bolt-elements-textSecondary" />
@@ -485,114 +725,26 @@ function PrTestingTab() {
                           </div>
 
                           {expandedSections.files && (
-                            <div className="space-y-2 max-h-60 overflow-y-auto p-3 bg-bolt-elements-background rounded-md">
-                              {prFiles.map((file) => (
-                                <div
-                                  key={file.filename}
-                                  className="text-xs p-2 rounded-md bg-bolt-elements-card border border-bolt-elements-border"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <FiCode className="w-3.5 h-3.5 text-bolt-elements-textSecondary" />
+                            <div className="p-3 bg-bolt-elements-bg-depth-1 dark:bg-bolt-elements-bg-depth-3 rounded-md border border-bolt-elements-borderColor transition-all duration-200">
+                              <div className="space-y-2">
+                                {prFiles.map((file) => (
+                                  <div key={file.filename} className="text-sm">
                                     <a
                                       href={file.blob_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-purple-500 hover:underline truncate max-w-[200px] md:max-w-[300px]"
+                                      className="text-bolt-elements-item-contentAccent hover:underline"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {file.filename}
                                     </a>
-                                    <span
-                                      className={classNames(
-                                        'px-1.5 py-0.5 rounded-full text-[10px]',
-                                        file.status === 'added'
-                                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                          : file.status === 'removed'
-                                            ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-                                      )}
-                                    >
-                                      {file.status}
-                                    </span>
-                                    <span className="text-bolt-elements-textSecondary">
-                                      +{file.additions} -{file.deletions}
-                                    </span>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
-
-                      {/* Test Status */}
-                      {testingPRs.has(pr.number) && (
-                        <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/20 rounded-md">
-                          <div className="flex items-center gap-2 text-green-800 dark:text-green-300">
-                            <div className="animate-pulse w-3 h-3 rounded-full bg-green-500" />
-                            <span className="font-medium">Testing in progress</span>
-                          </div>
-                          <p className="text-xs text-green-700 dark:text-green-400 mt-2">
-                            The PR is currently being tested. You can stop the test at any time.
-                          </p>
-                          <div className="mt-3">
-                            <button
-                              className="px-3 py-1.5 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStopTest(pr);
-                              }}
-                            >
-                              Stop Test
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex gap-2">
-                        <a
-                          href={pr.html_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-background text-bolt-elements-textPrimary hover:bg-bolt-elements-backgroundHover transition-colors flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <FiExternalLink className="w-3.5 h-3.5" />
-                          <span>View on GitHub</span>
-                        </a>
-                        {testingPRs.has(pr.number) ? (
-                          <button
-                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 transition-colors flex items-center gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStopTest(pr);
-                            }}
-                          >
-                            <FiRefreshCw className="w-3.5 h-3.5" />
-                            <span>Stop Test</span>
-                          </button>
-                        ) : (
-                          <button
-                            className="px-3 py-1.5 text-xs font-medium rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800 transition-colors flex items-center gap-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTestPR(pr);
-                            }}
-                            disabled={isCloning}
-                          >
-                            {isCloning ? (
-                              <div className="animate-spin w-3.5 h-3.5">
-                                <FiRefreshCw className="w-3.5 h-3.5" />
-                              </div>
-                            ) : (
-                              <>
-                                <FiCode className="w-3.5 h-3.5" />
-                                <span>Test PR</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
                     </>
                   )}
                 </motion.div>

@@ -23,6 +23,7 @@ interface StartResponse {
     prNumber: number;
     tempDir: string;
     startCommand: string;
+    port?: number;
   };
 }
 
@@ -127,7 +128,15 @@ export class PRTestingService {
 
   async testPullRequest(pr: PullRequest): Promise<PRTestingResult> {
     try {
-      // Step 1: Clone the repository and check out the PR branch
+      // Check if there's already an active test for this PR
+      if (this._activeTests.has(pr.number)) {
+        return {
+          success: false,
+          message: `A test is already running for PR #${pr.number}`,
+        };
+      }
+
+      // Clone the PR
       const cloneResponse = await this._clonePR(pr);
 
       if (!cloneResponse.success || !cloneResponse.data) {
@@ -137,10 +146,7 @@ export class PRTestingService {
         };
       }
 
-      // Store the temporary directory for later use
-      this._activeTests.set(pr.number, { tempDir: cloneResponse.data.tempDir });
-
-      // Step 2: Start the application
+      // Start the application
       const startResponse = await this._startApp(pr.number, cloneResponse.data.tempDir);
 
       if (!startResponse.success || !startResponse.data) {
@@ -150,27 +156,23 @@ export class PRTestingService {
         };
       }
 
-      // Update the active test with the process ID
+      // Store the active test
       this._activeTests.set(pr.number, {
         pid: startResponse.data.pid,
-        tempDir: cloneResponse.data.tempDir,
+        tempDir: startResponse.data.tempDir,
       });
 
       return {
         success: true,
-        message: `Successfully prepared PR #${pr.number} for testing`,
+        message: `Successfully started test for PR #${pr.number}`,
         data: {
-          prNumber: pr.number,
-          branch: pr.head.ref,
-          repoUrl: pr.head.repo.clone_url,
-          repoName: pr.head.repo.full_name,
-          tempDir: cloneResponse.data.tempDir,
           pid: startResponse.data.pid,
-          testResults: cloneResponse.data.testResults,
+          tempDir: startResponse.data.tempDir,
+          port: startResponse.data.port,
         },
       };
     } catch (error) {
-      logStore.logError('Failed to test pull request', { error, pr });
+      logStore.logError('Failed to test PR', { error, pr });
       return {
         success: false,
         message: `Failed to test PR #${pr.number}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -216,6 +218,14 @@ export class PRTestingService {
 
   private async _clonePR(pr: PullRequest): Promise<CloneResponse> {
     try {
+      // Log the request for debugging
+      console.log('Cloning PR:', {
+        prNumber: pr.number,
+        branch: pr.head.ref,
+        repoUrl: pr.head.repo.clone_url,
+        repoName: pr.head.repo.full_name,
+      });
+
       const response = await fetch('/api/pr-testing/clone', {
         method: 'POST',
         headers: {
@@ -229,6 +239,12 @@ export class PRTestingService {
         }),
       });
 
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Server responded with ${response.status}: ${text}`);
+      }
+
       return await response.json();
     } catch (error) {
       logStore.logError('Failed to clone PR', { error, pr });
@@ -241,6 +257,8 @@ export class PRTestingService {
 
   private async _startApp(prNumber: number, tempDir: string): Promise<StartResponse> {
     try {
+      console.log('Starting app:', { prNumber, tempDir });
+
       const response = await fetch('/api/pr-testing/start', {
         method: 'POST',
         headers: {
@@ -251,6 +269,12 @@ export class PRTestingService {
           tempDir,
         }),
       });
+
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Server responded with ${response.status}: ${text}`);
+      }
 
       return await response.json();
     } catch (error) {
@@ -264,6 +288,8 @@ export class PRTestingService {
 
   private async _stopApp(prNumber: number, pid: number, tempDir: string): Promise<StopResponse> {
     try {
+      console.log('Stopping app:', { prNumber, pid, tempDir });
+
       const response = await fetch('/api/pr-testing/stop', {
         method: 'POST',
         headers: {
@@ -275,6 +301,12 @@ export class PRTestingService {
           tempDir,
         }),
       });
+
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Server responded with ${response.status}: ${text}`);
+      }
 
       return await response.json();
     } catch (error) {

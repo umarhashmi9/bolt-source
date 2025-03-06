@@ -5,7 +5,7 @@
  * This file contains server-only code and should not be imported in browser contexts
  */
 
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import * as fs from 'fs';
 import { path } from './path.server';
 import * as os from 'os';
@@ -56,8 +56,9 @@ export async function clonePR(params: ClonePRParams) {
     console.log(`Cloning repository: ${repoUrl} to ${tempDir}`);
     await execPromise(`git clone ${repoUrl} ${tempDir}`);
 
-    // Navigate to the repository directory and fetch the PR branch
+    // Navigate to the repository directory
     const originalDir = process.cwd();
+
     process.chdir(tempDir);
 
     try {
@@ -111,6 +112,7 @@ export async function clonePR(params: ClonePRParams) {
     }
   } catch (error) {
     console.error('Error testing PR:', error);
+
     return {
       success: false,
       message: `Failed to test PR: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -130,54 +132,63 @@ export async function startApp(params: StartAppParams) {
       };
     }
 
+    // Create .pr-testing directory if it doesn't exist
+    const prTestingDir = path.join(os.tmpdir(), '.pr-testing');
+
+    if (!fs.existsSync(prTestingDir)) {
+      fs.mkdirSync(prTestingDir, { recursive: true });
+    }
+
     // Navigate to the repository directory
     const originalDir = process.cwd();
+
     process.chdir(tempDir);
 
     try {
-      // Determine the start command
-      let startCommand = 'npm start';
+      // Start the application
+      console.log('Starting application with command: npm run dev');
 
-      if (fs.existsSync(path.join(tempDir, 'package.json'))) {
-        const packageJson = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      // Use a fixed port for the PR test (5174 for the first PR, increment for others)
+      const port = 5174;
 
-        if (packageJson.scripts) {
-          if (packageJson.scripts.dev) {
-            startCommand = 'npm run dev';
-          } else if (packageJson.scripts.develop) {
-            startCommand = 'npm run develop';
-          } else if (packageJson.scripts.serve) {
-            startCommand = 'npm run serve';
-          }
-        }
-      }
+      // Set environment variables for the PR test
+      const env = {
+        ...process.env,
+        PORT: port.toString(),
+        PR_TEST: 'true',
+        PR_NUMBER: prNumber.toString(),
+      };
 
-      // Start the application in a detached process
-      console.log(`Starting application with command: ${startCommand}`);
-
-      const child = exec(startCommand, {
-        cwd: tempDir,
-        env: process.env,
-        windowsHide: true,
+      // Start the application as a detached process
+      const child = spawn('npm', ['run', 'dev'], {
+        env,
+        detached: true,
+        stdio: 'ignore',
       });
 
-      // Unref the child process to allow the parent to exit
+      // Get the process ID
+      const pid = child.pid;
+
+      // Unref the child to allow the parent to exit
       child.unref();
 
-      // Store the process ID for later use
-      const pid = child.pid || 0;
+      // Create a .pr-testing directory if it doesn't exist
+      const prTestingDir = path.join(os.tmpdir(), '.pr-testing');
+
+      if (!fs.existsSync(prTestingDir)) {
+        fs.mkdirSync(prTestingDir, { recursive: true });
+      }
+
+      // Write process info to a file for tracking
       const processInfo = {
         pid,
         prNumber,
         tempDir,
-        startCommand,
-        startTime: new Date().toISOString(),
+        startCommand: 'npm run dev',
+        port: 5174, // Fixed port for the first PR
       };
 
-      // Save the process info to a file for later reference
-      const processInfoDir = path.join(tempDir, '.pr-testing');
-      fs.mkdirSync(processInfoDir, { recursive: true });
-      fs.writeFileSync(path.join(processInfoDir, 'process-info.json'), JSON.stringify(processInfo, null, 2));
+      fs.writeFileSync(path.join(prTestingDir, `pr-${prNumber}.json`), JSON.stringify(processInfo, null, 2), 'utf-8');
 
       // Return to the original directory
       process.chdir(originalDir);
@@ -189,15 +200,18 @@ export async function startApp(params: StartAppParams) {
           pid,
           prNumber,
           tempDir,
-          startCommand,
+          startCommand: 'npm run dev',
+          port: 5174, // Return the port in the response
         },
       };
-    } finally {
-      // Make sure we return to the original directory even if an error occurs
+    } catch (error) {
+      // Return to the original directory in case of error
       process.chdir(originalDir);
+      throw error;
     }
   } catch (error) {
     console.error('Error starting application:', error);
+
     return {
       success: false,
       message: `Failed to start application: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -214,7 +228,26 @@ export async function stopApp(params: StopAppParams) {
       // On Unix-like systems, sending signal 0 checks if the process exists
       process.kill(pid, 0);
 
-      // If we get here, the process exists, so kill it
+      // First, try to kill all child processes
+      try {
+        // For Unix-like systems (macOS, Linux)
+        if (process.platform !== 'win32') {
+          await execPromise(`pkill -P ${pid}`).catch(() => {
+            // Ignore errors if no child processes found
+            console.log(`No child processes found for PID ${pid}`);
+          });
+        } else {
+          // For Windows
+          await execPromise(`taskkill /F /T /PID ${pid}`).catch(() => {
+            // Ignore errors if no child processes found
+            console.log(`No child processes found for PID ${pid}`);
+          });
+        }
+      } catch (error) {
+        console.log(`Error killing child processes: ${error}`);
+      }
+
+      // Then kill the main process
       process.kill(pid);
       console.log(`Killed process with PID: ${pid}`);
     } catch {
@@ -227,6 +260,20 @@ export async function stopApp(params: StopAppParams) {
 
     if (fs.existsSync(processInfoPath)) {
       fs.unlinkSync(processInfoPath);
+    }
+
+    // Clean up the temporary directory
+    try {
+      if (fs.existsSync(tempDir)) {
+        console.log(`Cleaning up temporary directory: ${tempDir}`);
+
+        // Use recursive deletion with force option to handle read-only files
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    } catch (cleanupError) {
+      console.error(`Error cleaning up temporary directory: ${cleanupError}`);
+
+      // Continue with the operation even if cleanup fails
     }
 
     return {

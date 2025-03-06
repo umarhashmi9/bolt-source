@@ -28,5 +28,14 @@ export interface PullRequest {
 export interface PRTestingResult {
   success: boolean;
   message: string;
-  data?: any;
+  data?: {
+    prNumber?: number;
+    branch?: string;
+    repoUrl?: string;
+    repoName?: string;
+    tempDir?: string;
+    testResults?: string;
+    pid?: number;
+    port?: number;
+  };
 }
