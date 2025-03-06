@@ -1,16 +1,16 @@
 /**
  * @server-only
  *
- * @file API route for starting applications from pull requests
+ * @file API route for starting a PR test
  */
 
 import type { ActionFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { startApp } from '~/server/pr-testing.server';
 
-interface StartAppRequest {
-  tempDir: string;
+interface StartRequestBody {
   prNumber: number;
+  tempDir: string;
 }
 
 export const action: ActionFunction = async ({ request }) => {
@@ -19,22 +19,25 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   try {
-    const data = (await request.json()) as StartAppRequest;
-    const { tempDir, prNumber } = data;
+    const data = (await request.json()) as StartRequestBody;
+    const { prNumber, tempDir } = data;
 
-    if (!tempDir || !prNumber) {
-      return json({ success: false, message: 'Missing required fields: tempDir, prNumber' }, { status: 400 });
+    if (!prNumber || !tempDir) {
+      return json({ success: false, message: 'Missing required fields: prNumber, tempDir' }, { status: 400 });
     }
 
-    const result = await startApp({ tempDir, prNumber });
+    const result = await startApp({
+      prNumber,
+      tempDir,
+    });
 
     return json(result);
   } catch (error) {
-    console.error('Error starting application:', error);
+    console.error('Error starting PR test:', error);
     return json(
       {
         success: false,
-        message: `Failed to start application: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to start PR test: ${error instanceof Error ? error.message : 'Unknown error'}`,
       },
       { status: 500 },
     );

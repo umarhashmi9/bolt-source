@@ -1,14 +1,14 @@
 /**
  * @server-only
  *
- * @file API route for cloning and testing pull requests
+ * @file API route for cloning a PR
  */
 
 import type { ActionFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { clonePR } from '~/server/pr-testing.server';
 
-interface ClonePRRequest {
+interface CloneRequestBody {
   prNumber: number;
   branch: string;
   repoUrl: string;
@@ -21,7 +21,7 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   try {
-    const data = (await request.json()) as ClonePRRequest;
+    const data = (await request.json()) as CloneRequestBody;
     const { prNumber, branch, repoUrl, repoName } = data;
 
     if (!prNumber || !branch || !repoUrl || !repoName) {
@@ -31,15 +31,20 @@ export const action: ActionFunction = async ({ request }) => {
       );
     }
 
-    const result = await clonePR({ prNumber, branch, repoUrl, repoName });
+    const result = await clonePR({
+      prNumber,
+      branch,
+      repoUrl,
+      repoName,
+    });
 
     return json(result);
   } catch (error) {
-    console.error('Error testing PR:', error);
+    console.error('Error cloning PR:', error);
     return json(
       {
         success: false,
-        message: `Failed to test PR: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to clone PR: ${error instanceof Error ? error.message : 'Unknown error'}`,
       },
       { status: 500 },
     );

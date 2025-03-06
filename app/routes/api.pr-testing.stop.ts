@@ -1,17 +1,17 @@
 /**
  * @server-only
  *
- * @file API route for stopping applications from pull requests
+ * @file API route for stopping a PR test
  */
 
 import type { ActionFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { stopApp } from '~/server/pr-testing.server';
 
-interface StopAppRequest {
+interface StopRequestBody {
+  prNumber: number;
   pid: number;
   tempDir: string;
-  prNumber: number;
 }
 
 export const action: ActionFunction = async ({ request }) => {
@@ -20,22 +20,26 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   try {
-    const data = (await request.json()) as StopAppRequest;
-    const { pid, tempDir, prNumber } = data;
+    const data = (await request.json()) as StopRequestBody;
+    const { prNumber, pid, tempDir } = data;
 
-    if (!pid || !tempDir || !prNumber) {
-      return json({ success: false, message: 'Missing required fields: pid, tempDir, prNumber' }, { status: 400 });
+    if (!prNumber || !pid || !tempDir) {
+      return json({ success: false, message: 'Missing required fields: prNumber, pid, tempDir' }, { status: 400 });
     }
 
-    const result = await stopApp({ pid, tempDir, prNumber });
+    const result = await stopApp({
+      prNumber,
+      pid,
+      tempDir,
+    });
 
     return json(result);
   } catch (error) {
-    console.error('Error stopping application:', error);
+    console.error('Error stopping PR test:', error);
     return json(
       {
         success: false,
-        message: `Failed to stop application: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to stop PR test: ${error instanceof Error ? error.message : 'Unknown error'}`,
       },
       { status: 500 },
     );

@@ -224,43 +224,65 @@ export async function stopApp(params: StopAppParams) {
   const { pid, tempDir, prNumber } = params;
 
   try {
-    // Check if the process is running
+    console.log(`Stopping app for PR #${prNumber} with PID ${pid} in ${tempDir}`);
+
+    // First, try to kill all child processes
     try {
-      // On Unix-like systems, sending signal 0 checks if the process exists
-      process.kill(pid, 0);
+      // For Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        try {
+          // On macOS, find and kill the process listening on the PR port (5174)
+          console.log(`Checking for processes on port 5174 for PR #${prNumber}`);
+          await execPromise(`lsof -i :5174 -t | xargs -r kill -9`).catch((error) => {
+            console.log(`lsof/kill command failed: ${error.message}`);
+          });
 
-      // First, try to kill all child processes
-      try {
-        // For Unix-like systems (macOS, Linux)
-        if (process.platform !== 'win32') {
-          await execPromise(`pkill -P ${pid}`).catch(() => {
-            // Ignore errors if no child processes found
-            console.log(`No child processes found for PID ${pid}`);
+          // Try to kill the process tree using pkill
+          await execPromise(`pkill -P ${pid}`).catch((error) => {
+            console.log(`pkill command failed: ${error.message}`);
           });
-        } else {
-          // For Windows
-          await execPromise(`taskkill /F /T /PID ${pid}`).catch(() => {
-            // Ignore errors if no child processes found
-            console.log(`No child processes found for PID ${pid}`);
+
+          // Try to kill the process tree using ps and kill
+          await execPromise(`ps -o pid --ppid ${pid} --no-headers | xargs -r kill -9`).catch((error) => {
+            console.log(`ps/kill command failed: ${error.message}`);
           });
+
+          // Kill the main process with SIGKILL
+          try {
+            process.kill(pid, 'SIGKILL');
+            console.log(`Sent SIGKILL to process with PID: ${pid}`);
+          } catch (killError: unknown) {
+            const errorMessage = killError instanceof Error ? killError.message : String(killError);
+            console.log(`Failed to kill process with PID ${pid}: ${errorMessage}`);
+          }
+        } catch (error) {
+          console.log(`Error killing child processes: ${error}`);
         }
-      } catch (error) {
-        console.log(`Error killing child processes: ${error}`);
+      } else {
+        // For Windows
+        try {
+          await execPromise(`taskkill /F /T /PID ${pid}`).catch((error) => {
+            console.log(`taskkill command failed: ${error.message}`);
+          });
+        } catch (error) {
+          console.log(`Error killing process tree: ${error}`);
+        }
       }
-
-      // Then kill the main process
-      process.kill(pid);
-      console.log(`Killed process with PID: ${pid}`);
-    } catch {
-      // Process doesn't exist or we don't have permission to kill it
-      console.log(`Process with PID ${pid} is not running or cannot be killed`);
+    } catch (error) {
+      console.log(`Error during process termination: ${error}`);
     }
 
-    // Clean up the process info file
-    const processInfoPath = path.join(tempDir, '.pr-testing', 'process-info.json');
+    // Clean up the PR test file
+    const prTestingDir = path.join(os.tmpdir(), '.pr-testing');
+    const prFilePath = path.join(prTestingDir, `pr-${prNumber}.json`);
 
-    if (fs.existsSync(processInfoPath)) {
-      fs.unlinkSync(processInfoPath);
+    if (fs.existsSync(prFilePath)) {
+      try {
+        fs.unlinkSync(prFilePath);
+        console.log(`Removed PR test file: ${prFilePath}`);
+      } catch (error) {
+        console.log(`Error removing PR test file: ${error}`);
+      }
     }
 
     // Clean up the temporary directory
@@ -270,6 +292,7 @@ export async function stopApp(params: StopAppParams) {
 
         // Use recursive deletion with force option to handle read-only files
         fs.rmSync(tempDir, { recursive: true, force: true });
+        console.log(`Successfully removed directory: ${tempDir}`);
       }
     } catch (cleanupError) {
       console.error(`Error cleaning up temporary directory: ${cleanupError}`);

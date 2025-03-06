@@ -85,7 +85,7 @@ function pathBrowserifyPlugin() {
     load(id: string): string | undefined {
       if (id === resolvedVirtualModuleId) {
         return `
-          import pathBrowserify from 'path-browserify';
+          import * as pathBrowserify from '~/utils/path-browserify-shim';
           export const join = pathBrowserify.join;
           export const dirname = pathBrowserify.dirname;
           export const basename = pathBrowserify.basename;
@@ -95,6 +95,8 @@ function pathBrowserifyPlugin() {
           export const isAbsolute = pathBrowserify.isAbsolute;
           export const sep = pathBrowserify.sep;
           export const delimiter = pathBrowserify.delimiter;
+          export const parse = pathBrowserify.parse;
+          export const format = pathBrowserify.format;
           export default pathBrowserify;
         `;
       }
@@ -135,8 +137,8 @@ export default defineConfig((config) => {
     },
     resolve: {
       alias: {
-        // Use our custom implementation of path-browserify with the correct path
-        'path-browserify': '/Users/stijn/Desktop/bolt.new-any-llm/bolt.diy/app/utils/path-browserify-shim.ts',
+        // Use our custom implementation of path-browserify with a relative path
+        'path-browserify': './app/utils/path-browserify-shim.ts',
       },
     },
     ssr: {
