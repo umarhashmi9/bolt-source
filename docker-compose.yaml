@@ -10,7 +10,4 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      # Add any API keys or other environment variables here
-      # - OPENAI_API_KEY=your_key_here
-      # - ANTHROPIC_API_KEY=your_key_here
       - OLLAMA_API_BASE_URL=https://ollamaapi.coolify.lintserver.com/
