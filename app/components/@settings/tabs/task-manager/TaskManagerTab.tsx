@@ -613,15 +613,17 @@ const TaskManagerTab: React.FC = () => {
   // Update metrics with enhanced data
   const updateMetrics = async () => {
     try {
-      // Get memory info using Performance API
+      // Get memory info using Performance API with better error handling
       const memory = performance.memory || {
         jsHeapSizeLimit: 0,
         totalJSHeapSize: 0,
         usedJSHeapSize: 0,
       };
-      const totalMem = memory.totalJSHeapSize / (1024 * 1024);
+
+      // Calculate memory values with better precision and error handling
+      const totalMem = Math.max(1, memory.totalJSHeapSize / (1024 * 1024)); // Avoid division by zero
       const usedMem = memory.usedJSHeapSize / (1024 * 1024);
-      const memPercentage = (usedMem / totalMem) * 100;
+      const memPercentage = Math.min(100, Math.max(0, (usedMem / totalMem) * 100)); // Clamp between 0-100%
 
       // Get CPU usage using Performance API
       const cpuUsage = await getCPUUsage();
@@ -659,13 +661,13 @@ const TaskManagerTab: React.FC = () => {
       const metrics: SystemMetrics = {
         cpu: { usage: cpuUsage, cores: [], temperature: undefined, frequency: undefined },
         memory: {
-          used: Math.round(usedMem),
-          total: Math.round(totalMem),
-          percentage: Math.round(memPercentage),
+          used: Math.round(usedMem * 100) / 100, // Round to 2 decimal places
+          total: Math.round(totalMem * 100) / 100, // Round to 2 decimal places
+          percentage: Math.round(memPercentage * 100) / 100, // Round to 2 decimal places
           heap: {
-            used: Math.round(usedMem),
-            total: Math.round(totalMem),
-            limit: Math.round(totalMem),
+            used: Math.round(usedMem * 100) / 100, // Round to 2 decimal places
+            total: Math.round(totalMem * 100) / 100, // Round to 2 decimal places
+            limit: Math.round((memory.jsHeapSizeLimit / (1024 * 1024)) * 100) / 100, // Round to 2 decimal places
           },
         },
         uptime: performance.now() / 1000,
@@ -683,7 +685,7 @@ const TaskManagerTab: React.FC = () => {
 
       setMetrics(metrics);
 
-      // Update metrics history
+      // Update metrics history with more precise values
       const now = new Date().toLocaleTimeString();
       setMetricsHistory((prev) => {
         const timestamps = [...prev.timestamps, now].slice(-MAX_HISTORY_POINTS);
@@ -909,6 +911,178 @@ const TaskManagerTab: React.FC = () => {
     }
   };
 
+  // Effect to handle power profile settings
+  useEffect(() => {
+    const applyPowerProfileSettings = () => {
+      // Apply animation settings
+      document.body.style.setProperty(
+        '--animation-duration',
+        selectedProfile.settings.enableAnimations ? '0.2s' : '0s',
+      );
+
+      // Apply background processing settings
+      if (!selectedProfile.settings.backgroundProcessing) {
+        // Reduce background processing frequency
+        const currentConfig = tabConfig.get();
+        const updatedTabs = currentConfig.userTabs.map((tab) => ({
+          ...tab,
+          window: tab.window,
+          order: tab.order,
+        }));
+
+        // Store the update interval in localStorage
+        localStorage.setItem('tabUpdateInterval', selectedProfile.settings.updateInterval.toString());
+
+        // Only update if there are actual changes
+        const hasChanges = updatedTabs.some((tab, index) => tab.visible !== currentConfig.userTabs[index].visible);
+
+        if (hasChanges) {
+          tabConfig.set({
+            ...currentConfig,
+            userTabs: updatedTabs,
+          });
+        }
+      }
+
+      // Apply network throttling
+      if (selectedProfile.settings.networkThrottling) {
+        // Reduce network requests frequency
+        const throttledFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+          await new Promise((resolve) => setTimeout(resolve, 1000)); // Add delay
+          return fetch(input, init);
+        };
+        window.fetch = throttledFetch;
+      } else {
+        // Restore normal fetch
+        window.fetch = originalFetch;
+      }
+    };
+
+    // Store original fetch
+    const originalFetch = window.fetch;
+
+    applyPowerProfileSettings();
+
+    // Cleanup function
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [
+    selectedProfile.name,
+    selectedProfile.settings.updateInterval,
+    selectedProfile.settings.enableAnimations,
+    selectedProfile.settings.backgroundProcessing,
+    selectedProfile.settings.networkThrottling,
+  ]);
+
+  // Effect to handle energy saver mode
+  useEffect(() => {
+    if (energySaverMode) {
+      // Reduce animation frame rate
+      const originalRequestAnimationFrame = window.requestAnimationFrame;
+
+      window.requestAnimationFrame = (callback) => {
+        return originalRequestAnimationFrame(() => {
+          setTimeout(callback, 32); // ~30fps
+        });
+      };
+
+      // Reduce background processing
+      const currentConfig = tabConfig.get();
+      const updatedTabs = currentConfig.userTabs.map((tab) => ({
+        ...tab,
+        window: tab.window,
+        order: tab.order,
+      }));
+
+      tabConfig.set({
+        ...currentConfig,
+        userTabs: updatedTabs,
+      });
+
+      // Disable animations
+      document.body.style.setProperty('--animation-duration', '0s');
+
+      // Cleanup function
+      return () => {
+        window.requestAnimationFrame = originalRequestAnimationFrame;
+        document.body.style.setProperty('--animation-duration', '0.2s');
+      };
+    }
+
+    // Return undefined when energy saver is off
+    return undefined;
+  }, [energySaverMode, tabConfig]);
+
+  // Effect to handle metrics update frequency based on power profile
+  useEffect(() => {
+    let metricsInterval: NodeJS.Timeout;
+
+    const updateMetricsWithProfile = () => {
+      const interval = energySaverMode ? UPDATE_INTERVALS.energySaver.metrics : selectedProfile.settings.updateInterval;
+
+      metricsInterval = setInterval(updateMetrics, interval);
+    };
+
+    updateMetricsWithProfile();
+
+    return () => {
+      clearInterval(metricsInterval);
+    };
+  }, [energySaverMode, selectedProfile.settings.updateInterval]);
+
+  // Handle power profile changes
+  const handlePowerProfileChange = (profile: PowerProfile) => {
+    setSelectedProfile(profile);
+    localStorage.setItem('selectedProfile', profile.name);
+
+    // Apply profile settings
+    if (profile.name === 'Energy Saver') {
+      setEnergySaverMode(true);
+      localStorage.setItem('energySaverMode', 'true');
+    } else {
+      setEnergySaverMode(false);
+      localStorage.setItem('energySaverMode', 'false');
+    }
+
+    const currentConfig = tabConfig.get();
+
+    // Update tab configuration based on profile
+    const updatedTabs = currentConfig.userTabs.map((tab) => ({
+      ...tab,
+      window: tab.window,
+      order: tab.order,
+      visible: tab.id === 'debug' || tab.id === 'update' ? profile.name !== 'Energy Saver' : tab.visible,
+    }));
+
+    // Only update if there are actual changes
+    const hasChanges = updatedTabs.some((tab, index) => tab.visible !== currentConfig.userTabs[index].visible);
+
+    if (hasChanges) {
+      tabConfig.set({
+        ...currentConfig,
+        userTabs: updatedTabs,
+      });
+    }
+
+    // Apply performance optimizations based on profile
+    if (profile.name === 'Energy Saver') {
+      // Disable animations
+      document.body.style.setProperty('--animation-duration', '0s');
+
+      // Reduce background processing
+      localStorage.setItem('backgroundProcessing', 'false');
+    } else {
+      // Restore animations
+      document.body.style.setProperty('--animation-duration', '0.2s');
+
+      // Enable background processing
+      localStorage.setItem('backgroundProcessing', 'true');
+    }
+
+    toast.success(`Switched to ${profile.name} power profile`);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Power Profile Selection */}
@@ -954,8 +1128,7 @@ const TaskManagerTab: React.FC = () => {
                   const profile = POWER_PROFILES.find((p) => p.name === e.target.value);
 
                   if (profile) {
-                    setSelectedProfile(profile);
-                    toast.success(`Switched to ${profile.name} power profile`);
+                    handlePowerProfileChange(profile);
                   }
                 }}
                 className="pl-8 pr-8 py-1.5 rounded-md bg-bolt-background-secondary dark:bg-[#1E1E1E] border border-bolt-border dark:border-bolt-borderDark text-sm text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimaryDark hover:border-bolt-action-primary dark:hover:border-bolt-action-primary focus:outline-none focus:ring-1 focus:ring-bolt-action-primary appearance-none min-w-[160px] cursor-pointer transition-colors duration-150"
@@ -986,7 +1159,14 @@ const TaskManagerTab: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="text-sm text-bolt-elements-textSecondary">{selectedProfile.description}</div>
+        <div className="text-sm text-bolt-elements-textSecondary">
+          {selectedProfile.description}
+          {selectedProfile.settings.updateInterval > 1000 && (
+            <span className="ml-2 text-xs text-bolt-elements-textSecondary">
+              (Updates every {selectedProfile.settings.updateInterval / 1000}s)
+            </span>
+          )}
+        </div>
       </div>
 
       {/* System Health Score */}
@@ -1244,8 +1424,12 @@ const formatBytes = (bytes: number): string => {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const value = bytes / Math.pow(k, i);
 
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  // Format with 2 decimal places for MB and larger units
+  const formattedValue = i >= 2 ? value.toFixed(2) : value.toFixed(0);
+
+  return `${formattedValue} ${sizes[i]}`;
 };
 
 // Helper function to format time
