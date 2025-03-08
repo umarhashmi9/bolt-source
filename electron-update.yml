@@ -1,4 +1,4 @@
-owner: Derek-X-Wang
-repo: bolt.local
+owner: stackblitz-labs
+repo: bolt.diy
 provider: github
-private: true
+private: false
