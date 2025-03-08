@@ -286,6 +286,16 @@ const UpdateTab = () => {
             <span className="text-purple-500 dark:text-purple-400">Note:</span> This feature will allow automatic
             updates when new changes are detected on the {isLatestBranch ? 'main' : 'stable'} branch.
           </p>
+          {!isLatestBranch && (
+            <div className="mt-4 p-3 bg-blue-500/10 text-blue-500 dark:text-blue-400 rounded-lg text-xs">
+              <div className="flex items-center gap-2">
+                <div className="i-ph:info" />
+                <span>
+                  Enable "Main Branch Updates" in Features tab to receive updates from the main development branch.
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
 
