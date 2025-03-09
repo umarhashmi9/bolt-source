@@ -222,19 +222,36 @@ const UpdateTab = () => {
       return undefined;
     }
 
-    const checkInterval = 6 * 60 * 60 * 1000; // 6 hours
-    const shouldCheck = !lastUpdateCheck || Date.now() - lastUpdateCheck > checkInterval;
+    // Check more frequently when on main branch
+    const quickCheckInterval = 30 * 60 * 1000; // 30 minutes
+    const fullCheckInterval = 6 * 60 * 60 * 1000; // 6 hours
+
+    const shouldCheck = !lastUpdateCheck || Date.now() - lastUpdateCheck > fullCheckInterval;
 
     if (shouldCheck) {
       void checkForUpdates(true);
     }
 
-    const intervalId = setInterval(() => {
-      void checkForUpdates(true);
-    }, checkInterval);
+    // Quick check for new commits
+    const quickCheckId = setInterval(() => {
+      if (updateInfo?.currentBranch === 'main') {
+        void checkForUpdates(true);
+      }
+    }, quickCheckInterval);
 
-    return () => clearInterval(intervalId);
-  }, [isLatestBranch, lastUpdateCheck, checkForUpdates]);
+    // Full check including changelog
+    const fullCheckId = setInterval(() => {
+      void checkForUpdates(true);
+    }, fullCheckInterval);
+
+    return () => {
+      clearInterval(quickCheckId);
+      clearInterval(fullCheckId);
+    };
+  }, [isLatestBranch, lastUpdateCheck, checkForUpdates, updateInfo?.currentBranch]);
+
+  // Show update ready status
+  const updateReady = updateInfo?.updateReady && updateInfo.currentBranch === 'main' && isLatestBranch;
 
   return (
     <div className="flex flex-col gap-6">
@@ -286,6 +303,14 @@ const UpdateTab = () => {
             <span className="text-purple-500 dark:text-purple-400">Note:</span> This feature will allow automatic
             updates when new changes are detected on the {isLatestBranch ? 'main' : 'stable'} branch.
           </p>
+          {updateReady && (
+            <div className="mt-4 p-3 bg-green-500/10 text-green-600 dark:text-green-400 rounded-lg text-xs">
+              <div className="flex items-center gap-2">
+                <div className="i-ph:check-circle" />
+                <span>New updates are available on the main branch!</span>
+              </div>
+            </div>
+          )}
           {!isLatestBranch && (
             <div className="mt-4 p-3 bg-blue-500/10 text-blue-500 dark:text-blue-400 rounded-lg text-xs">
               <div className="flex items-center gap-2">
@@ -316,6 +341,11 @@ const UpdateTab = () => {
                 <span className="font-medium text-purple-500 dark:text-purple-400">
                   {updateInfo?.currentBranch || (isLatestBranch ? 'main' : 'stable')}
                 </span>
+                {updateInfo?.currentBranch &&
+                  ((isLatestBranch && updateInfo.currentBranch !== 'main') ||
+                    (!isLatestBranch && updateInfo.currentBranch !== 'stable')) && (
+                    <span className="ml-2 text-amber-500 dark:text-amber-400">(Branch mismatch detected)</span>
+                  )}
               </p>
             </div>
           </div>
@@ -356,6 +386,20 @@ const UpdateTab = () => {
         )}
 
         {updateProgress && <UpdateProgressDisplay progress={updateProgress} />}
+
+        {updateInfo?.currentBranch &&
+          ((isLatestBranch && updateInfo.currentBranch !== 'main') ||
+            (!isLatestBranch && updateInfo.currentBranch !== 'stable')) && (
+            <div className="mb-4 p-4 bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="i-ph:warning" />
+                <span>
+                  Your current branch ({updateInfo.currentBranch}) doesn't match your update settings (
+                  {isLatestBranch ? 'main' : 'stable'}). Updates will be pulled from your current branch.
+                </span>
+              </div>
+            </div>
+          )}
 
         {updateInfo && (
           <div className="mb-6 text-sm">
