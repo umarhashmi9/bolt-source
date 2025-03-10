@@ -121,15 +121,25 @@ export default function FeaturesTab() {
 
   // Enable features by default on first load
   React.useEffect(() => {
-    // Force enable these features by default
-    enableLatestBranch(true);
-    enableContextOptimization(true);
-    setAutoSelectTemplate(true);
-    setPromptId('optimized');
+    // Only set defaults if values are undefined
+    if (isLatestBranch === undefined) {
+      enableLatestBranch(false); // Default: OFF - Don't auto-update from main branch
+    }
 
-    // Only enable event logs if not explicitly set before
+    if (contextOptimizationEnabled === undefined) {
+      enableContextOptimization(true); // Default: ON - Enable context optimization
+    }
+
+    if (autoSelectTemplate === undefined) {
+      setAutoSelectTemplate(true); // Default: ON - Enable auto-select templates
+    }
+
+    if (promptId === undefined) {
+      setPromptId('default'); // Default: 'default'
+    }
+
     if (eventLogs === undefined) {
-      setEventLogs(true);
+      setEventLogs(true); // Default: ON - Enable event logging
     }
   }, []); // Only run once on component mount
 
