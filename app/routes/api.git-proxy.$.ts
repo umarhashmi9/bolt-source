@@ -118,10 +118,8 @@ async function handleProxyRequest(request: Request, path: string | undefined) {
     if (!['GET', 'HEAD'].includes(request.method)) {
       fetchOptions.body = request.body;
 
-      /*
-       * Note: duplex property is removed to ensure TypeScript compatibility
-       * across different environments and versions
-       */
+      //@ts-ignore suppress error by typescript for not recognizing duplex property
+      fetchOptions.duplex = 'half';
     }
 
     // Forward the request to the target URL
