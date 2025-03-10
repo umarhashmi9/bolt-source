@@ -103,6 +103,12 @@ export default defineConfig((config) => {
         transformMixedEsModules: true,
       },
     },
+    server: {
+      allowedHosts: [
+        'localhost',
+        'bolt.opt7dev.com'
+      ]
+    },
     optimizeDeps: {
       esbuildOptions: {
         define: {
