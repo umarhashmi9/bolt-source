@@ -1,6 +1,21 @@
 import { type ActionFunctionArgs, json } from '@remix-run/cloudflare';
-import crypto from 'crypto';
 import type { NetlifySiteInfo } from '~/types/netlify';
+
+// Add a helper function to create SHA-1 hash using Web Crypto API
+async function createSha1Hash(content: string): Promise<string> {
+  // Convert string to ArrayBuffer
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+
+  // Use Web Crypto API to create SHA-1 hash
+  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+
+  // Convert ArrayBuffer to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
+}
 
 interface DeployRequestBody {
   siteId?: string;
@@ -101,12 +116,15 @@ export async function action({ request }: ActionFunctionArgs) {
     // Create file digests
     const fileDigests: Record<string, string> = {};
 
-    for (const [filePath, content] of Object.entries(files)) {
-      // Ensure file path starts with a forward slash
-      const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath;
-      const hash = crypto.createHash('sha1').update(content).digest('hex');
-      fileDigests[normalizedPath] = hash;
-    }
+    // Use Promise.all to process all files in parallel
+    await Promise.all(
+      Object.entries(files).map(async ([filePath, content]) => {
+        // Ensure file path starts with a forward slash
+        const normalizedPath = filePath.startsWith('/') ? filePath : '/' + filePath;
+        const hash = await createSha1Hash(content);
+        fileDigests[normalizedPath] = hash;
+      }),
+    );
 
     // Create a new deploy with digests
     const deployResponse = await fetch(`https://api.netlify.com/api/v1/sites/${targetSiteId}/deploys`, {

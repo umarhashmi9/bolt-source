@@ -5,7 +5,7 @@ import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
 import { createHead } from 'remix-island';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -14,6 +14,17 @@ import globalStyles from './styles/index.scss?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
+
+// Client-only wrapper component to prevent SSR issues with window references
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  return isClient ? <>{children}</> : null;
+}
 
 export const links: LinksFunction = () => [
   {
@@ -44,6 +55,8 @@ const inlineThemeCode = stripIndents`
   setTutorialKitTheme();
 
   function setTutorialKitTheme() {
+    if (typeof window === 'undefined') return;
+    
     let theme = localStorage.getItem('bolt_theme');
 
     if (!theme) {
@@ -72,11 +85,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      {children}
+    <>
+      <ClientOnly>
+        <DndProvider backend={HTML5Backend}>{children}</DndProvider>
+      </ClientOnly>
+      {!globalThis.window && children}
       <ScrollRestoration />
       <Scripts />
-    </DndProvider>
+    </>
   );
 }
 
@@ -86,12 +102,14 @@ export default function App() {
   const theme = useStore(themeStore);
 
   useEffect(() => {
-    logStore.logSystem('Application initialized', {
-      theme,
-      platform: navigator.platform,
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString(),
-    });
+    if (typeof window !== 'undefined') {
+      logStore.logSystem('Application initialized', {
+        theme,
+        platform: navigator.platform,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }, []);
 
   return (
