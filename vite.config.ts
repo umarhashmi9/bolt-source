@@ -1,6 +1,5 @@
 import { cloudflareDevProxyVitePlugin as remixCloudflareDevProxy, vitePlugin as remixVitePlugin } from '@remix-run/dev';
 import UnoCSS from 'unocss/vite';
-import { defineConfig, type ViteDevServer } from 'vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { optimizeCssModules } from 'vite-plugin-optimize-css-modules';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -8,6 +7,16 @@ import * as dotenv from 'dotenv';
 import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  server: {
+    host: true, // Allow all external access
+    strictPort: true,
+    port: 5173, // Ensure it's running on this port
+    allowedHosts: ["edit.qwiztube.com", "localhost"], // Add your domain
+  }
+});
 
 dotenv.config();
 
