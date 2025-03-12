@@ -533,37 +533,164 @@ export class PRTestingService {
   }
 
   async getSetupLogs(prNumber: number): Promise<string[]> {
-    // First, return any in-memory logs we have
-    const inMemoryLogs = this._setupLogs.get(prNumber) || [];
+    return this._setupLogs.get(prNumber) || [];
+  }
 
-    // Then try to fetch logs from the server
-    try {
-      const response = await fetch(`/api/pr-testing/setup-logs/${prNumber}`);
+  /**
+   * Checks if a PR is currently being tested
+   */
+  async isPRBeingTested(prNumber: number): Promise<PRTestingResult> {
+    await this.ensureInitialized();
 
-      if (!response.ok) {
-        return inMemoryLogs;
-      }
+    const isActive = this._activeTests.has(prNumber);
 
-      const result = (await response.json()) as {
-        success: boolean;
-        data?: string[];
+    if (isActive) {
+      return {
+        success: true,
+        message: `PR #${prNumber} is currently being tested`,
       };
+    } else {
+      return {
+        success: false,
+        message: `Please test the PR first before copying`,
+      };
+    }
+  }
 
-      if (result.success && result.data) {
-        // Merge server logs with in-memory logs, avoiding duplicates
-        const serverLogs = result.data;
-        const allLogs = new Set([...serverLogs, ...inMemoryLogs]);
+  /**
+   * Gets the temporary directory for a PR being tested
+   */
+  async getTempDir(prNumber: number): Promise<PRTestingResult> {
+    await this.ensureInitialized();
 
-        // Update in-memory logs
-        this._setupLogs.set(prNumber, [...allLogs]);
+    const activeTest = this._activeTests.get(prNumber);
 
-        return [...allLogs];
+    if (!activeTest || !activeTest.tempDir) {
+      return {
+        success: false,
+        message: `Unable to find the PR source directory`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Found temporary directory for PR #${prNumber}`,
+      data: {
+        prNumber,
+        tempDir: activeTest.tempDir,
+      },
+    };
+  }
+
+  /**
+   * Sets up a PR for development by providing instructions to copy files manually
+   */
+  async setupForDevelopment(pr: PullRequest, destination: string): Promise<PRTestingResult> {
+    try {
+      await this.ensureInitialized();
+
+      // Add setup log
+      this._addSetupLog(pr.number, `Setting up PR #${pr.number} for manual copying to ${destination}`);
+
+      // Get the active test information
+      const activeTest = this._activeTests.get(pr.number);
+
+      if (!activeTest || !activeTest.tempDir) {
+        const errorMsg = `No active test found for PR #${pr.number}. Please test the PR first.`;
+        this._addSetupLog(pr.number, errorMsg);
+
+        return {
+          success: false,
+          message: errorMsg,
+        };
       }
 
-      return inMemoryLogs;
+      const tempDir = activeTest.tempDir;
+
+      // Normalize the destination path
+      let normalizedDestination = destination;
+
+      // Handle tilde expansion for home directory
+      if (normalizedDestination.startsWith('~')) {
+        const homePath = process.env.HOME || '';
+        normalizedDestination = normalizedDestination.replace(/^~/, homePath);
+        this._addSetupLog(pr.number, `Expanded path to: ${normalizedDestination}`);
+      }
+
+      // Check if destination path might cause permission issues
+      const isRootLevel =
+        normalizedDestination.startsWith('/') && normalizedDestination.split('/').filter(Boolean).length === 1;
+
+      if (isRootLevel) {
+        const warningMsg = `WARNING: The path "${normalizedDestination}" is a root-level directory and may require admin privileges. Consider using a path in your home directory instead.`;
+        this._addSetupLog(pr.number, warningMsg);
+      }
+
+      // Provide instructions for manual copying
+      this._addSetupLog(pr.number, `Please copy files manually from ${tempDir} to ${normalizedDestination}`);
+
+      // Try to copy to clipboard
+      try {
+        const platform = window.navigator.platform.toLowerCase();
+        const isWin = platform.includes('win');
+
+        let copyCommand = '';
+
+        if (isWin) {
+          // Windows command
+          copyCommand = `xcopy "${tempDir}\\*" "${normalizedDestination}\\" /E /I /H /Y`;
+        } else {
+          // Unix command - ensure the destination directory exists first
+          copyCommand = `mkdir -p "${normalizedDestination}" && cp -R "${tempDir}/"* "${normalizedDestination}/"`;
+        }
+
+        // Copy the command to clipboard
+        navigator.clipboard
+          .writeText(copyCommand)
+          .then(() => {
+            this._addSetupLog(pr.number, `Copy command has been copied to clipboard`);
+          })
+          .catch((err) => {
+            this._addSetupLog(pr.number, `Could not copy command to clipboard: ${err}`);
+          });
+
+        // Final success message with additional guidance
+        let successMsg = `Ready to copy PR #${pr.number} files from ${tempDir} to ${normalizedDestination}. Please paste and run the copied command in your terminal.`;
+
+        // Add extra guidance for macOS users
+        if (!isWin) {
+          successMsg += ` If you encounter a "Read-only file system" error, make sure to use a path in your home directory like ~/Desktop/bolt-pr-${pr.number} instead of /Desktop/bolt-pr-${pr.number}.`;
+        }
+
+        this._addSetupLog(pr.number, successMsg);
+
+        return {
+          success: true,
+          message: successMsg,
+          data: {
+            prNumber: pr.number,
+            tempDir,
+            copyCommand,
+          },
+        };
+      } catch (error) {
+        const errorMsg = `Error preparing copy command: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        this._addSetupLog(pr.number, errorMsg);
+
+        return {
+          success: false,
+          message: errorMsg,
+        };
+      }
     } catch (error) {
-      console.error('Failed to get setup logs from server:', error);
-      return inMemoryLogs;
+      const errorMsg = `Failed to prepare for file copying: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this._addSetupLog(pr.number, errorMsg);
+      logStore.logError('Failed to prepare for file copying', { error, pr });
+
+      return {
+        success: false,
+        message: errorMsg,
+      };
     }
   }
 }

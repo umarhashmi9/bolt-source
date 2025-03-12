@@ -420,3 +420,284 @@ export async function getSetupLogs(prNumber: number) {
     };
   }
 }
+
+/**
+ * Checks if a directory exists
+ */
+export async function checkDirectory(path: string) {
+  try {
+    const exists = fs.existsSync(path);
+    return {
+      success: true,
+      exists,
+    };
+  } catch (error) {
+    console.error('Error checking directory:', error);
+    return {
+      success: false,
+      exists: false,
+      message: `Error checking directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Creates a directory (and parent directories if they don't exist)
+ */
+export async function createDirectory(path: string) {
+  try {
+    fs.mkdirSync(path, { recursive: true });
+    return {
+      success: true,
+      message: `Directory created: ${path}`,
+    };
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    return {
+      success: false,
+      message: `Failed to create directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+export interface CloneRepositoryParams {
+  repoUrl: string;
+  destination: string;
+  branch?: string;
+}
+
+/**
+ * Clones a repository to the specified destination
+ */
+export async function cloneRepository(params: CloneRepositoryParams) {
+  const { repoUrl, destination, branch } = params;
+
+  try {
+    let command = `git clone ${repoUrl} ${destination}`;
+
+    if (branch) {
+      command += ` --branch ${branch}`;
+    }
+
+    await execPromise(command);
+
+    return {
+      success: true,
+      message: `Repository cloned to ${destination}`,
+    };
+  } catch (error) {
+    console.error('Error cloning repository:', error);
+    return {
+      success: false,
+      message: `Failed to clone repository: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+export interface SetupRemoteParams {
+  directory: string;
+  remoteName: string;
+  remoteUrl: string;
+}
+
+/**
+ * Sets up a remote for a repository
+ */
+export async function setupRemote(params: SetupRemoteParams) {
+  const { directory, remoteName, remoteUrl } = params;
+
+  try {
+    const originalDir = process.cwd();
+    process.chdir(directory);
+
+    try {
+      await execPromise(`git remote add ${remoteName} ${remoteUrl}`);
+
+      process.chdir(originalDir);
+
+      return {
+        success: true,
+        message: `Remote ${remoteName} set up for ${directory}`,
+      };
+    } finally {
+      process.chdir(originalDir);
+    }
+  } catch (error) {
+    console.error('Error setting up remote:', error);
+    return {
+      success: false,
+      message: `Failed to set up remote: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+export interface FetchBranchParams {
+  directory: string;
+  remoteName: string;
+  branchName: string;
+}
+
+/**
+ * Fetches a branch from a remote
+ */
+export async function fetchBranch(params: FetchBranchParams) {
+  const { directory, remoteName, branchName } = params;
+
+  try {
+    const originalDir = process.cwd();
+    process.chdir(directory);
+
+    try {
+      await execPromise(`git fetch ${remoteName} ${branchName}`);
+
+      process.chdir(originalDir);
+
+      return {
+        success: true,
+        message: `Branch ${branchName} fetched from ${remoteName}`,
+      };
+    } finally {
+      process.chdir(originalDir);
+    }
+  } catch (error) {
+    console.error('Error fetching branch:', error);
+    return {
+      success: false,
+      message: `Failed to fetch branch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+export interface CheckoutBranchParams {
+  directory: string;
+  branchName: string;
+  startPoint?: string;
+}
+
+/**
+ * Checks out a branch in a repository
+ */
+export async function checkoutBranch(params: CheckoutBranchParams) {
+  const { directory, branchName, startPoint } = params;
+
+  try {
+    const originalDir = process.cwd();
+    process.chdir(directory);
+
+    try {
+      let command = `git checkout -b ${branchName}`;
+
+      if (startPoint) {
+        command += ` ${startPoint}`;
+      }
+
+      await execPromise(command);
+
+      process.chdir(originalDir);
+
+      return {
+        success: true,
+        message: `Branch ${branchName} checked out`,
+      };
+    } finally {
+      process.chdir(originalDir);
+    }
+  } catch (error) {
+    console.error('Error checking out branch:', error);
+    return {
+      success: false,
+      message: `Failed to checkout branch: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+export interface RunCommandParams {
+  command: string;
+  directory?: string;
+}
+
+/**
+ * Runs a command in the specified directory (or current directory if not specified)
+ */
+export async function runCommand(params: RunCommandParams) {
+  const { command, directory } = params;
+
+  try {
+    const originalDir = process.cwd();
+
+    if (directory) {
+      process.chdir(directory);
+    }
+
+    try {
+      const result = await execPromise(command);
+
+      if (directory) {
+        process.chdir(originalDir);
+      }
+
+      return {
+        success: true,
+        message: `Command executed successfully`,
+        output: result,
+      };
+    } finally {
+      if (directory) {
+        process.chdir(originalDir);
+      }
+    }
+  } catch (error) {
+    console.error('Error running command:', error);
+    return {
+      success: false,
+      message: `Failed to run command: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Copies the contents of a PR directory to a workspace location
+ */
+export async function copyPRToWorkspace(params: { tempDir: string; destination: string }) {
+  const { tempDir, destination } = params;
+
+  try {
+    // Check if temp directory exists
+    if (!fs.existsSync(tempDir)) {
+      return {
+        success: false,
+        message: `Source directory not found: ${tempDir}`,
+      };
+    }
+
+    // Create destination directory if it doesn't exist
+    if (!fs.existsSync(destination)) {
+      fs.mkdirSync(destination, { recursive: true });
+      console.log(`Created destination directory: ${destination}`);
+    }
+
+    // Use different copy commands depending on the platform
+    if (process.platform === 'win32') {
+      // Windows
+      await execPromise(`xcopy "${tempDir}\\*" "${destination}\\" /E /I /H /Y`);
+    } else {
+      // Unix-like (macOS, Linux)
+      await execPromise(`cp -R "${tempDir}/"* "${destination}/"`);
+    }
+
+    return {
+      success: true,
+      message: `Successfully copied PR files to ${destination}`,
+      data: {
+        destination,
+      },
+    };
+  } catch (error) {
+    console.error('Error copying PR to workspace:', error);
+    return {
+      success: false,
+      message: `Failed to copy PR files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}

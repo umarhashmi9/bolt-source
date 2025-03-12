@@ -302,6 +302,97 @@ function PrTestingTab() {
     }
   };
 
+  const handleDevelopPR = async (pr: PullRequest) => {
+    if (!pr) {
+      return;
+    }
+
+    // Check if PR is being tested
+    const result = await PRTestingService.getInstance().isPRBeingTested(pr.number);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    // Get the temporary directory
+    const tempDirResult = await PRTestingService.getInstance().getTempDir(pr.number);
+
+    if (!tempDirResult.success || !tempDirResult.data) {
+      toast.error(tempDirResult.message || 'Failed to get temporary directory');
+      return;
+    }
+
+    // Confirm with the user
+    const confirmed = window.confirm(
+      'This will generate a terminal command to copy the PR files to a directory of your choice. The command will be copied to your clipboard.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    // Get the home directory path
+    const homePath = process.env.HOME || '';
+
+    /*
+     * Ask for the destination
+     * Use a path in the user's home directory instead of a root-level directory
+     * This ensures the user has write permissions to create the directory
+     */
+    const defaultPath = `${homePath}/Desktop/bolt-pr-${pr.number}`;
+
+    const destination = window.prompt(
+      'Enter the path where you want to copy the PR files:\n\n' +
+        'Tips:\n' +
+        '- Use a path in your home directory (like ~/Desktop/ or ~/Documents/)\n' +
+        '- You can use ~ as a shortcut for your home directory\n' +
+        '- Avoid root-level directories like /Desktop/ (use ~/Desktop/ instead)\n' +
+        '- Make sure you have write permissions to the destination\n' +
+        '- The command will work in both light and dark terminal themes',
+      defaultPath,
+    );
+
+    if (!destination) {
+      return;
+    }
+
+    // Call the service to set up the PR for development
+    const setupResult = await PRTestingService.getInstance().setupForDevelopment(pr, destination);
+
+    if (!setupResult.success) {
+      toast.error(setupResult.message);
+      return;
+    }
+
+    // Show success message
+    toast.success('Command generated successfully!');
+
+    // Show the command in a more visible toast
+    if (setupResult.data && 'copyCommand' in setupResult.data && setupResult.data.copyCommand) {
+      toast.info(
+        <div>
+          <p className="font-bold mb-2 text-gray-900 dark:text-white">Command copied to clipboard:</p>
+          <code className="bg-gray-800 text-gray-100 dark:bg-gray-900 dark:text-gray-100 p-2 block rounded overflow-x-auto whitespace-pre-wrap border border-gray-700 dark:border-gray-600">
+            {setupResult.data.copyCommand}
+          </code>
+          <button
+            className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            onClick={() => {
+              if (setupResult.data && 'copyCommand' in setupResult.data && setupResult.data.copyCommand) {
+                navigator.clipboard.writeText(setupResult.data.copyCommand);
+                toast.success('Command copied again!');
+              }
+            }}
+          >
+            Copy Again
+          </button>
+        </div>,
+        { autoClose: 10000 },
+      );
+    }
+  };
+
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -393,6 +484,7 @@ function PrTestingTab() {
             // Determine if this is a success, error, or info message
             const isSuccess = message.toLowerCase().includes('success') || message.toLowerCase().includes('started');
             const isError = message.toLowerCase().includes('error') || message.toLowerCase().includes('fail');
+            const isWarning = message.toLowerCase().includes('warning');
 
             return (
               <div
@@ -400,10 +492,12 @@ function PrTestingTab() {
                 className={classNames(
                   'py-1 px-2 rounded whitespace-pre-wrap border-l-2 transition-all duration-200',
                   isSuccess
-                    ? 'border-l-bolt-elements-icon-success bg-bolt-elements-icon-success bg-opacity-5'
+                    ? 'border-l-bolt-elements-icon-success bg-bolt-elements-icon-success bg-opacity-5 dark:bg-opacity-10'
                     : isError
-                      ? 'border-l-bolt-elements-button-danger-background bg-bolt-elements-button-danger-background bg-opacity-5'
-                      : 'border-l-bolt-elements-borderColor',
+                      ? 'border-l-bolt-elements-button-danger-background bg-bolt-elements-button-danger-background bg-opacity-5 dark:bg-opacity-10'
+                      : isWarning
+                        ? 'border-l-yellow-500 bg-yellow-500 bg-opacity-5 dark:bg-opacity-10'
+                        : 'border-l-bolt-elements-borderColor',
                 )}
               >
                 <span className="text-bolt-elements-textSecondary mr-2 select-none">{index + 1}.</span>
@@ -415,7 +509,9 @@ function PrTestingTab() {
                       ? 'text-bolt-elements-icon-success'
                       : isError
                         ? 'text-bolt-elements-button-danger-text'
-                        : 'text-bolt-elements-textPrimary',
+                        : isWarning
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-bolt-elements-textPrimary',
                   )}
                 >
                   {message}
@@ -600,15 +696,26 @@ function PrTestingTab() {
                     <FiExternalLink className="w-4 h-4" />
                   </a>
                   {testingPRs.has(pr.number) ? (
-                    <button
-                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text hover:bg-bolt-elements-button-danger-backgroundHover transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStopTest(pr);
-                      }}
-                    >
-                      Stop Test
-                    </button>
+                    <>
+                      <button
+                        className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-success-background text-bolt-elements-button-success-text hover:bg-bolt-elements-button-success-backgroundHover transition-colors shadow-sm dark:shadow-gray-900/30"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDevelopPR(pr);
+                        }}
+                      >
+                        Copy Command
+                      </button>
+                      <button
+                        className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-danger-background text-bolt-elements-button-danger-text hover:bg-bolt-elements-button-danger-backgroundHover transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStopTest(pr);
+                        }}
+                      >
+                        Stop Test
+                      </button>
+                    </>
                   ) : (
                     <button
                       className="px-3 py-1.5 text-xs font-medium rounded-md bg-bolt-elements-button-primary-background text-bolt-elements-button-primary-text hover:bg-bolt-elements-button-primary-backgroundHover transition-colors"
@@ -733,7 +840,7 @@ function PrTestingTab() {
                                   <div className="mt-2 p-2 bg-bolt-elements-cta-background rounded-md border border-bolt-elements-borderColor transition-all duration-200">
                                     <div className="flex items-start gap-2">
                                       <FiAlertCircle className="w-4 h-4 text-bolt-elements-icon-secondary mt-0.5 transition-all duration-200" />
-                                      <div className="text-xs text-bolt-elements-cta-text transition-all duration-200">
+                                      <div className="text-xs text-bolt-elements-cta-text dark:text-gray-200 transition-all duration-200">
                                         <p className="font-medium">Important:</p>
                                         <p>
                                           Remember to stop the test when you're done to free up resources. The server

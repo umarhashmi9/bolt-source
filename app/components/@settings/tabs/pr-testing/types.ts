@@ -37,5 +37,6 @@ export interface PRTestingResult {
     testResults?: string;
     pid?: number;
     port?: number;
+    copyCommand?: string;
   };
 }
