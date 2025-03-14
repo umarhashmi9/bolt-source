@@ -641,6 +641,77 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   <FilePreview
                     files={uploadedFiles}
                     imageDataList={imageDataList}
+                    model={model}
+                    provider={provider}
+                    onUiAnalysisComplete={(prompt) => {
+                      if (handleInputChange) {
+                        // If the prompt is empty, clear the current input
+                        if (!prompt) {
+                          const syntheticEmptyEvent = {
+                            target: { value: '' },
+                          } as React.ChangeEvent<HTMLTextAreaElement>;
+                          handleInputChange(syntheticEmptyEvent);
+
+                          return;
+                        }
+
+                        // If it's the process start message, just update the text
+                        if (prompt === 'Gerando análise da interface UI/UX...') {
+                          const syntheticEvent = {
+                            target: { value: prompt },
+                          } as React.ChangeEvent<HTMLTextAreaElement>;
+                          handleInputChange(syntheticEvent);
+
+                          return;
+                        }
+
+                        // We remove the initial message if it is present
+                        let cleanPrompt = prompt;
+
+                        if (prompt.startsWith('Gerando análise da interface UI/UX...')) {
+                          cleanPrompt = prompt.replace('Gerando análise da interface UI/UX...', '').trim();
+                        }
+
+                        // For complete analyses, we create a synthetic event to update the input
+                        const syntheticEvent = {
+                          target: { value: cleanPrompt },
+                        } as React.ChangeEvent<HTMLTextAreaElement>;
+
+                        handleInputChange(syntheticEvent);
+
+                        // Make sure the textarea is focused and adjust its size
+                        if (textareaRef?.current) {
+                          setTimeout(() => {
+                            try {
+                              const textarea = textareaRef.current;
+
+                              if (!textarea) {
+                                return;
+                              }
+
+                              // Adjust the textarea height based on the content
+                              textarea.style.height = 'auto';
+
+                              const scrollHeight = textarea.scrollHeight;
+                              textarea.style.height = `${Math.min(scrollHeight, TEXTAREA_MAX_HEIGHT)}px`;
+                              textarea.style.overflowY = scrollHeight > TEXTAREA_MAX_HEIGHT ? 'auto' : 'hidden';
+
+                              // Set focus at the end of the text
+                              textarea.focus();
+                              textarea.selectionStart = textarea.value.length;
+                              textarea.selectionEnd = textarea.value.length;
+
+                              // Scroll to the end if needed
+                              if (textarea.scrollHeight > textarea.clientHeight) {
+                                textarea.scrollTop = textarea.scrollHeight;
+                              }
+                            } catch (e) {
+                              console.error('Error adjusting textarea after UI analysis:', e);
+                            }
+                          }, 50); // Small delay to ensure the UI has updated
+                        }
+                      }
+                    }}
                     onRemove={(index) => {
                       setUploadedFiles?.(uploadedFiles.filter((_, i) => i !== index));
                       setImageDataList?.(imageDataList.filter((_, i) => i !== index));
@@ -830,7 +901,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         <div className="text-xs text-bolt-elements-textTertiary">
                           Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
                           + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
-                          a new line
+                          for a new line
                         </div>
                       ) : null}
                     </div>

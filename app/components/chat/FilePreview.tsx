@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getDocument } from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
+import UIAnalysisButton from './UIAnalysisButton';
+import type { ProviderInfo } from '~/types/model';
 
 // Import the worker as a virtual URL from Vite (if not configured elsewhere)
 const pdfjsWorkerUrl = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
@@ -14,6 +16,9 @@ interface FilePreviewProps {
   files: File[];
   imageDataList: string[];
   onRemove: (index: number) => void;
+  model?: string;
+  provider?: ProviderInfo;
+  onUiAnalysisComplete?: (prompt: string) => void;
 }
 
 interface PDFThumbnailData {
@@ -21,7 +26,14 @@ interface PDFThumbnailData {
   pageCount: number;
 }
 
-const FilePreview: React.FC<FilePreviewProps> = ({ files, imageDataList, onRemove }) => {
+const FilePreview: React.FC<FilePreviewProps> = ({
+  files,
+  imageDataList,
+  onRemove,
+  model = '',
+  provider,
+  onUiAnalysisComplete,
+}) => {
   const [pdfThumbnails, setPdfThumbnails] = useState<Record<string, PDFThumbnailData>>({});
 
   useEffect(() => {
@@ -155,11 +167,28 @@ const FilePreview: React.FC<FilePreviewProps> = ({ files, imageDataList, onRemov
                     alt={file.name}
                     className="object-contain max-h-[45px] max-w-[70px]"
                   />
+                  {/* UI Analysis Button - only appears for images and if we have the provider and the callback */}
+                  {file.type.startsWith('image/') && provider && onUiAnalysisComplete && (
+                    <UIAnalysisButton
+                      imageData={imageDataList[index]}
+                      model={model}
+                      provider={provider}
+                      onAnalysisComplete={onUiAnalysisComplete}
+                    />
+                  )}
                 </div>
                 <div className="text-[8px] text-bolt-elements-textSecondary mt-0.5 max-w-[70px] truncate">
                   {file.name}
                 </div>
                 <div className="text-[8px] text-bolt-elements-textTertiary">{formatFileSize(file.size)}</div>
+
+                {/* UI analysis indicator available */}
+                {file.type.startsWith('image/') && provider && onUiAnalysisComplete && (
+                  <div className="mt-1 flex items-center justify-center text-[7px] text-indigo-400 bg-indigo-900/30 rounded px-1 py-0.5 border border-indigo-500/50">
+                    <div className="i-ph:magic-wand-fill mr-0.5 text-[8px]" />
+                    <span>UI Análise</span>
+                  </div>
+                )}
               </div>
             ) : isPdf(file) && getPdfThumbnail(file) ? (
               // Renders PDF thumbnail
