@@ -503,7 +503,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
           const filteredFiles = clipboardFiles.filter((file) => file.size <= MAX_FILE_SIZE);
 
           if (filteredFiles.length < clipboardFiles.length) {
-            toast.warning('Some files were ignored because they exceed the maximum size of 5MB.');
+            toast.warning('Some files were ignored because they exceed the maximum size of 100MB.');
 
             // Continue only with valid files
             processPastedFiles(filteredFiles);
