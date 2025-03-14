@@ -81,6 +81,7 @@ project, please check the [project management guide](./PROJECT.md) to get starte
 - ✅ AWS Bedrock Integration (@kunjabijukchhe)
 - ✅ Add "Diff View" to see the changes (@toddyclipsgg)
 - ✅ Add files MD, DOCX, TXT and PDF (@toddyclipsgg)
+- ✅ Add "Clone UX/UI" (@toddyclipsgg)
 - ⬜ **HIGH PRIORITY** - Prevent bolt from rewriting files as often (file locking and diffs)
 - ⬜ **HIGH PRIORITY** - Better prompting for smaller LLMs (code window sometimes doesn't start)
 - ⬜ **HIGH PRIORITY** - Run agents in the backend as opposed to a single model call
