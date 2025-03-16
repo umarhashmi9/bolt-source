@@ -584,10 +584,16 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </IconButton>
                       </div>
                       {input.length > 3 ? (
-                        <div className="text-xs text-bolt-elements-textTertiary">
-                          Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
-                          + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
-                          a new line
+                        <div className="text-xs text-gray-600">
+                          Use{' '}
+                          <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
+                            Shift
+                          </kbd>{' '}
+                          +{' '}
+                          <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
+                            Return
+                          </kbd>{' '}
+                          for a new line
                         </div>
                       ) : null}
                     </div>
