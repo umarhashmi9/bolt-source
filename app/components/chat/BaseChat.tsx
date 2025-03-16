@@ -335,14 +335,18 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             >
               <ClientOnly>
                 {() => {
-                  return chatStarted ? (
-                    <Messages
-                      ref={messageRef}
-                      className="flex flex-col w-full flex-1 max-w-chat pb-6 mx-auto z-1"
-                      messages={messages}
-                      isStreaming={isStreaming}
-                    />
-                  ) : null;
+                  return (
+                    <>
+                      {chatStarted && (
+                        <Messages
+                          ref={messageRef}
+                          className="flex flex-col w-full flex-1 max-w-chat pb-6 mx-auto z-1"
+                          messages={messages}
+                          isStreaming={isStreaming}
+                        />
+                      )}
+                    </>
+                  );
                 }}
               </ClientOnly>
               <div
@@ -403,7 +407,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   <div>
                     <ClientOnly>
                       {() => (
-                        <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
+                        <div style={{ display: isModelSettingsCollapsed ? 'none' : 'block' }}>
                           <ModelSelector
                             key={provider?.name + ':' + modelList.length}
                             model={model}
@@ -415,15 +419,24 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             apiKeys={apiKeys}
                             modelLoading={isModelLoading}
                           />
-                          {(providerList || []).length > 0 && provider && !LOCAL_PROVIDERS.includes(provider.name) && (
-                            <APIKeyManager
-                              provider={provider}
-                              apiKey={apiKeys[provider.name] || ''}
-                              setApiKey={(key) => {
-                                onApiKeysChange(provider.name, key);
-                              }}
-                            />
-                          )}
+                          <div
+                            style={{
+                              display:
+                                (providerList || []).length > 0 && provider && !LOCAL_PROVIDERS.includes(provider.name)
+                                  ? 'block'
+                                  : 'none',
+                            }}
+                          >
+                            {provider && (
+                              <APIKeyManager
+                                provider={provider}
+                                apiKey={apiKeys[provider.name] || ''}
+                                setApiKey={(key) => {
+                                  onApiKeysChange(provider.name, key);
+                                }}
+                              />
+                            )}
+                          </div>
                         </div>
                       )}
                     </ClientOnly>
@@ -554,11 +567,13 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             toast.success('Prompt enhanced!');
                           }}
                         >
-                          {enhancingPrompt ? (
-                            <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
-                          ) : (
-                            <div className="i-bolt:stars text-xl"></div>
-                          )}
+                          <div
+                            className={
+                              enhancingPrompt
+                                ? 'i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin'
+                                : 'i-bolt:stars text-xl'
+                            }
+                          ></div>
                         </IconButton>
 
                         <SpeechRecognitionButton
@@ -580,36 +595,37 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           disabled={!providerList || providerList.length === 0}
                         >
                           <div className={`i-ph:caret-${isModelSettingsCollapsed ? 'right' : 'down'} text-lg`} />
-                          {isModelSettingsCollapsed ? <span className="text-xs">{model}</span> : <span />}
+                          <span className="text-xs" style={{ display: isModelSettingsCollapsed ? 'inline' : 'none' }}>
+                            {model}
+                          </span>
                         </IconButton>
                       </div>
-                      {input.length > 3 ? (
-                        <div className="text-xs text-gray-600">
-                          Use{' '}
-                          <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
-                            Shift
-                          </kbd>{' '}
-                          +{' '}
-                          <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
-                            Return
-                          </kbd>{' '}
-                          for a new line
-                        </div>
-                      ) : null}
+                      <div
+                        className="text-xs text-gray-600"
+                        style={{ visibility: input.length > 3 ? 'visible' : 'hidden' }}
+                      >
+                        Use{' '}
+                        <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
+                          Shift
+                        </kbd>{' '}
+                        +{' '}
+                        <kbd className="kdb px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 border border-gray-300">
+                          Return
+                        </kbd>{' '}
+                        for a new line
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex flex-col justify-center gap-5">
-              {!chatStarted && (
+              <div style={{ display: !chatStarted ? 'block' : 'none' }}>
                 <div className="flex justify-center gap-2">
                   {ImportButtons(importChat)}
                   <GitCloneButton importChat={importChat} />
                 </div>
-              )}
-              {!chatStarted &&
-                ExamplePrompts((event, messageInput) => {
+                {ExamplePrompts((event, messageInput) => {
                   if (isStreaming) {
                     handleStop?.();
                     return;
@@ -617,7 +633,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                   handleSendMessage?.(event, messageInput);
                 })}
-              {!chatStarted && <StarterTemplates />}
+                <StarterTemplates />
+              </div>
             </div>
           </div>
           <ClientOnly>
