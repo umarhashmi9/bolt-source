@@ -17,10 +17,9 @@ export function Header() {
     >
       <div className="flex items-center gap-2 z-logo text-gray-800 cursor-pointer">
         <div className="i-ph:sidebar-simple-duotone text-xl" />
-        <a href="/" className="text-2xl font-semibold text-accent flex items-center">
-          {/* <span className="i-bolt:logo-text?mask w-[46px] inline-block" /> */}
-          <img src="/logo-light-styled.png" alt="logo" className="w-[90px] inline-block dark:hidden" />
-          <img src="/logo-dark-styled.png" alt="logo" className="w-[90px] inline-block hidden dark:block" />
+        <a href="/" className="text-xl font-semibold text-accent flex items-center justify-center gap-2">
+          <img src="/AIFirstLogo.png" alt="logo" className="w-[40px] inline-block" />
+          <span className="text-blue-800 font-bold text-lg">Generatives</span>
         </a>
       </div>
       {chat.started && ( // Display ChatDescription and HeaderActionButtons only when the chat has started.
