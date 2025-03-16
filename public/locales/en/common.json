@@ -31,5 +31,12 @@
     "cookieConsent": "Create a cookie consent form using Material UI",
     "spaceInvaders": "Make a space invaders game",
     "ticTacToe": "Make a Tic Tac Toe game in html, css and js only"
+  },
+  "chat": {
+    "placeholder": "How can we help you today?",
+    "getApiKey": "Get API Key",
+    "apiKeyNotSet": "Not Set (Please set via UI or ENV_VAR)",
+    "apiKeySetViaEnv": "Set via environment variable",
+    "apiKeySetViaUI": "Set via UI"
   }
 }

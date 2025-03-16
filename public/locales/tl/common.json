@@ -31,5 +31,12 @@
     "cookieConsent": "Gumawa ng cookie consent form gamit ang Material UI",
     "spaceInvaders": "Gumawa ng space invaders na laro",
     "ticTacToe": "Gumawa ng Tic Tac Toe na laro gamit lang ang html, css at js"
+  },
+  "chat": {
+    "placeholder": "Paano kami makakatulong sa iyo ngayon?",
+    "getApiKey": "Kumuha ng API Key",
+    "apiKeyNotSet": "Hindi Nakatakda (Mangyaring itakda sa pamamagitan ng UI o ENV_VAR)",
+    "apiKeySetViaEnv": "Nakatakda sa pamamagitan ng environment variable",
+    "apiKeySetViaUI": "Nakatakda sa pamamagitan ng UI"
   }
 }

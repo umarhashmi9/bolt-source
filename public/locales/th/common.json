@@ -31,5 +31,12 @@
     "cookieConsent": "สร้างฟอร์มยินยอมคุกกี้ด้วย Material UI",
     "spaceInvaders": "สร้างเกม Space Invaders",
     "ticTacToe": "สร้างเกม Tic Tac Toe ด้วย html, css และ js เท่านั้น"
+  },
+  "chat": {
+    "placeholder": "เราจะช่วยคุณได้อย่างไรในวันนี้?",
+    "getApiKey": "รับ API Key",
+    "apiKeyNotSet": "ไม่ได้ตั้งค่า (โปรดตั้งค่าผ่าน UI หรือ ENV_VAR)",
+    "apiKeySetViaEnv": "ตั้งค่าผ่านตัวแปรสภาพแวดล้อม",
+    "apiKeySetViaUI": "ตั้งค่าผ่าน UI"
   }
 }
