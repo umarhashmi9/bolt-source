@@ -24,5 +24,12 @@
     "cancel": "Kanselahin",
     "submit": "Isumite",
     "delete": "Burahin"
+  },
+  "examplePrompts": {
+    "todoApp": "Gumawa ng todo app sa React gamit ang Tailwind",
+    "blog": "Gumawa ng simpleng blog gamit ang Astro",
+    "cookieConsent": "Gumawa ng cookie consent form gamit ang Material UI",
+    "spaceInvaders": "Gumawa ng space invaders na laro",
+    "ticTacToe": "Gumawa ng Tic Tac Toe na laro gamit lang ang html, css at js"
   }
 }

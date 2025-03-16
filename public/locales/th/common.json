@@ -24,5 +24,12 @@
     "cancel": "ยกเลิก",
     "submit": "ส่ง",
     "delete": "ลบ"
+  },
+  "examplePrompts": {
+    "todoApp": "สร้างแอปบันทึกงานด้วย React และ Tailwind",
+    "blog": "สร้างบล็อกอย่างง่ายด้วย Astro",
+    "cookieConsent": "สร้างฟอร์มยินยอมคุกกี้ด้วย Material UI",
+    "spaceInvaders": "สร้างเกม Space Invaders",
+    "ticTacToe": "สร้างเกม Tic Tac Toe ด้วย html, css และ js เท่านั้น"
   }
 }

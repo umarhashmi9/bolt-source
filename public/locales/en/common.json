@@ -24,5 +24,12 @@
     "cancel": "Cancel",
     "submit": "Submit",
     "delete": "Delete"
+  },
+  "examplePrompts": {
+    "todoApp": "Build a todo app in React using Tailwind",
+    "blog": "Build a simple blog using Astro",
+    "cookieConsent": "Create a cookie consent form using Material UI",
+    "spaceInvaders": "Make a space invaders game",
+    "ticTacToe": "Make a Tic Tac Toe game in html, css and js only"
   }
 }

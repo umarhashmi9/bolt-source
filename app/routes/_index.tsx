@@ -27,7 +27,7 @@ export const loader = () => json({});
  * to keep the UI clean and consistent with the design system.
  */
 export default function Index() {
-  const { t, ready } = useTranslation('common');
+  const { ready } = useTranslation('common');
 
   if (!ready) {
     return (
@@ -41,12 +41,6 @@ export default function Index() {
     <div className="flex flex-col h-full w-full bg-bolt-elements-background-depth-1">
       <BackgroundRays />
       <Header />
-      <div className="absolute top-16 left-0 right-0 flex justify-center z-10">
-        <div className="bg-white rounded-lg p-4 shadow-lg max-w-md text-center">
-          <h1 className="text-2xl font-bold mb-2 text-gray-800">{t('welcome')}</h1>
-          <p className="text-gray-600 mb-4">{t('description')}</p>
-        </div>
-      </div>
       <ClientOnly fallback={<BaseChat />}>{() => <Chat />}</ClientOnly>
     </div>
   );

@@ -24,5 +24,12 @@
     "cancel": "I-cancel",
     "submit": "I-submit",
     "delete": "Papasa"
+  },
+  "examplePrompts": {
+    "todoApp": "Paghimo og todo app sa React gamit ang Tailwind",
+    "blog": "Paghimo og simple nga blog gamit ang Astro",
+    "cookieConsent": "Paghimo og cookie consent form gamit ang Material UI",
+    "spaceInvaders": "Paghimo og space invaders nga dula",
+    "ticTacToe": "Paghimo og Tic Tac Toe nga dula gamit lang ang html, css ug js"
   }
 }
