@@ -1,5 +1,6 @@
 import type { Message } from 'ai';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { ImportFolderButton } from '~/components/chat/ImportFolderButton';
 import { Button } from '~/components/ui/Button';
 import { classNames } from '~/utils/classNames';
@@ -10,6 +11,7 @@ type ChatData = {
 };
 
 export function ImportButtons(importChat: ((description: string, messages: Message[]) => Promise<void>) | undefined) {
+  const { t } = useTranslation('common', { useSuspense: false });
   return (
     <div className="flex flex-col items-center justify-center w-auto">
       <input
@@ -76,7 +78,7 @@ export function ImportButtons(importChat: ((description: string, messages: Messa
             )}
           >
             <span className="i-ph:upload-simple w-4 h-4" />
-            Import Chat
+            {t('ui.importChat')}
           </Button>
           <ImportFolderButton
             importChat={importChat}

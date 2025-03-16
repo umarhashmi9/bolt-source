@@ -4,6 +4,7 @@
  */
 import type { JSONValue, Message } from 'ai';
 import React, { type RefCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -110,6 +111,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     },
     ref,
   ) => {
+    const { t } = useTranslation('common', { useSuspense: false });
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
     const [modelList, setModelList] = useState<ModelInfo[]>([]);
@@ -318,10 +320,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[16vh] max-w-chat mx-auto text-center px-4 lg:px-0">
                 <h1 className="text-3xl lg:text-6xl font-bold text-bolt-elements-textPrimary mb-4 animate-fade-in">
-                  Where ideas begin
+                  {t('intro.heading')}
                 </h1>
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
-                  Bring ideas to life in seconds or get help on existing projects.
+                  {t('intro.subheading')}
                 </p>
               </div>
             )}

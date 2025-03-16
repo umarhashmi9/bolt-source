@@ -1,0 +1,28 @@
+{
+  "headTitle": "Bolt - AI Agent",
+  "languageSwitcher": "Usba ang pinulongan",
+  "welcome": "Maayong pag-abot sa Bolt",
+  "description": "Usa ka AI Agent nga gibuhat gamit ang Remix",
+  "intro": {
+    "heading": "Kung asa nagsugod ang mga ideya",
+    "subheading": "Hatagi og kinabuhi ang mga ideya sa pipila ka segundo o pangayo og tabang sa mga kasamtangang proyekto.",
+    "startBlankApp": "o pagsugod og blangko nga app gamit ang imong paborito nga stack"
+  },
+  "ui": {
+    "importChat": "I-import ang Chat",
+    "importFolder": "I-import ang Folder",
+    "createAI": "Paghimo og AI",
+    "loading": "Nagloading..."
+  },
+  "navigation": {
+    "home": "Panimalay",
+    "about": "Mahitungod",
+    "settings": "Mga Setting"
+  },
+  "actions": {
+    "save": "I-save",
+    "cancel": "I-cancel",
+    "submit": "I-submit",
+    "delete": "Papasa"
+  }
+}

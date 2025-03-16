@@ -1,0 +1,28 @@
+{
+  "headTitle": "Bolt - AI Agent",
+  "languageSwitcher": "Change language",
+  "welcome": "Welcome to Bolt",
+  "description": "An AI Agent built with Remix",
+  "intro": {
+    "heading": "Where ideas begin",
+    "subheading": "Bring ideas to life in seconds or get help on existing projects.",
+    "startBlankApp": "or start a blank app with your favorite stack"
+  },
+  "ui": {
+    "importChat": "Import Chat",
+    "importFolder": "Import Folder",
+    "createAI": "Create AI",
+    "loading": "Loading..."
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "settings": "Settings"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "delete": "Delete"
+  }
+}

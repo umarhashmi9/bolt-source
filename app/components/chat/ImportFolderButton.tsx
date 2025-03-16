@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Message } from 'ai';
 import { toast } from 'react-toastify';
+import { useTranslation } from 'react-i18next';
 import { MAX_FILES, isBinaryFile, shouldIncludeFile } from '~/utils/fileUtils';
 import { createChatFromFolder } from '~/utils/folderImport';
 import { logStore } from '~/lib/stores/logs'; // Assuming logStore is imported from this location
@@ -13,6 +14,7 @@ interface ImportFolderButtonProps {
 }
 
 export const ImportFolderButton: React.FC<ImportFolderButtonProps> = ({ className, importChat }) => {
+  const { t } = useTranslation('common', { useSuspense: false });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +136,7 @@ export const ImportFolderButton: React.FC<ImportFolderButtonProps> = ({ classNam
         disabled={isLoading}
       >
         <span className="i-ph:upload-simple w-4 h-4" />
-        {isLoading ? 'Importing...' : 'Import Folder'}
+        {isLoading ? t('ui.loading') : t('ui.importFolder')}
       </Button>
     </>
   );
