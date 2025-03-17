@@ -228,6 +228,29 @@ const isDevelopment =
     window.location.hostname.includes('192.168.') ||
     window.location.hostname.includes('.local'));
 
+// Function to detect Cloudflare and similar serverless environments where TaskManager is not useful
+const isServerlessHosting = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  // For testing: Allow forcing serverless mode via URL param for easy testing
+  if (typeof window !== 'undefined' && window.location.search.includes('simulate-serverless=true')) {
+    console.log('Simulating serverless environment for testing');
+    return true;
+  }
+
+  // Check for common serverless hosting domains
+  const hostname = window.location.hostname;
+
+  return (
+    hostname.includes('.cloudflare.') ||
+    hostname.includes('.netlify.app') ||
+    hostname.includes('.vercel.app') ||
+    hostname.endsWith('.workers.dev')
+  );
+};
+
 const TaskManagerTab: React.FC = () => {
   const [metrics, setMetrics] = useState<SystemMetrics>(() => DEFAULT_METRICS_STATE);
   const [metricsHistory, setMetricsHistory] = useState<MetricsHistory>(() => DEFAULT_METRICS_HISTORY);
@@ -235,6 +258,7 @@ const TaskManagerTab: React.FC = () => {
   const [lastAlertState, setLastAlertState] = useState<string>('normal');
   const [sortField, setSortField] = useState<SortField>('memory');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [isNotSupported, setIsNotSupported] = useState<boolean>(false);
 
   // Chart refs for cleanup
   const memoryChartRef = React.useRef<Chart<'line', number[], string> | null>(null);
@@ -381,6 +405,43 @@ const TaskManagerTab: React.FC = () => {
     };
   }, []);
 
+  // Effect to disable taskmanager on serverless environments
+  useEffect(() => {
+    const checkEnvironment = async () => {
+      // If we're on Cloudflare/Netlify/etc., set not supported
+      if (isServerlessHosting()) {
+        setIsNotSupported(true);
+        return;
+      }
+
+      // For testing: Allow forcing API failures via URL param
+      if (typeof window !== 'undefined' && window.location.search.includes('simulate-api-failure=true')) {
+        console.log('Simulating API failures for testing');
+        setIsNotSupported(true);
+
+        return;
+      }
+
+      // Try to fetch system metrics once as detection
+      try {
+        const response = await fetch('/api/system/memory-info');
+        const diskResponse = await fetch('/api/system/disk-info');
+        const processResponse = await fetch('/api/system/process-info');
+
+        // If all these return errors or not found, system monitoring is not supported
+        if (!response.ok && !diskResponse.ok && !processResponse.ok) {
+          setIsNotSupported(true);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch system metrics. TaskManager features may be limited:', error);
+
+        // Don't automatically disable - we'll show partial data based on what's available
+      }
+    };
+
+    checkEnvironment();
+  }, []);
+
   // Get detailed performance metrics
   const getPerformanceMetrics = async (): Promise<Partial<SystemMetrics['performance']>> => {
     try {
@@ -491,6 +552,12 @@ const TaskManagerTab: React.FC = () => {
   // Update metrics with real data only
   const updateMetrics = async () => {
     try {
+      // If we already determined this environment doesn't support system metrics, don't try fetching
+      if (isNotSupported) {
+        console.log('TaskManager: System metrics not supported in this environment');
+        return;
+      }
+
       // Get system memory info first as it's most important
       let systemMemoryInfo: SystemMemoryInfo | undefined;
       let memoryMetrics = {
@@ -749,15 +816,20 @@ const TaskManagerTab: React.FC = () => {
 
       setLastAlertState(currentState);
 
-      // Then update the isCloudflare detection in updateMetrics
+      // Then update the environment detection
       const isCloudflare =
         !isDevelopment && // Not in development mode
         ((systemMemoryInfo?.error && systemMemoryInfo.error.includes('not available')) ||
           (processInfo?.[0]?.error && processInfo[0].error.includes('not available')) ||
           (diskInfo?.[0]?.error && diskInfo[0].error.includes('not available')));
 
+      // If we detect that we're in a serverless environment, set the flag
+      if (isCloudflare || isServerlessHosting()) {
+        setIsNotSupported(true);
+      }
+
       if (isCloudflare) {
-        console.log('Running in Cloudflare environment. Using mock system metrics.');
+        console.log('Running in Cloudflare environment. System metrics not available.');
       } else if (isLocalDevelopment) {
         console.log('Running in local development environment. Using real or mock system metrics as available.');
       } else if (isDevelopment) {
@@ -951,6 +1023,67 @@ const TaskManagerTab: React.FC = () => {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   };
+
+  // If we're in an environment where the task manager won't work, show a message
+  if (isNotSupported) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 text-center h-full">
+        <div className="i-ph:cloud-slash-fill w-16 h-16 text-bolt-elements-textTertiary mb-4" />
+        <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-2">System Monitoring Not Available</h3>
+        <p className="text-bolt-elements-textSecondary mb-6 max-w-md">
+          System monitoring is not available in serverless environments like Cloudflare Pages, Netlify, or Vercel. These
+          platforms don't provide access to the underlying system resources.
+        </p>
+        <div className="flex flex-col gap-2 bg-bolt-background-secondary dark:bg-bolt-backgroundDark-secondary p-4 rounded-lg text-sm text-left max-w-md">
+          <p className="text-bolt-elements-textSecondary">
+            <span className="font-medium">Why is this disabled?</span>
+            <br />
+            Serverless platforms execute your code in isolated environments without access to the server's operating
+            system metrics like CPU, memory, and disk usage.
+          </p>
+          <p className="text-bolt-elements-textSecondary mt-2">
+            System monitoring features will be available when running in:
+            <ul className="list-disc pl-6 mt-1 text-bolt-elements-textSecondary">
+              <li>Local development environment</li>
+              <li>Virtual Machines (VMs)</li>
+              <li>Dedicated servers</li>
+              <li>Docker containers (with proper permissions)</li>
+            </ul>
+          </p>
+        </div>
+
+        {/* Testing controls - only shown in development */}
+        {isDevelopment && (
+          <div className="mt-6 p-4 border border-dashed border-bolt-elements-border rounded-lg">
+            <h4 className="text-sm font-medium text-bolt-elements-textPrimary mb-2">Testing Controls</h4>
+            <p className="text-xs text-bolt-elements-textSecondary mb-3">
+              These controls are only visible in development mode
+            </p>
+            <div className="flex gap-2">
+              <a
+                href="?"
+                className="px-3 py-1.5 bg-bolt-background-tertiary text-xs rounded-md text-bolt-elements-textPrimary"
+              >
+                Normal Mode
+              </a>
+              <a
+                href="?simulate-serverless=true"
+                className="px-3 py-1.5 bg-bolt-action-primary text-xs rounded-md text-white"
+              >
+                Simulate Serverless
+              </a>
+              <a
+                href="?simulate-api-failure=true"
+                className="px-3 py-1.5 bg-bolt-action-destructive text-xs rounded-md text-white"
+              >
+                Simulate API Failures
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
