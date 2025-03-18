@@ -16,6 +16,37 @@ export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
 
 const logger = createScopedLogger('stream-text');
 
+function isLikelySmallModel(modelName: string): boolean {
+  const sizeIndicators = [
+    /1b/i, // 1B parameter models
+    /2b/i, // 2B parameter models
+    /3b/i, // 3B parameter models
+    /7b/i, // 7B parameter models
+    /\b2\.7b\b/i, // Specific 2.7B variants
+  ];
+
+  const variantIndicators = [
+    /\bhaiku\b/i, // Claude Haiku (smaller model)
+    /tiny/i, // "Tiny" model variants
+    /small/i, // Models marketed as "small"
+    /mini/i, // Mini variants like GPT-4o-mini
+    /compact/i, // Compact model variants
+    /lite/i, // Lite variants like Amazon Nova Lite
+  ];
+
+  const familyIndicators = [
+    /phi/i, // Microsoft Phi models (small)
+    /flash-8b/i, // Gemini Flash 8B
+    /solar:10\.7b/i, // Upstage's Solar 10.7B
+    /stable-code/i, // Stable code models
+    /dolphin/i, // Dolphin models
+  ];
+
+  const allIndicators = [...sizeIndicators, ...variantIndicators, ...familyIndicators];
+
+  return allIndicators.some((pattern) => pattern.test(modelName));
+}
+
 export async function streamText(props: {
   messages: Omit<Message, 'id'>[];
   env?: Env;
@@ -92,12 +123,16 @@ export async function streamText(props: {
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
+  const autoSelectedPromptId = promptId || (isLikelySmallModel(currentModel) ? 'smallModel' : 'default');
+
   let systemPrompt =
-    PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+    PromptLibrary.getPropmtFromLibrary(autoSelectedPromptId, {
       cwd: WORK_DIR,
       allowedHtmlElements: allowedHTMLElements,
       modificationTagName: MODIFICATIONS_TAG_NAME,
     }) ?? getSystemPrompt();
+
+  logger.info(`Using prompt: ${autoSelectedPromptId} for model ${currentModel}`);
 
   if (files && contextFiles && contextOptimization) {
     const codeContext = createFilesContext(contextFiles, true);

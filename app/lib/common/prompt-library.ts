@@ -1,5 +1,6 @@
 import { getSystemPrompt } from './prompts/prompts';
 import optimized from './prompts/optimized';
+import smallModel from './prompts/small-model';
 
 export interface PromptOptions {
   cwd: string;
@@ -25,6 +26,11 @@ export class PromptLibrary {
       label: 'Optimized Prompt (experimental)',
       description: 'an Experimental version of the prompt for lower token usage',
       get: (options) => optimized(options),
+    },
+    smallModel: {
+      label: 'Small Model Prompt',
+      description: 'Compact prompt for small LLMs (7B or less) to help with code generation',
+      get: (options) => smallModel(options),
     },
   };
   static getList() {
