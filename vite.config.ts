@@ -138,6 +138,18 @@ export default defineConfig((config) => {
           }
         },
       },
+      {
+        name: 'llms-docs-import',
+        transform(code, id) {
+          if (id.endsWith('.txt')) {
+            const contents = readFileSync(id, 'utf-8');
+            return {
+              code: `export default ${JSON.stringify(contents)};`,
+              map: null,
+            };
+          }
+        },
+      },
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {

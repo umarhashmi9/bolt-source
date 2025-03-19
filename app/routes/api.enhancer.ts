@@ -4,6 +4,7 @@ import { stripIndents } from '~/utils/stripIndent';
 import type { ProviderInfo } from '~/types/model';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
 import { createScopedLogger } from '~/utils/logger';
+import { autoEnhancePrompt } from '~/lib/common/llms-docs';
 
 export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
@@ -40,6 +41,9 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
   const apiKeys = getApiKeysFromCookie(cookieHeader);
   const providerSettings = getProviderSettingsFromCookie(cookieHeader);
 
+  // Check if the message mentions any libraries we have documentation for
+  const enhancedMessage = autoEnhancePrompt(message);
+
   try {
     const result = await streamText({
       messages: [
@@ -72,7 +76,7 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
             Do not include any explanations, metadata, or wrapper tags.
 
             <original_prompt>
-              ${message}
+              ${enhancedMessage}
             </original_prompt>
           `,
         },
