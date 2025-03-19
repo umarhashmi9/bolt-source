@@ -1,8 +1,20 @@
 import { motion } from 'framer-motion';
+import React, { Suspense, useState } from 'react';
+import { classNames } from '~/utils/classNames';
+
+// Import components directly since they are named exports, not default exports
 import { GithubConnection } from './GithubConnection';
 import { NetlifyConnection } from './NetlifyConnection';
-import { useState } from 'react';
-import { classNames } from '~/utils/classNames';
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="p-4 bg-white dark:bg-[#0A0A0A] rounded-lg border border-[#E5E5E5] dark:border-[#1A1A1A]">
+    <div className="flex items-center gap-2 text-bolt-elements-textSecondary">
+      <div className="i-ph:spinner-gap w-5 h-5 animate-spin" />
+      <span>Loading connection...</span>
+    </div>
+  </div>
+);
 
 export default function ConnectionsTab() {
   const [isEnvVarsExpanded, setIsEnvVarsExpanded] = useState(false);
@@ -94,8 +106,12 @@ export default function ConnectionsTab() {
       </motion.div>
 
       <div className="grid grid-cols-1 gap-4">
-        <GithubConnection />
-        <NetlifyConnection />
+        <Suspense fallback={<LoadingFallback />}>
+          <GithubConnection />
+        </Suspense>
+        <Suspense fallback={<LoadingFallback />}>
+          <NetlifyConnection />
+        </Suspense>
       </div>
     </div>
   );
