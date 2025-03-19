@@ -19,6 +19,11 @@ const sources = [
     url: 'https://use-fireproof.com/llms.txt',
     outputPath: path.join(docsDir, 'fireproof.txt'),
   },
+  {
+    name: 'openrouter',
+    url: 'https://openrouter.ai/docs/llms-full.txt',
+    outputPath: path.join(docsDir, 'openrouter.txt'),
+  },
   // Add more sources here as needed
 ];
 
@@ -52,4 +57,4 @@ async function updateAll() {
   }
 }
 
-updateAll().then(() => console.log('Done updating llms docs.')); 
+updateAll().then(() => console.log('Done updating llms docs.'));

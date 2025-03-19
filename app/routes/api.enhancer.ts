@@ -4,7 +4,7 @@ import { stripIndents } from '~/utils/stripIndent';
 import type { ProviderInfo } from '~/types/model';
 import { getApiKeysFromCookie, getProviderSettingsFromCookie } from '~/lib/api/cookies';
 import { createScopedLogger } from '~/utils/logger';
-import { autoEnhancePrompt } from '~/lib/common/llms-docs';
+import { autoEnhancePrompt, enhancePromptFromHistory } from '~/lib/common/llms-docs';
 
 export async function action(args: ActionFunctionArgs) {
   return enhancerAction(args);
@@ -13,11 +13,12 @@ export async function action(args: ActionFunctionArgs) {
 const logger = createScopedLogger('api.enhancher');
 
 async function enhancerAction({ context, request }: ActionFunctionArgs) {
-  const { message, model, provider } = await request.json<{
+  const { message, model, provider, chatHistory } = await request.json<{
     message: string;
     model: string;
     provider: ProviderInfo;
     apiKeys?: Record<string, string>;
+    chatHistory?: Array<{ content: string }>;
   }>();
 
   const { name: providerName } = provider;
@@ -41,8 +42,13 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
   const apiKeys = getApiKeysFromCookie(cookieHeader);
   const providerSettings = getProviderSettingsFromCookie(cookieHeader);
 
-  // Check if the message mentions any libraries we have documentation for
-  const enhancedMessage = autoEnhancePrompt(message);
+  /*
+   * Check if the message mentions any libraries we have documentation for
+   * If chat history is provided, also check if previous messages mentioned libraries
+   */
+  const enhancedMessage = chatHistory?.length
+    ? enhancePromptFromHistory(message, chatHistory)
+    : autoEnhancePrompt(message);
 
   try {
     const result = await streamText({
