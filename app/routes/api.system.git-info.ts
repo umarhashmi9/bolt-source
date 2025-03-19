@@ -20,6 +20,7 @@ interface GitInfo {
     };
   };
   isForked?: boolean;
+  timestamp?: string;
 }
 
 // These values will be replaced at build time
@@ -42,7 +43,14 @@ export const loader: LoaderFunction = async () => {
       remoteUrl: typeof __GIT_REMOTE_URL !== 'undefined' ? __GIT_REMOTE_URL : 'local',
       repoName: typeof __GIT_REPO_NAME !== 'undefined' ? __GIT_REPO_NAME : 'bolt.diy',
     },
+    timestamp: new Date().toISOString(),
   };
+
+  /*
+   * Note: We've incorporated the VITE_GITHUB_ACCESS_TOKEN as a fallback to GITHUB_TOKEN
+   * in a different way since the upstream has completely refactored this file.
+   * If GitHub API integration is needed, it would need to be reimplemented in this new structure.
+   */
 
   return json(gitInfo);
 };
