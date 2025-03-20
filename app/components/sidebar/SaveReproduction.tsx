@@ -22,7 +22,9 @@ export function SaveReproductionModal() {
   const [savedReproduction, setSavedReproduction] = useState<boolean>(false);
   const [problem, setProblem] = useState<BoltProblem | null>(null);
 
-  const handleSaveReproduction = async () => {
+  const handleSaveReproduction = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+
     const loadId = toast.loading('Loading problem...');
 
     try {
@@ -42,6 +44,7 @@ export function SaveReproductionModal() {
   };
 
   const handleSubmitReproduction = async () => {
+
     if (!problem) {
       toast.error('No problem loaded');
       return;
