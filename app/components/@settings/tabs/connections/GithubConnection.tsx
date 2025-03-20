@@ -904,47 +904,65 @@ export default function GitHubConnection() {
                   </div>
 
                   {/* Repositories Section */}
-                  <h4 className="text-sm font-medium text-bolt-elements-textPrimary mb-3">Recent Repositories</h4>
-                  <div className="space-y-3">
-                    {connection.stats.repos.map((repo) => (
-                      <a
-                        key={repo.full_name}
-                        href={repo.html_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-3 rounded-lg bg-bolt-elements-background-depth-1 hover:bg-bolt-elements-background-depth-2 transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h5 className="text-sm font-medium text-bolt-elements-textPrimary flex items-center gap-2">
-                              <div className="i-ph:git-repository w-4 h-4 text-bolt-elements-textSecondary" />
-                              {repo.name}
-                            </h5>
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-bolt-elements-textPrimary">Recent Repositories</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {connection.stats.repos.map((repo) => (
+                        <a
+                          key={repo.full_name}
+                          href={repo.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group block p-4 rounded-lg bg-bolt-elements-background-depth-1 dark:bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive dark:hover:border-bolt-elements-borderColorActive transition-all duration-200"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="i-ph:git-repository w-4 h-4 text-bolt-elements-icon-info dark:text-bolt-elements-icon-info" />
+                                <h5 className="text-sm font-medium text-bolt-elements-textPrimary group-hover:text-bolt-elements-item-contentAccent transition-colors">
+                                  {repo.name}
+                                </h5>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-bolt-elements-textSecondary">
+                                <span className="flex items-center gap-1" title="Stars">
+                                  <div className="i-ph:star w-3.5 h-3.5 text-bolt-elements-icon-warning" />
+                                  {repo.stargazers_count.toLocaleString()}
+                                </span>
+                                <span className="flex items-center gap-1" title="Forks">
+                                  <div className="i-ph:git-fork w-3.5 h-3.5 text-bolt-elements-icon-info" />
+                                  {repo.forks_count.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
                             {repo.description && (
-                              <p className="text-xs text-bolt-elements-textSecondary mt-1">{repo.description}</p>
+                              <p className="text-xs text-bolt-elements-textSecondary line-clamp-2">
+                                {repo.description}
+                              </p>
                             )}
-                            <div className="flex items-center gap-2 mt-2 text-xs text-bolt-elements-textSecondary">
-                              <span className="flex items-center gap-1">
-                                <div className="i-ph:git-branch w-3 h-3" />
+
+                            <div className="flex items-center gap-3 text-xs text-bolt-elements-textSecondary">
+                              <span className="flex items-center gap-1" title="Default Branch">
+                                <div className="i-ph:git-branch w-3.5 h-3.5" />
                                 {repo.default_branch}
                               </span>
-                              <span>•</span>
-                              <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
+                              <span className="flex items-center gap-1" title="Last Updated">
+                                <div className="i-ph:clock w-3.5 h-3.5" />
+                                {new Date(repo.updated_at).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                              <span className="flex items-center gap-1 ml-auto group-hover:text-bolt-elements-item-contentAccent transition-colors">
+                                <div className="i-ph:arrow-square-out w-3.5 h-3.5" />
+                                View
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-bolt-elements-textSecondary">
-                            <span className="flex items-center gap-1">
-                              <div className="i-ph:star w-3 h-3" />
-                              {repo.stargazers_count}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <div className="i-ph:git-fork w-3 h-3" />
-                              {repo.forks_count}
-                            </span>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CollapsibleContent>
