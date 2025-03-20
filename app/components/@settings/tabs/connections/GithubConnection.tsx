@@ -76,6 +76,11 @@ interface GitHubConnection {
   token: string;
   tokenType: 'classic' | 'fine-grained';
   stats?: GitHubStats;
+  rateLimit?: {
+    limit: number;
+    remaining: number;
+    reset: number;
+  };
 }
 
 // Add the GitHub logo SVG component
@@ -118,6 +123,13 @@ export default function GitHubConnection() {
         throw new Error(`Error: ${response.status}`);
       }
 
+      // Get rate limit information from headers
+      const rateLimit = {
+        limit: parseInt(response.headers.get('x-ratelimit-limit') || '0'),
+        remaining: parseInt(response.headers.get('x-ratelimit-remaining') || '0'),
+        reset: parseInt(response.headers.get('x-ratelimit-reset') || '0'),
+      };
+
       const data = await response.json();
       console.log('GitHub user API response:', data);
 
@@ -135,6 +147,7 @@ export default function GitHubConnection() {
         user,
         token,
         tokenType: tokenTypeRef.current,
+        rateLimit,
       }));
 
       // Set cookies for client-side access
@@ -278,6 +291,7 @@ export default function GitHubConnection() {
         token,
         tokenType: connection.tokenType,
         stats,
+        rateLimit: connection.rateLimit,
       };
 
       // Update localStorage
@@ -420,6 +434,49 @@ export default function GitHubConnection() {
       Cookies.set('githubUsername', data.login);
     }
   }, [connection]);
+
+  // Add function to update rate limits
+  const updateRateLimits = async (token: string) => {
+    try {
+      const response = await fetch('https://api.github.com/rate_limit', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+
+      if (response.ok) {
+        const rateLimit = {
+          limit: parseInt(response.headers.get('x-ratelimit-limit') || '0'),
+          remaining: parseInt(response.headers.get('x-ratelimit-remaining') || '0'),
+          reset: parseInt(response.headers.get('x-ratelimit-reset') || '0'),
+        };
+
+        setConnection((prev) => ({
+          ...prev,
+          rateLimit,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch rate limits:', error);
+    }
+  };
+
+  // Add effect to update rate limits periodically
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (connection.token && connection.user) {
+      updateRateLimits(connection.token);
+      interval = setInterval(() => updateRateLimits(connection.token), 60000); // Update every minute
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [connection.token, connection.user]);
 
   if (isLoading || isConnecting || isFetchingStats) {
     return <LoadingSpinner />;
@@ -609,14 +666,26 @@ export default function GitHubConnection() {
                     <div className="i-ph:sign-out w-4 h-4" />
                     Disconnect
                   </Button>
-                  <div className="flex items-center gap-2">
-                    <div className="i-ph:check-circle w-4 h-4 text-bolt-elements-icon-success dark:text-bolt-elements-icon-success" />
-                    <span className="text-sm text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary">
-                      Connected to GitHub using{' '}
-                      <span className="text-bolt-elements-item-contentAccent dark:text-bolt-elements-item-contentAccent font-medium">
-                        {connection.tokenType === 'classic' ? 'PAT' : 'Fine-grained Token'}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <div className="i-ph:check-circle w-4 h-4 text-bolt-elements-icon-success dark:text-bolt-elements-icon-success" />
+                      <span className="text-sm text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary">
+                        Connected to GitHub using{' '}
+                        <span className="text-bolt-elements-item-contentAccent dark:text-bolt-elements-item-contentAccent font-medium">
+                          {connection.tokenType === 'classic' ? 'PAT' : 'Fine-grained Token'}
+                        </span>
                       </span>
-                    </span>
+                    </div>
+                    {connection.rateLimit && (
+                      <div className="flex items-center gap-2 text-xs text-bolt-elements-textSecondary">
+                        <div className="i-ph:chart-line-up w-3.5 h-3.5 text-bolt-elements-icon-success" />
+                        <span>
+                          API Limit: {connection.rateLimit.remaining.toLocaleString()}/
+                          {connection.rateLimit.limit.toLocaleString()} • Resets in{' '}
+                          {Math.max(0, Math.floor((connection.rateLimit.reset * 1000 - Date.now()) / 60000))} min
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -629,7 +698,10 @@ export default function GitHubConnection() {
                     Dashboard
                   </Button>
                   <Button
-                    onClick={() => fetchGitHubStats(connection.token)}
+                    onClick={() => {
+                      fetchGitHubStats(connection.token);
+                      updateRateLimits(connection.token);
+                    }}
                     disabled={isFetchingStats}
                     variant="outline"
                     className="flex items-center gap-2 hover:bg-bolt-elements-item-backgroundActive/10 hover:text-bolt-elements-textPrimary dark:hover:text-bolt-elements-textPrimary transition-colors"
