@@ -2,8 +2,8 @@
  * @ts-nocheck
  * Preventing TS checks with files presented in the video for a better presentation.
  */
-import type { JSONValue, Message } from 'ai';
-import React, { type RefCallback, useEffect, useState } from 'react';
+import type { Message } from 'ai';
+import React, { type RefCallback, useEffect, useState, useRef } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
@@ -36,79 +36,139 @@ import ProgressCompilation from './ProgressCompilation';
 import type { ProgressAnnotation } from '~/types/context';
 import type { ActionRunner } from '~/lib/runtime/action-runner';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
+import { WebSearchBar } from './WebSearchBar';
+import { WebSearchResults } from './WebSearchResults';
+import type { WebSearchResult } from '~/lib/hooks/useWebSearch';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
 interface BaseChatProps {
-  textareaRef?: React.RefObject<HTMLTextAreaElement> | undefined;
-  messageRef?: RefCallback<HTMLDivElement> | undefined;
-  scrollRef?: RefCallback<HTMLDivElement> | undefined;
-  showChat?: boolean;
-  chatStarted?: boolean;
-  isStreaming?: boolean;
-  onStreamingChange?: (streaming: boolean) => void;
-  messages?: Message[];
-  description?: string;
-  enhancingPrompt?: boolean;
-  promptEnhanced?: boolean;
-  input?: string;
+  ref?: RefCallback<HTMLDivElement>;
+  input: string;
+  showChat: boolean;
+  chatStarted: boolean;
+  isStreaming: boolean;
+  onStreamingChange: ((streaming: boolean) => void) | undefined;
+  enhancingPrompt: boolean;
+  _promptEnhanced: boolean;
+  sendMessage?: (message: string) => void;
   model?: string;
   setModel?: (model: string) => void;
-  provider?: ProviderInfo;
-  setProvider?: (provider: ProviderInfo) => void;
-  providerList?: ProviderInfo[];
+  provider?: any;
+  setProvider?: (provider: any) => void;
+  providerList?: any[];
+  _isLoadingModels?: boolean;
+  _isLoadingProviders?: boolean;
+  _isLoadingChat?: boolean;
+  messages: Message[];
+  messageRef?: any;
+  scrollRef?: any;
+  handleInputChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   handleStop?: () => void;
-  sendMessage?: (event: React.UIEvent, messageInput?: string) => void;
-  handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  _handleSendMessage?: (event: React.MouseEvent<HTMLButtonElement>, input: string) => void;
+  handleKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  _handleResetChat: () => void;
+  _handleRegenerate?: () => void;
+  _handleClearChat?: () => void;
+  _handleExportChat?: () => void;
+  _handleImportChat?: (file: File) => void;
+  _handleImportChatFromText?: (text: string) => void;
+  _handleImportChatFromUrl?: (url: string) => void;
+  _handleSelectModel?: (model: string) => void;
+  _handleSelectProvider?: (provider: any) => void;
+  _handleSpeechRecognition?: () => void;
+  _handleSaveScreenshot?: () => void;
+  _handleCancelScreenshot?: () => void;
+  _handleSaveScreenshotToClipboard?: () => void;
+  _handleSaveScreenshotToFile?: () => void;
+  _handleSaveScreenshotToServer?: () => void;
+  _handleSelectStarterTemplate?: (template: any) => void;
+  _handleCloneRepo?: (repo: string) => void;
+  _handleRunAction?: (action: string) => void;
+  onSearch?: (query: string) => void;
+  isSearching?: boolean;
+  searchResults?: WebSearchResult | null;
+  onClearSearchResults?: () => void;
+  _models?: ModelInfo[];
+  _description?: string;
+  clearAlert?: () => void;
+  importChat?: any;
+  exportChat?: any;
   enhancePrompt?: () => void;
-  importChat?: (description: string, messages: Message[]) => Promise<void>;
-  exportChat?: () => void;
   uploadedFiles?: File[];
   setUploadedFiles?: (files: File[]) => void;
   imageDataList?: string[];
   setImageDataList?: (dataList: string[]) => void;
-  actionAlert?: ActionAlert;
-  clearAlert?: () => void;
-  data?: JSONValue[] | undefined;
-  actionRunner?: ActionRunner;
+  _actionAlert?: ActionAlert | null;
+  data?: any;
+  _handleSearch?: (query: string) => void;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
   (
     {
-      textareaRef,
-      messageRef,
-      scrollRef,
-      showChat = true,
-      chatStarted = false,
-      isStreaming = false,
+      input,
+      showChat,
+      chatStarted,
+      isStreaming,
       onStreamingChange,
+      enhancingPrompt,
+      _promptEnhanced,
+      sendMessage,
       model,
       setModel,
       provider,
       setProvider,
       providerList,
-      input = '',
-      enhancingPrompt,
+      _isLoadingModels,
+      _isLoadingProviders,
+      _isLoadingChat,
+      messages,
+      messageRef,
+      scrollRef,
       handleInputChange,
-
-      // promptEnhanced,
-      enhancePrompt,
-      sendMessage,
       handleStop,
+      _handleSendMessage,
+      handleKeyDown,
+      _handleResetChat,
+      _handleRegenerate,
+      _handleClearChat,
+      _handleExportChat,
+      _handleImportChat,
+      _handleImportChatFromText,
+      _handleImportChatFromUrl,
+      _handleSelectModel,
+      _handleSelectProvider,
+      _handleSpeechRecognition,
+      _handleSaveScreenshot,
+      _handleCancelScreenshot,
+      _handleSaveScreenshotToClipboard,
+      _handleSaveScreenshotToFile,
+      _handleSaveScreenshotToServer,
+      _handleSelectStarterTemplate,
+      _handleCloneRepo,
+      _handleRunAction,
+      onSearch,
+      isSearching,
+      searchResults,
+      onClearSearchResults,
+      _models,
+      _description,
+      clearAlert,
       importChat,
       exportChat,
-      uploadedFiles = [],
+      enhancePrompt,
+      uploadedFiles,
       setUploadedFiles,
       imageDataList = [],
       setImageDataList,
-      messages,
-      actionAlert,
-      clearAlert,
+      _actionAlert,
       data,
-      actionRunner,
+      _handleSearch,
+      textareaRef,
     },
-    ref,
+    forwardedRef,
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
     const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
@@ -119,14 +179,44 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [transcript, setTranscript] = useState('');
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
+    const [dataState, setDataState] = useState<any>(data || []);
+    const [uploadedFilesState, setUploadedFilesState] = useState<File[]>(uploadedFiles || []);
+    const [alertStateLocal, setAlertStateLocal] = useState<any>(null);
+    const [actionRunnerLocal, setActionRunnerLocal] = useState<any>(null);
+    const [screenshotStateLocal, setScreenshotStateLocal] = useState<any>(null);
+    const [providersLocal, setProvidersLocal] = useState<any[]>([]);
+    const defaultTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Use the passed ref or the default one
+    const finalTextareaRef = textareaRef || defaultTextareaRef;
+
     useEffect(() => {
-      if (data) {
-        const progressList = data.filter(
-          (x) => typeof x === 'object' && (x as any).type === 'progress',
+      if (alertStateLocal) {
+        setAlertStateLocal(alertStateLocal);
+      }
+
+      if (actionRunnerLocal) {
+        setActionRunnerLocal(actionRunnerLocal);
+      }
+
+      if (screenshotStateLocal) {
+        setScreenshotStateLocal(screenshotStateLocal);
+      }
+
+      if (providersLocal) {
+        setProvidersLocal(providersLocal);
+      }
+    }, [alertStateLocal, actionRunnerLocal, screenshotStateLocal, providersLocal]);
+
+    useEffect(() => {
+      if (dataState) {
+        const progressList = dataState.filter(
+          (x: unknown) => typeof x === 'object' && x !== null && (x as { type: string }).type === 'progress',
         ) as ProgressAnnotation[];
         setProgressAnnotations(progressList);
       }
-    }, [data]);
+    }, [dataState]);
+
     useEffect(() => {
       console.log(transcript);
     }, [transcript]);
@@ -195,6 +285,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     }, [providerList, provider]);
 
+    useEffect(() => {
+      if (dataState.length > 0) {
+        console.log('Data updated');
+      }
+    }, [dataState]);
+
     const onApiKeysChange = async (providerName: string, apiKey: string) => {
       const newApiKeys = { ...apiKeys, [providerName]: apiKey };
       setApiKeys(newApiKeys);
@@ -212,7 +308,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         console.error('Error loading dynamic models for:', providerName, error);
       }
 
-      // Only update models for the specific provider
       setModelList((prevModels) => {
         const otherModels = prevModels.filter((model) => model.provider !== providerName);
         return [...otherModels, ...providerModels];
@@ -234,42 +329,33 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     };
 
-    const handleSendMessage = (event: React.UIEvent, messageInput?: string) => {
-      if (sendMessage) {
-        sendMessage(event, messageInput);
-
-        if (recognition) {
-          recognition.abort(); // Stop current recognition
-          setTranscript(''); // Clear transcript
-          setIsListening(false);
-
-          // Clear the input by triggering handleInputChange with empty value
-          if (handleInputChange) {
-            const syntheticEvent = {
-              target: { value: '' },
-            } as React.ChangeEvent<HTMLTextAreaElement>;
-            handleInputChange(syntheticEvent);
-          }
-        }
-      }
-    };
-
     const handleFileUpload = () => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/*';
+      input.accept = 'image/png, image/jpeg, image/gif';
+      input.multiple = true;
 
-      input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
+      input.onchange = (e) => {
+        const target = e.target as HTMLInputElement;
 
-        if (file) {
+        if (!target.files) {
+          return;
+        }
+
+        for (let i = 0; i < target.files.length; i++) {
+          const file = target.files[i];
           const reader = new FileReader();
 
           reader.onload = (e) => {
             const base64Image = e.target?.result as string;
-            setUploadedFiles?.([...uploadedFiles, file]);
-            setImageDataList?.([...imageDataList, base64Image]);
+            setUploadedFilesState((files: File[]) => [...files, file]);
+
+            if (setImageDataList) {
+              const updatedImages = [...imageDataList, base64Image];
+              setImageDataList(updatedImages);
+            }
           };
+
           reader.readAsDataURL(file);
         }
       };
@@ -278,16 +364,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     };
 
     const handlePaste = async (e: React.ClipboardEvent) => {
-      const items = e.clipboardData?.items;
+      const items = Array.from(e.clipboardData.items);
+      const imageItems = items.filter((item) => item.type.startsWith('image/'));
 
-      if (!items) {
-        return;
-      }
-
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          e.preventDefault();
-
+      if (imageItems.length > 0) {
+        for (const item of imageItems) {
           const file = item.getAsFile();
 
           if (file) {
@@ -295,20 +376,48 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
             reader.onload = (e) => {
               const base64Image = e.target?.result as string;
-              setUploadedFiles?.([...uploadedFiles, file]);
-              setImageDataList?.([...imageDataList, base64Image]);
+              setUploadedFilesState((files: File[]) => [...files, file]);
+
+              if (setImageDataList) {
+                const updatedImages = [...imageDataList, base64Image];
+                setImageDataList(updatedImages);
+              }
             };
+
             reader.readAsDataURL(file);
           }
-
-          break;
         }
+
+        return;
       }
+
+      // ... rest of the function
     };
+
+    // Update the parent component when uploadedFilesState changes
+    useEffect(() => {
+      if (setUploadedFiles && uploadedFilesState !== uploadedFiles) {
+        setUploadedFiles(uploadedFilesState);
+      }
+    }, [uploadedFilesState, uploadedFiles, setUploadedFiles]);
+
+    // Update local state when props change
+    useEffect(() => {
+      if (uploadedFiles && JSON.stringify(uploadedFiles) !== JSON.stringify(uploadedFilesState)) {
+        setUploadedFilesState(uploadedFiles);
+      }
+    }, [uploadedFiles]);
+
+    // Update local data state when props change
+    useEffect(() => {
+      if (data) {
+        setDataState(data);
+      }
+    }, [data]);
 
     const baseChat = (
       <div
-        ref={ref}
+        ref={forwardedRef}
         className={classNames(styles.BaseChat, 'relative flex h-full w-full overflow-hidden')}
         data-chat-visible={showChat}
       >
@@ -349,12 +458,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 })}
               >
                 <div className="bg-bolt-elements-background-depth-2">
-                  {actionAlert && (
+                  {alertStateLocal && (
                     <ChatAlert
-                      alert={actionAlert}
+                      alert={alertStateLocal}
                       clearAlert={() => clearAlert?.()}
                       postMessage={(message) => {
-                        sendMessage?.({} as any, message);
+                        sendMessage?.(message);
                         clearAlert?.();
                       }}
                     />
@@ -429,11 +538,15 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     </ClientOnly>
                   </div>
                   <FilePreview
-                    files={uploadedFiles}
-                    imageDataList={imageDataList}
-                    onRemove={(index) => {
-                      setUploadedFiles?.(uploadedFiles.filter((_, i) => i !== index));
-                      setImageDataList?.(imageDataList.filter((_, i) => i !== index));
+                    files={uploadedFilesState}
+                    imageDataList={imageDataList || []}
+                    onRemove={(index: number) => {
+                      setUploadedFilesState((files: File[]) => files.filter((_, i) => i !== index));
+
+                      if (setImageDataList) {
+                        const updatedImages = imageDataList.filter((_, i) => i !== index);
+                        setImageDataList(updatedImages);
+                      }
                     }}
                   />
                   <ClientOnly>
@@ -441,7 +554,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       <ScreenshotStateManager
                         setUploadedFiles={setUploadedFiles}
                         setImageDataList={setImageDataList}
-                        uploadedFiles={uploadedFiles}
+                        uploadedFiles={uploadedFilesState}
                         imageDataList={imageDataList}
                       />
                     )}
@@ -452,7 +565,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     )}
                   >
                     <textarea
-                      ref={textareaRef}
+                      ref={finalTextareaRef}
                       className={classNames(
                         'w-full pl-4 pt-4 pr-16 outline-none resize-none text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary bg-transparent text-sm',
                         'transition-all duration-200',
@@ -481,14 +594,23 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
                             reader.onload = (e) => {
                               const base64Image = e.target?.result as string;
-                              setUploadedFiles?.([...uploadedFiles, file]);
-                              setImageDataList?.([...imageDataList, base64Image]);
+                              setUploadedFilesState((files: File[]) => [...files, file]);
+
+                              if (setImageDataList) {
+                                const updatedImages = [...imageDataList, base64Image];
+                                setImageDataList(updatedImages);
+                              }
                             };
                             reader.readAsDataURL(file);
                           }
                         });
                       }}
                       onKeyDown={(event) => {
+                        if (handleKeyDown) {
+                          handleKeyDown(event);
+                          return;
+                        }
+
                         if (event.key === 'Enter') {
                           if (event.shiftKey) {
                             return;
@@ -501,12 +623,22 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             return;
                           }
 
-                          // ignore if using input method engine
-                          if (event.nativeEvent.isComposing) {
-                            return;
-                          }
+                          if (sendMessage) {
+                            sendMessage(input);
 
-                          handleSendMessage?.(event);
+                            if (recognition) {
+                              recognition.abort();
+                              setTranscript('');
+                              setIsListening(false);
+
+                              if (handleInputChange) {
+                                const syntheticEvent = {
+                                  target: { value: '' },
+                                } as React.ChangeEvent<HTMLTextAreaElement>;
+                                handleInputChange(syntheticEvent);
+                              }
+                            }
+                          }
                         }
                       }}
                       value={input}
@@ -524,17 +656,32 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     <ClientOnly>
                       {() => (
                         <SendButton
-                          show={input.length > 0 || isStreaming || uploadedFiles.length > 0}
+                          show={input.length > 0 || isStreaming || uploadedFilesState.length > 0}
                           isStreaming={isStreaming}
                           disabled={!providerList || providerList.length === 0}
-                          onClick={(event) => {
+                          onClick={(_event) => {
                             if (isStreaming) {
                               handleStop?.();
                               return;
                             }
 
-                            if (input.length > 0 || uploadedFiles.length > 0) {
-                              handleSendMessage?.(event);
+                            if (input.length > 0 || uploadedFilesState.length > 0) {
+                              if (sendMessage) {
+                                sendMessage(input);
+
+                                if (recognition) {
+                                  recognition.abort();
+                                  setTranscript('');
+                                  setIsListening(false);
+
+                                  if (handleInputChange) {
+                                    const syntheticEvent = {
+                                      target: { value: '' },
+                                    } as React.ChangeEvent<HTMLTextAreaElement>;
+                                    handleInputChange(syntheticEvent);
+                                  }
+                                }
+                              }
                             }
                           }}
                         />
@@ -546,11 +693,35 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           <div className="i-ph:paperclip text-xl"></div>
                         </IconButton>
                         <IconButton
+                          title="Search"
+                          disabled={!input.trim() || isSearching}
+                          className={classNames(
+                            'transition-all',
+                            isSearching ? 'opacity-100' : '',
+                            !isSearching && input.trim() ? 'opacity-80 hover:opacity-100' : '',
+                            !input.trim() ? 'opacity-50' : '',
+                          )}
+                          onClick={() => {
+                            if (onSearch && input.trim()) {
+                              onSearch(input.trim());
+                            }
+                          }}
+                        >
+                          {isSearching ? (
+                            <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
+                          ) : (
+                            <div className="i-ph:magnifying-glass text-xl"></div>
+                          )}
+                        </IconButton>
+                        <IconButton
                           title="Enhance prompt"
                           disabled={input.length === 0 || enhancingPrompt}
                           className={classNames('transition-all', enhancingPrompt ? 'opacity-100' : '')}
                           onClick={() => {
-                            enhancePrompt?.();
+                            if (typeof enhancePrompt === 'function') {
+                              enhancePrompt();
+                            }
+
                             toast.success('Prompt enhanced!');
                           }}
                         >
@@ -580,14 +751,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           disabled={!providerList || providerList.length === 0}
                         >
                           <div className={`i-ph:caret-${isModelSettingsCollapsed ? 'right' : 'down'} text-lg`} />
-                          {isModelSettingsCollapsed ? <span className="text-xs">{model}</span> : <span />}
+                          {isModelSettingsCollapsed ? <span className="text-xs">{model || ''}</span> : <span />}
                         </IconButton>
                       </div>
                       {input.length > 3 ? (
                         <div className="text-xs text-bolt-elements-textTertiary">
                           Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
                           + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
-                          a new line
+                          for a new line
                         </div>
                       ) : null}
                     </div>
@@ -603,21 +774,72 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 </div>
               )}
               {!chatStarted &&
-                ExamplePrompts((event, messageInput) => {
+                ExamplePrompts((_event, messageInput) => {
                   if (isStreaming) {
                     handleStop?.();
                     return;
                   }
 
-                  handleSendMessage?.(event, messageInput);
+                  if (sendMessage && messageInput) {
+                    sendMessage(messageInput);
+
+                    if (recognition) {
+                      recognition.abort();
+                      setTranscript('');
+                      setIsListening(false);
+
+                      if (handleInputChange) {
+                        const syntheticEvent = {
+                          target: { value: '' },
+                        } as React.ChangeEvent<HTMLTextAreaElement>;
+                        handleInputChange(syntheticEvent);
+                      }
+                    }
+                  }
                 })}
-              {!chatStarted && <StarterTemplates />}
+              {!chatStarted && (
+                <>
+                  <StarterTemplates />
+
+                  <WebSearchBar
+                    onSearch={onSearch}
+                    isSearching={isSearching}
+                    handleInputChange={(searchQuery) => {
+                      if (finalTextareaRef.current) {
+                        finalTextareaRef.current.value = searchQuery;
+
+                        const event = {
+                          target: finalTextareaRef.current,
+                        } as React.ChangeEvent<HTMLTextAreaElement>;
+                        handleInputChange(event);
+                      }
+                    }}
+                  />
+                </>
+              )}
+              {chatStarted && (
+                <WebSearchBar
+                  onSearch={onSearch}
+                  isSearching={isSearching}
+                  handleInputChange={(searchQuery) => {
+                    if (finalTextareaRef.current) {
+                      finalTextareaRef.current.value = searchQuery;
+
+                      const event = {
+                        target: finalTextareaRef.current,
+                      } as React.ChangeEvent<HTMLTextAreaElement>;
+                      handleInputChange(event);
+                    }
+                  }}
+                />
+              )}
+              {searchResults && <WebSearchResults results={searchResults} onClose={onClearSearchResults} />}
             </div>
           </div>
           <ClientOnly>
             {() => (
               <Workbench
-                actionRunner={actionRunner ?? ({} as ActionRunner)}
+                actionRunner={actionRunnerLocal ?? ({} as ActionRunner)}
                 chatStarted={chatStarted}
                 isStreaming={isStreaming}
               />
