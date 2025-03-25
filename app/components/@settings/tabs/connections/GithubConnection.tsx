@@ -662,7 +662,12 @@ export default function GitHubConnection() {
             <>
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-4">
-                  <Button onClick={handleDisconnect} variant="destructive" className="flex items-center gap-2">
+                  <Button
+                    onClick={handleDisconnect}
+                    variant="destructive"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
                     <div className="i-ph:sign-out w-4 h-4" />
                     Disconnect
                   </Button>
