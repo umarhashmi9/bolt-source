@@ -222,6 +222,7 @@ export default function GithubConnection() {
 
     setIsLoading(false);
   }, []);
+
   useEffect(() => {
     if (!connection) {
       return;
