@@ -15,6 +15,7 @@ import { SendButton } from './SendButton.client';
 import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
 import Cookies from 'js-cookie';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { toast } from 'react-toastify';
 
 import styles from './BaseChat.module.scss';
 import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportChatButton';
@@ -27,7 +28,6 @@ import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
-import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
@@ -694,16 +694,26 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </IconButton>
                         <IconButton
                           title="Search"
-                          disabled={!input.trim() || isSearching}
                           className={classNames(
                             'transition-all',
-                            isSearching ? 'opacity-100' : '',
-                            !isSearching && input.trim() ? 'opacity-80 hover:opacity-100' : '',
-                            !input.trim() ? 'opacity-50' : '',
+                            isSearching ? 'opacity-100' : 'opacity-80 hover:opacity-100',
                           )}
                           onClick={() => {
+                            // If there's text, perform search, otherwise open search interface
                             if (onSearch && input.trim()) {
                               onSearch(input.trim());
+                            } else {
+                              // Find and click the web search bar toggle
+                              const webSearchBarToggle = document.querySelector('.web-search-bar-toggle');
+
+                              if (webSearchBarToggle) {
+                                (webSearchBarToggle as HTMLElement).click();
+                              } else {
+                                // Fallback - show a toast informing the user how to search
+                                toast.info('Click the search icon in the bottom toolbar to search the web', {
+                                  autoClose: 3000,
+                                });
+                              }
                             }
                           }}
                         >
@@ -834,6 +844,19 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 />
               )}
               {searchResults && <WebSearchResults results={searchResults} onClose={onClearSearchResults} />}
+              {isSearching && !searchResults && (
+                <div className="bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-lg p-4 mb-4 max-w-full overflow-hidden">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-md font-medium flex items-center gap-2">
+                      <div className="i-svg-spinners:90-ring-with-bg animate-spin" />
+                      Searching the web...
+                    </h3>
+                  </div>
+                  <p className="text-sm text-bolt-elements-textSecondary">
+                    Looking for information. This may take a moment. Results will appear here and be sent to the chat.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <ClientOnly>

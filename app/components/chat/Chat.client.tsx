@@ -331,31 +331,126 @@ export const ChatImpl = memo(
           const searchMatch = message.match(searchCommandRegex);
 
           if (searchMatch) {
-            const searchQuery = searchMatch[1].trim();
+            let searchQueryToUse = searchMatch[1].trim();
 
-            // Add the user message to the messages
-            setMessages([
-              ...messages,
-              {
-                id: generateUUID(),
-                role: 'user',
-                content: message,
-                createdAt: new Date(),
-              },
-            ]);
+            // Check if the query appears to be asking for code generation
+            const codeGenerationTerms = [
+              'create a',
+              'build a',
+              'make a',
+              'write a',
+              'code a',
+              'develop a',
+              'generate a',
+              'implement a',
+              'example of',
+              'sample of',
+              'top 10',
+              'list of',
+              'using',
+              'with',
+            ];
+
+            // Add exception patterns for error messages and debugging queries
+            const errorRelatedTerms = [
+              'error',
+              'exception',
+              'bug',
+              'crash',
+              'failed',
+              'failure',
+              'not working',
+              "doesn't work",
+              'issue',
+              'problem',
+              'debug',
+              'fix',
+              'troubleshoot',
+              'TypeError',
+              'ReferenceError',
+              'SyntaxError',
+              'RangeError',
+            ];
+
+            const queryLower = searchQueryToUse.toLowerCase();
+
+            // Check if query contains error-related terms first
+            const isErrorRelatedQuery = errorRelatedTerms.some((term) => queryLower.includes(term.toLowerCase()));
+
+            // Only treat as code generation if it's not an error-related query
+            const isLikelyCodeRequest =
+              !isErrorRelatedQuery &&
+              codeGenerationTerms.some((term) => queryLower.includes(term)) &&
+              (queryLower.includes('code') ||
+                queryLower.includes('app') ||
+                queryLower.includes('project') ||
+                queryLower.includes('website') ||
+                queryLower.includes('application') ||
+                queryLower.includes('component') ||
+                queryLower.includes('react') ||
+                queryLower.includes('vue') ||
+                queryLower.includes('angular') ||
+                queryLower.includes('html') ||
+                queryLower.includes('css') ||
+                queryLower.includes('javascript') ||
+                queryLower.includes('typescript'));
+
+            if (isLikelyCodeRequest) {
+              // Add a clarification that we're using web search to find information, not generate code
+              searchQueryToUse = `information about ${searchQueryToUse}`;
+              console.log(`Search query appears to be asking for code. Clarifying to: "${searchQueryToUse}"`);
+
+              // Add the user message to the messages with original query
+              setMessages([
+                ...messages,
+                {
+                  id: generateUUID(),
+                  role: 'user',
+                  content: message,
+                  createdAt: new Date(),
+                },
+              ]);
+
+              // Add a clarifying assistant message
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: generateUUID(),
+                  role: 'assistant',
+                  content: `I'll search the web for information about "${searchMatch[1].trim()}". Note that web search is for finding facts and information, not for generating code directly.`,
+                  createdAt: new Date(),
+                },
+              ]);
+            } else {
+              // Add the user message to the messages
+              setMessages([
+                ...messages,
+                {
+                  id: generateUUID(),
+                  role: 'user',
+                  content: message,
+                  createdAt: new Date(),
+                },
+              ]);
+            }
 
             // Perform the search
             try {
-              console.log(`Processing search for: ${searchQuery}`);
+              console.log(`Processing search for: ${searchQueryToUse}`);
 
               // Set streaming flag and show loading indicator
               setIsStreaming(true);
+
+              // Show a toast to inform the user that search is in progress
+              toast.info(`Searching the web for "${searchQueryToUse}". Results will be added to the chat once found.`, {
+                autoClose: 5000,
+              });
 
               // Clear any previous search results first
               clearSearchResults();
 
               // Perform the search and get results
-              const searchPromise = performSearch(searchQuery);
+              const searchPromise = performSearch(searchQueryToUse);
 
               // Wait longer for the search results to be available
               await searchPromise;
@@ -375,6 +470,11 @@ export const ChatImpl = memo(
               if (searchResults.data && searchResults.data.length > 0) {
                 console.log(`Found ${searchResults.data.length} search results, processing...`);
 
+                // Inform user that results were found
+                toast.success(`Found ${searchResults.data.length} search results. Adding to chat...`, {
+                  autoClose: 3000,
+                });
+
                 // Create a formatted version of search results to include in the prompt
                 const formattedResults = searchResults.data
                   .map(
@@ -383,8 +483,10 @@ export const ChatImpl = memo(
                   )
                   .join('\n\n');
 
-                // Create the prompt with search results
-                const promptWithResults = `I searched the web for "${searchQuery}" and found these results:\n\n${formattedResults}\n\nPlease provide insights based on these search results.`;
+                // Create the prompt with search results - make it more explicit about what we want
+                const promptWithResults = isErrorRelatedQuery
+                  ? `I searched the web for information about this error: "${searchQueryToUse}" and found these results:\n\n${formattedResults}\n\nPlease analyze these search results and provide troubleshooting advice for this specific error. Explain what likely caused the error and how to fix it based on the search information. Include practical steps to resolve the issue.`
+                  : `I searched the web for "${searchQueryToUse}" and found these results:\n\n${formattedResults}\n\nPlease summarize the information from these search results. DO NOT generate code or create projects - just analyze and explain the web search results.`;
 
                 // Use the proper append function with search results as content
                 const modifiedFiles = workbenchStore.getModifiedFiles();
@@ -429,6 +531,11 @@ export const ChatImpl = memo(
               } else {
                 console.log('No search results found, sending fallback message');
 
+                // Inform user that no results were found
+                toast.info(`No search results found for "${searchQueryToUse}". Using AI knowledge instead.`, {
+                  autoClose: 3000,
+                });
+
                 // Handle case where no search results were found
                 try {
                   append({
@@ -436,7 +543,9 @@ export const ChatImpl = memo(
                     content: [
                       {
                         type: 'text',
-                        text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\nI searched for "${searchQuery}" but didn't find any results. Could you help me with this topic anyway?`,
+                        text: isErrorRelatedQuery
+                          ? `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\nI searched for information about this error: "${searchQueryToUse}" but didn't find specific results. Based on your knowledge, can you please explain what might be causing this error and suggest troubleshooting steps? Focus on practical advice for fixing the issue.`
+                          : `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\nI searched for "${searchQueryToUse}" but didn't find any results. Please provide general information about this topic based on your knowledge. DO NOT generate code or create projects - just provide factual information.`,
                       },
                     ] as any,
                   });
@@ -448,7 +557,10 @@ export const ChatImpl = memo(
               }
             } catch (error) {
               console.error('Search operation failed:', error);
-              toast.error('Search failed. Please try again with different keywords.');
+              toast.error(
+                'Search failed. The web search feature may not be working correctly. Try a different query or continue without search.',
+                { autoClose: 5000 },
+              );
               setIsStreaming(false);
             }
 
