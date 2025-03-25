@@ -62,7 +62,7 @@ export const WebSearchBar: React.FC<WebSearchBarProps> = ({ onSearch, isSearchin
         <>
           <form
             onSubmit={handleSearch}
-            className="absolute left-0 bottom-full mb-2 flex flex-col items-center bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-md overflow-hidden shadow-md"
+            className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-[calc(100%+0.5rem)] flex flex-col items-center bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-md overflow-hidden shadow-md z-50"
           >
             <div className="flex items-center">
               <input
@@ -86,7 +86,7 @@ export const WebSearchBar: React.FC<WebSearchBarProps> = ({ onSearch, isSearchin
               Type your search query above or click the arrow to search
             </div>
           </form>
-          <div className="absolute left-0 bottom-full mt-4 mb-0 transform translate-y-12 text-xs text-bolt-elements-textSecondary bg-bolt-elements-background-depth-2 p-2 rounded-md border border-bolt-elements-borderColor shadow-sm">
+          <div className="absolute left-0 top-full mt-2 text-xs text-bolt-elements-textSecondary bg-bolt-elements-background-depth-2 p-2 rounded-md border border-bolt-elements-borderColor shadow-sm z-50">
             <p>1. Enter search term and click the arrow</p>
             <p>2. Press Enter to execute the search</p>
             <p>3. Results will be sent to the chat</p>

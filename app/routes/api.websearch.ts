@@ -1,8 +1,47 @@
 import { json } from '@remix-run/node';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
+import { SearchManager } from '~/lib/modules/search/search-manager';
+
+/**
+ * Retrieves API keys from environment variables
+ */
+function getSearchApiKeys() {
+  const keys: Record<string, string> = {};
+
+  // Add Serper.dev API key for Google, DuckDuckGo, and Academic
+  if (process.env.SERPER_API_KEY) {
+    keys.Google = process.env.SERPER_API_KEY;
+    keys.DuckDuckGo = process.env.SERPER_API_KEY;
+    keys.Academic = process.env.SERPER_API_KEY;
+  }
+
+  // Add Bing Search API key
+  if (process.env.BING_SEARCH_API_KEY) {
+    keys.Bing = process.env.BING_SEARCH_API_KEY;
+  }
+
+  // Add Perplexity API key
+  if (process.env.PERPLEXITY_API_KEY) {
+    keys.Perplexity = process.env.PERPLEXITY_API_KEY;
+  }
+
+  /*
+   * Add any provider-specific API keys here if they differ
+   * Example: if (process.env.GOOGLE_API_KEY) keys.Google = process.env.GOOGLE_API_KEY;
+   */
+
+  return keys;
+}
+
+/**
+ * Checks if we're running in development mode
+ */
+function isDevelopmentMode() {
+  return process.env.NODE_ENV === 'development';
+}
 
 /*
- * Function to handle a web search request
+ * Function to handle a web search request (GET)
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -15,32 +54,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     console.log(`Processing search request for: ${query}`);
 
-    /*
-     * Simple mock response for now - in production, this would call a real search API
-     * You would typically use a service like Serper.dev, SerpApi, or Google Custom Search API
-     */
-    const mockResults = [
-      {
-        title: `Search Result for: ${query}`,
-        link: `https://example.com/search?q=${encodeURIComponent(query)}`,
-        snippet: `This is a sample search result for "${query}". In a real implementation, this would be actual content from the web.`,
-      },
-      {
-        title: `${query} - Documentation`,
-        link: `https://docs.example.com/${encodeURIComponent(query)}`,
-        snippet: `Learn more about ${query} in our comprehensive documentation. Get started with tutorials, API references, and examples.`,
-      },
-      {
-        title: `Latest News on ${query}`,
-        link: `https://news.example.com/topics/${encodeURIComponent(query)}`,
-        snippet: `Stay updated with the latest news, releases, and trends about ${query}. Our community provides regular updates.`,
-      },
-    ];
+    // Initialize the search manager
+    const searchManager = SearchManager.getInstance();
+    const apiKeys = getSearchApiKeys();
+    const isDevMode = isDevelopmentMode();
 
-    // Add a small delay to simulate network request
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    searchManager.setApiKeys(apiKeys);
+    searchManager.setDevelopmentMode(isDevMode);
 
-    return json({ results: mockResults });
+    // Perform the search
+    const searchResults = await searchManager.search(query);
+
+    return json(searchResults);
   } catch (error) {
     console.error('Error processing search request:', error);
     return json(
@@ -50,7 +75,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-// If you want to support search requests via POST
+/*
+ * Function to handle a web search request (POST)
+ */
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, { status: 405 });
@@ -66,26 +93,18 @@ export async function action({ request }: ActionFunctionArgs) {
 
     console.log(`Processing POST search request for: ${query}`);
 
-    // Reuse the same mock logic
-    const mockResults = [
-      {
-        title: `Search Result for: ${query}`,
-        link: `https://example.com/search?q=${encodeURIComponent(query)}`,
-        snippet: `This is a sample search result for "${query}". In a real implementation, this would be actual content from the web.`,
-      },
-      {
-        title: `${query} - Documentation`,
-        link: `https://docs.example.com/${encodeURIComponent(query)}`,
-        snippet: `Learn more about ${query} in our comprehensive documentation. Get started with tutorials, API references, and examples.`,
-      },
-      {
-        title: `Latest News on ${query}`,
-        link: `https://news.example.com/topics/${encodeURIComponent(query)}`,
-        snippet: `Stay updated with the latest news, releases, and trends about ${query}. Our community provides regular updates.`,
-      },
-    ];
+    // Initialize the search manager
+    const searchManager = SearchManager.getInstance();
+    const apiKeys = getSearchApiKeys();
+    const isDevMode = isDevelopmentMode();
 
-    return json({ results: mockResults });
+    searchManager.setApiKeys(apiKeys);
+    searchManager.setDevelopmentMode(isDevMode);
+
+    // Perform the search
+    const searchResults = await searchManager.search(query);
+
+    return json(searchResults);
   } catch (error) {
     console.error('Error processing search request:', error);
     return json(

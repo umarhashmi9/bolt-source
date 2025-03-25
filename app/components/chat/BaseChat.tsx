@@ -36,7 +36,6 @@ import ProgressCompilation from './ProgressCompilation';
 import type { ProgressAnnotation } from '~/types/context';
 import type { ActionRunner } from '~/lib/runtime/action-runner';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
-import { WebSearchBar } from './WebSearchBar';
 import { WebSearchResults } from './WebSearchResults';
 import type { WebSearchResult } from '~/lib/hooks/useWebSearch';
 
@@ -85,10 +84,6 @@ interface BaseChatProps {
   _handleSelectStarterTemplate?: (template: any) => void;
   _handleCloneRepo?: (repo: string) => void;
   _handleRunAction?: (action: string) => void;
-  onSearch?: (query: string) => void;
-  isSearching?: boolean;
-  searchResults?: WebSearchResult | null;
-  onClearSearchResults?: () => void;
   _models?: ModelInfo[];
   _description?: string;
   clearAlert?: () => void;
@@ -103,6 +98,10 @@ interface BaseChatProps {
   data?: any;
   _handleSearch?: (query: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  searchResults?: WebSearchResult | null;
+  onClearSearchResults?: () => void;
+  isSearching?: boolean;
+  onSearch?: (query: string) => void;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -149,10 +148,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       _handleSelectStarterTemplate,
       _handleCloneRepo,
       _handleRunAction,
-      onSearch,
-      isSearching,
-      searchResults,
-      onClearSearchResults,
       _models,
       _description,
       clearAlert,
@@ -165,8 +160,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       setImageDataList,
       _actionAlert,
       data,
-      _handleSearch,
       textareaRef,
+      searchResults,
+      onClearSearchResults,
+      isSearching,
+      onSearch,
     },
     forwardedRef,
   ) => {
@@ -626,6 +624,15 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           if (sendMessage) {
                             sendMessage(input);
 
+                            // Check if the input starts with @search
+                            if (input.trim().startsWith('@search') && onSearch) {
+                              const searchQuery = input.trim().substring('@search'.length).trim();
+
+                              if (searchQuery) {
+                                onSearch(searchQuery);
+                              }
+                            }
+
                             if (recognition) {
                               recognition.abort();
                               setTranscript('');
@@ -681,6 +688,15 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                                     handleInputChange(syntheticEvent);
                                   }
                                 }
+
+                                // Check if the input starts with @search
+                                if (input.trim().startsWith('@search') && onSearch) {
+                                  const searchQuery = input.trim().substring('@search'.length).trim();
+
+                                  if (searchQuery) {
+                                    onSearch(searchQuery);
+                                  }
+                                }
                               }
                             }
                           }}
@@ -694,34 +710,24 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </IconButton>
                         <IconButton
                           title="Search"
-                          className={classNames(
-                            'transition-all',
-                            isSearching ? 'opacity-100' : 'opacity-80 hover:opacity-100',
-                          )}
+                          className="transition-all opacity-80 hover:opacity-100"
                           onClick={() => {
-                            // If there's text, perform search, otherwise open search interface
                             if (onSearch && input.trim()) {
                               onSearch(input.trim());
+                              toast.info(`Searching for: "${input.trim()}"`, {
+                                autoClose: 2000,
+                              });
                             } else {
-                              // Find and click the web search bar toggle
-                              const webSearchBarToggle = document.querySelector('.web-search-bar-toggle');
-
-                              if (webSearchBarToggle) {
-                                (webSearchBarToggle as HTMLElement).click();
-                              } else {
-                                // Fallback - show a toast informing the user how to search
-                                toast.info('Click the search icon in the bottom toolbar to search the web', {
+                              toast.info(
+                                'Type something in the input field and click search, or use @search in your message',
+                                {
                                   autoClose: 3000,
-                                });
-                              }
+                                },
+                              );
                             }
                           }}
                         >
-                          {isSearching ? (
-                            <div className="i-svg-spinners:90-ring-with-bg text-bolt-elements-loader-progress text-xl animate-spin"></div>
-                          ) : (
-                            <div className="i-ph:magnifying-glass text-xl"></div>
-                          )}
+                          <div className="i-ph:magnifying-glass text-xl"></div>
                         </IconButton>
                         <IconButton
                           title="Enhance prompt"
@@ -764,13 +770,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           {isModelSettingsCollapsed ? <span className="text-xs">{model || ''}</span> : <span />}
                         </IconButton>
                       </div>
-                      {input.length > 3 ? (
-                        <div className="text-xs text-bolt-elements-textTertiary">
-                          Use <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Shift</kbd>{' '}
-                          + <kbd className="kdb px-1.5 py-0.5 rounded bg-bolt-elements-background-depth-2">Return</kbd>{' '}
-                          for a new line
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -810,38 +809,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
               {!chatStarted && (
                 <>
                   <StarterTemplates />
-
-                  <WebSearchBar
-                    onSearch={onSearch}
-                    isSearching={isSearching}
-                    handleInputChange={(searchQuery) => {
-                      if (finalTextareaRef.current) {
-                        finalTextareaRef.current.value = searchQuery;
-
-                        const event = {
-                          target: finalTextareaRef.current,
-                        } as React.ChangeEvent<HTMLTextAreaElement>;
-                        handleInputChange(event);
-                      }
-                    }}
-                  />
                 </>
-              )}
-              {chatStarted && (
-                <WebSearchBar
-                  onSearch={onSearch}
-                  isSearching={isSearching}
-                  handleInputChange={(searchQuery) => {
-                    if (finalTextareaRef.current) {
-                      finalTextareaRef.current.value = searchQuery;
-
-                      const event = {
-                        target: finalTextareaRef.current,
-                      } as React.ChangeEvent<HTMLTextAreaElement>;
-                      handleInputChange(event);
-                    }
-                  }}
-                />
               )}
               {searchResults && <WebSearchResults results={searchResults} onClose={onClearSearchResults} />}
               {isSearching && !searchResults && (
@@ -857,17 +825,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   </p>
                 </div>
               )}
+              <ClientOnly>
+                {() => (
+                  <Workbench
+                    actionRunner={actionRunnerLocal ?? ({} as ActionRunner)}
+                    chatStarted={chatStarted}
+                    isStreaming={isStreaming}
+                  />
+                )}
+              </ClientOnly>
             </div>
           </div>
-          <ClientOnly>
-            {() => (
-              <Workbench
-                actionRunner={actionRunnerLocal ?? ({} as ActionRunner)}
-                chatStarted={chatStarted}
-                isStreaming={isStreaming}
-              />
-            )}
-          </ClientOnly>
         </div>
       </div>
     );
