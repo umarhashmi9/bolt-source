@@ -1,0 +1,315 @@
+import { useRef, useState } from 'react';
+import { useDataOperations } from '~/lib/data/useDataOperations';
+import { FeatureCard } from '~/components/ui/FeatureCard';
+import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
+import { Button } from '~/components/ui/Button';
+import { db } from '~/lib/persistence/useChatHistory';
+
+export default function DataTab() {
+  // State for confirmation dialogs
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // File input refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const apiKeyFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use the data operations hook
+  const {
+    isDownloadingTemplate,
+    isImportingKeys,
+    isResetting,
+    isDeleting,
+    isExporting,
+    isImporting,
+    handleExportAllChats,
+    handleExportSettings,
+    handleImportSettings,
+    handleImportAPIKeys,
+    handleDownloadTemplate,
+    handleResetSettings,
+    handleDeleteAllChats,
+  } = useDataOperations(db || null);
+
+  // Handle file input change
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      handleImportSettings(file);
+
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Handle API keys file input change
+  const handleApiKeysFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      handleImportAPIKeys(file);
+
+      // Clear the file input
+      if (apiKeyFileInputRef.current) {
+        apiKeyFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-12">
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept=".json" onChange={handleFileInputChange} className="hidden" />
+      <input
+        ref={apiKeyFileInputRef}
+        type="file"
+        accept=".json"
+        onChange={handleApiKeysFileInputChange}
+        className="hidden"
+      />
+
+      {/* Reset Settings Confirmation Dialog */}
+      <DialogRoot open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <Dialog>
+          <div className="p-6">
+            <DialogTitle>
+              <div className="i-ph-warning-circle-duotone text-yellow-500 w-5 h-5" />
+              Reset All Settings?
+            </DialogTitle>
+            <DialogDescription className="mt-2 mb-4">
+              This will reset all your settings to their default values. This action cannot be undone.
+            </DialogDescription>
+            <div className="flex justify-end gap-2 mt-6">
+              <DialogButton type="secondary" onClick={() => setShowResetConfirm(false)} disabled={isResetting}>
+                Cancel
+              </DialogButton>
+              <DialogButton 
+                type="danger" 
+                onClick={handleResetSettings} 
+                disabled={isResetting}
+              >
+                {isResetting ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4" />
+                    Resetting...
+                  </>
+                ) : (
+                  'Reset Settings'
+                )}
+              </DialogButton>
+            </div>
+          </div>
+        </Dialog>
+      </DialogRoot>
+
+      {/* Delete Chats Confirmation Dialog */}
+      <DialogRoot open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <Dialog>
+          <div className="p-6">
+            <DialogTitle>
+              <div className="i-ph-trash-duotone text-red-500 w-5 h-5" />
+              Delete All Chats?
+            </DialogTitle>
+            <DialogDescription className="mt-2 mb-4">
+              This will permanently delete all your chat history. This action cannot be undone.
+            </DialogDescription>
+            <div className="flex justify-end gap-2 mt-6">
+              <DialogButton type="secondary" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                Cancel
+              </DialogButton>
+              <DialogButton 
+                type="danger" 
+                onClick={handleDeleteAllChats} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete All'
+                )}
+              </DialogButton>
+            </div>
+          </div>
+        </Dialog>
+      </DialogRoot>
+
+      {/* Chat History Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Chats</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FeatureCard
+            title="Export All Chats"
+            description="Export all your chats to a JSON file."
+            icon="i-ph-download-duotone"
+            action={
+              <Button 
+                onClick={handleExportAllChats} 
+                disabled={isExporting} 
+                variant="outline" 
+                size="sm"
+                className="text-accent-500 border-accent-500/20"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4 mr-2" />
+                    Exporting...
+                  </>
+                ) : (
+                  'Export All'
+                )}
+              </Button>
+            }
+          />
+
+          <FeatureCard
+            title="Delete All Chats"
+            description="Delete all your chats. This action cannot be undone."
+            icon="i-ph-trash-duotone"
+            iconColor="text-red-500"
+            action={
+              <Button
+                onClick={() => setShowDeleteConfirm(true)}
+                variant="outline"
+                size="sm"
+                className="text-red-500 border-red-500/20 hover:bg-red-500/10"
+              >
+                Delete All
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Settings Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Settings</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FeatureCard
+            title="Export Settings"
+            description="Export your settings to a JSON file."
+            icon="i-ph-download-duotone"
+            action={
+              <Button 
+                onClick={handleExportSettings} 
+                disabled={isExporting} 
+                variant="outline" 
+                size="sm"
+                className="text-accent-500 border-accent-500/20"
+              >
+                {isExporting ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4 mr-2" />
+                    Exporting...
+                  </>
+                ) : (
+                  'Export'
+                )}
+              </Button>
+            }
+          />
+
+          <FeatureCard
+            title="Import Settings"
+            description="Import settings from a JSON file."
+            icon="i-ph-upload-duotone"
+            action={
+              <Button 
+                onClick={() => fileInputRef.current?.click()} 
+                disabled={isImporting} 
+                variant="outline" 
+                size="sm"
+                className="text-accent-500 border-accent-500/20"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4 mr-2" />
+                    Importing...
+                  </>
+                ) : (
+                  'Import'
+                )}
+              </Button>
+            }
+          />
+
+          <FeatureCard
+            title="Reset Settings"
+            description="Reset all settings to their default values."
+            icon="i-ph-arrow-counter-clockwise-duotone"
+            iconColor="text-yellow-500"
+            action={
+              <Button
+                onClick={() => setShowResetConfirm(true)}
+                variant="outline"
+                size="sm"
+                className="text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/10"
+              >
+                Reset
+              </Button>
+            }
+          />
+        </div>
+      </div>
+
+      {/* API Keys Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">API Keys</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FeatureCard
+            title="Download Template"
+            description="Download a template file for your API keys."
+            icon="i-ph-file-text-duotone"
+            action={
+              <Button 
+                onClick={handleDownloadTemplate} 
+                disabled={isDownloadingTemplate} 
+                variant="outline" 
+                size="sm"
+                className="text-accent-500 border-accent-500/20"
+              >
+                {isDownloadingTemplate ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4 mr-2" />
+                    Downloading...
+                  </>
+                ) : (
+                  'Download'
+                )}
+              </Button>
+            }
+          />
+
+          <FeatureCard
+            title="Import API Keys"
+            description="Import API keys from a JSON file."
+            icon="i-ph-key-duotone"
+            action={
+              <Button 
+                onClick={() => apiKeyFileInputRef.current?.click()} 
+                disabled={isImportingKeys} 
+                variant="outline" 
+                size="sm"
+                className="text-accent-500 border-accent-500/20"
+              >
+                {isImportingKeys ? (
+                  <>
+                    <div className="i-ph-spinner-gap-bold animate-spin w-4 h-4 mr-2" />
+                    Importing...
+                  </>
+                ) : (
+                  'Import'
+                )}
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
