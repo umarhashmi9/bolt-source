@@ -335,7 +335,7 @@ export function SelectionDialog({
     return (
       <div
         key={item.id}
-        className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800"
         style={{
           ...style,
           width: '100%',
@@ -363,7 +363,7 @@ export function SelectionDialog({
   return (
     <RadixDialog.Root open={isOpen} onOpenChange={onClose}>
       <Dialog showCloseButton={false}>
-        <div className="p-6">
+        <div className="p-6 bg-white dark:bg-gray-900">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="mt-2 mb-4">
             Select the items you want to include and click {confirmLabel}.
@@ -379,7 +379,12 @@ export function SelectionDialog({
               </Button>
             </div>
 
-            <div className="pr-2 border rounded-md border-gray-200 dark:border-gray-700" style={{ maxHeight }}>
+            <div
+              className="pr-2 border rounded-md border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              style={{
+                maxHeight,
+              }}
+            >
               {items.length > 0 ? (
                 <FixedSizeList
                   height={listHeight}
