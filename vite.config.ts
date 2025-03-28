@@ -134,6 +134,8 @@ export default defineConfig((config) => {
               map: null,
             };
           }
+
+          return null;
         },
       },
       config.mode !== 'test' && remixCloudflareDevProxy(),
