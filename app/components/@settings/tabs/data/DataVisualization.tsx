@@ -66,7 +66,7 @@ export function DataVisualization({ chats }: DataVisualizationProps) {
 
     chats.forEach((chat) => {
       // Count chats by date
-      const date = new Date(chat.createdAt).toLocaleDateString();
+      const date = new Date(chat.timestamp).toLocaleDateString();
       chatDates[date] = (chatDates[date] || 0) + 1;
 
       // Count messages by role

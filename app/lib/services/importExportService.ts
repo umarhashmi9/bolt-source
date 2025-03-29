@@ -1,5 +1,12 @@
 import Cookies from 'js-cookie';
+import { type Message } from 'ai';
 import { getAllChats, deleteChat } from '~/lib/persistence/chats';
+
+interface ExtendedMessage extends Message {
+  name?: string;
+  function_call?: any;
+  timestamp?: number;
+}
 
 /**
  * Service for handling import and export operations of application data
@@ -15,13 +22,37 @@ export class ImportExportService {
       throw new Error('Database not initialized');
     }
 
-    // Get all chats from IndexedDB
-    const allChats = await getAllChats(db);
+    try {
+      // Get all chats from the database using the getAllChats helper
+      const chats = await getAllChats(db);
 
-    return {
-      chats: allChats,
-      exportDate: new Date().toISOString(),
-    };
+      // Validate and sanitize each chat before export
+      const sanitizedChats = chats.map((chat) => ({
+        id: chat.id,
+        description: chat.description || '',
+        messages: chat.messages.map((msg: ExtendedMessage) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          name: msg.name,
+          function_call: msg.function_call,
+          timestamp: msg.timestamp,
+        })),
+        timestamp: chat.timestamp,
+        urlId: chat.urlId || null,
+        metadata: chat.metadata || null,
+      }));
+
+      console.log(`Successfully prepared ${sanitizedChats.length} chats for export`);
+
+      return {
+        chats: sanitizedChats,
+        exportDate: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error exporting chats:', error);
+      throw new Error(`Failed to export chats: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**

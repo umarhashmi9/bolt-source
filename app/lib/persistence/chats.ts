@@ -2,6 +2,9 @@
  * Functions for managing chat data in IndexedDB
  */
 
+import type { Message } from 'ai';
+import type { IChatMetadata } from './db'; // Import IChatMetadata
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -11,12 +14,11 @@ export interface ChatMessage {
 
 export interface Chat {
   id: string;
-  title: string;
-  messages: ChatMessage[];
-  createdAt: number;
-  updatedAt: number;
-  modelId?: string;
-  systemPrompt?: string;
+  description?: string;
+  messages: Message[];
+  timestamp: string;
+  urlId?: string;
+  metadata?: IChatMetadata;
 }
 
 /**
@@ -25,18 +27,28 @@ export interface Chat {
  * @returns A promise that resolves to an array of chats
  */
 export async function getAllChats(db: IDBDatabase): Promise<Chat[]> {
+  console.log(`getAllChats: Using database '${db.name}', version ${db.version}`);
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['chats'], 'readonly');
-    const store = transaction.objectStore('chats');
-    const request = store.getAll();
+    try {
+      const transaction = db.transaction(['chats'], 'readonly');
+      const store = transaction.objectStore('chats');
+      const request = store.getAll();
 
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
+      request.onsuccess = () => {
+        const result = request.result || [];
+        console.log(`getAllChats: Found ${result.length} chats in database '${db.name}'`);
+        resolve(result);
+      };
 
-    request.onerror = () => {
-      reject(request.error);
-    };
+      request.onerror = () => {
+        console.error(`getAllChats: Error querying database '${db.name}':`, request.error);
+        reject(request.error);
+      };
+    } catch (err) {
+      console.error(`getAllChats: Error creating transaction on database '${db.name}':`, err);
+      reject(err);
+    }
   });
 }
 
