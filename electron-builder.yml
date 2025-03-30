@@ -21,12 +21,12 @@ mac:
   icon: assets/icons/icon.icns
   target:
     - dmg
-  identity: "Xinzhe Wang (RDQSC33B2X)"
-  category: "public.app-category.developer-tools"
-  type: "distribution"
+  identity: 'Xinzhe Wang (RDQSC33B2X)'
+  category: 'public.app-category.developer-tools'
+  type: 'distribution'
   hardenedRuntime: true
-  entitlements: "assets/entitlements.mac.plist"
-  entitlementsInherit: "assets/entitlements.mac.plist"
+  entitlements: 'assets/entitlements.mac.plist'
+  entitlementsInherit: 'assets/entitlements.mac.plist'
   gatekeeperAssess: false
 
 win:

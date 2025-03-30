@@ -26,16 +26,16 @@ const i18n = {
   getSystemLocale: () => {
     return ipcRenderer.invoke('getSystemLocale');
   },
-  
+
   // Store language settings
   setLanguage: (language: string) => {
     return ipcRenderer.invoke('setLanguage', language);
   },
-  
+
   // Get stored language settings
   getLanguage: () => {
     return ipcRenderer.invoke('getLanguage');
-  }
+  },
 };
 
 // Expose interfaces to renderer process
