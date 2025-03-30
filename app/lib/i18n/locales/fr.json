@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "notifications": "Notifications",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "ok": "OK",
+    "yes": "Oui",
+    "no": "Non",
+    "error": "Échec de mise à jour des paramètres"
+  },
+  "header": {
+    "changeLanguage": "Changer de langue",
+    "toggleTheme": "Changer de thème"
+  },
+  "settings": {
+    "preferences": "Préférences",
+    "languageSettings": "Paramètres de langue",
+    "notifications": "Notifications",
+    "notificationsEnabled": "Les notifications sont activées",
+    "notificationsDisabled": "Les notifications sont désactivées",
+    "timeSettings": "Paramètres d'heure",
+    "timezone": "Fuseau horaire",
+    "keyboardShortcuts": "Raccourcis clavier",
+    "toggleTheme": "Changer de thème",
+    "toggleThemeDescription": "Basculer entre le mode clair et sombre"
+  }
+}

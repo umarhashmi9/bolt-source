@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "notifications": "Notifications",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "save": "Save",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "error": "Failed to update settings"
+  },
+  "header": {
+    "changeLanguage": "Change Language",
+    "toggleTheme": "Toggle Theme"
+  },
+  "settings": {
+    "preferences": "Preferences",
+    "languageSettings": "Language Settings",
+    "notifications": "Notifications",
+    "notificationsEnabled": "Notifications are enabled",
+    "notificationsDisabled": "Notifications are disabled",
+    "timeSettings": "Time Settings",
+    "timezone": "Timezone",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "toggleTheme": "Toggle Theme",
+    "toggleThemeDescription": "Switch between light and dark mode"
+  }
+}

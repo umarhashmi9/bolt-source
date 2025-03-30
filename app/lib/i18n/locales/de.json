@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "Einstellungen",
+    "language": "Sprache",
+    "theme": "Design",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "notifications": "Benachrichtigungen",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "ok": "OK",
+    "yes": "Ja",
+    "no": "Nein",
+    "error": "Einstellungen konnten nicht aktualisiert werden"
+  },
+  "header": {
+    "changeLanguage": "Sprache ändern",
+    "toggleTheme": "Design umschalten"
+  },
+  "settings": {
+    "preferences": "Präferenzen",
+    "languageSettings": "Spracheinstellungen",
+    "notifications": "Benachrichtigungen",
+    "notificationsEnabled": "Benachrichtigungen sind aktiviert",
+    "notificationsDisabled": "Benachrichtigungen sind deaktiviert",
+    "timeSettings": "Zeiteinstellungen",
+    "timezone": "Zeitzone",
+    "keyboardShortcuts": "Tastaturkürzel",
+    "toggleTheme": "Design umschalten",
+    "toggleThemeDescription": "Zwischen hellem und dunklem Modus wechseln"
+  }
+}

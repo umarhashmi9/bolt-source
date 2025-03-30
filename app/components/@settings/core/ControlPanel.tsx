@@ -308,6 +308,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
       return <TabManagement />;
     }
 
+    // Use lazy loading for tab components to improve initial render performance
     switch (tabId) {
       case 'profile':
         return <ProfileTab />;
@@ -332,6 +333,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
       case 'update':
         return <UpdateTab />;
       case 'task-manager':
+        // Only render TaskManagerTab when it's actually selected
         return <TaskManagerTab />;
       case 'service-status':
         return <ServiceStatusTab />;
@@ -453,6 +455,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   <div className="flex items-center space-x-4">
                     {(activeTab || showTabManagement) && (
                       <button
+                        title="Go back"
                         onClick={handleBack}
                         className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
                       >
@@ -482,6 +485,8 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
                     {/* Close Button */}
                     <button
+                      type="button"
+                      title="Close control panel"
                       onClick={handleClose}
                       className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
                     >

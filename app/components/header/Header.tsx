@@ -5,6 +5,15 @@ import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
+import { lazy, Suspense } from 'react';
+
+// Use lazy loading for language selector component
+const LanguageSelectorLazy = lazy(() =>
+  import('./LanguageSelector.client').then((module) => ({
+    default: module.LanguageSelector,
+  })),
+);
+
 export function Header() {
   const chat = useStore(chatStore);
 
@@ -23,20 +32,31 @@ export function Header() {
           <img src="/logo-dark-styled.png" alt="logo" className="w-[90px] inline-block hidden dark:block" />
         </a>
       </div>
-      {chat.started && ( // Display ChatDescription and HeaderActionButtons only when the chat has started.
+      {chat.started ? (
         <>
           <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
             <ClientOnly>{() => <ChatDescription />}</ClientOnly>
           </span>
           <ClientOnly>
             {() => (
-              <div className="mr-1">
+              <div className="mr-1 flex items-center gap-2">
                 <HeaderActionButtons />
               </div>
             )}
           </ClientOnly>
         </>
+      ) : (
+        <div className="flex-1"></div>
       )}
+      <ClientOnly>
+        {() => (
+          <div className="ml-2">
+            <Suspense fallback={<div className="px-2 py-1">...</div>}>
+              <LanguageSelectorLazy />
+            </Suspense>
+          </div>
+        )}
+      </ClientOnly>
     </header>
   );
 }

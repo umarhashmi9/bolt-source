@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "설정",
+    "language": "언어",
+    "theme": "테마",
+    "light": "라이트",
+    "dark": "다크",
+    "system": "시스템",
+    "notifications": "알림",
+    "enabled": "활성화됨",
+    "disabled": "비활성화됨",
+    "save": "저장",
+    "cancel": "취소",
+    "ok": "확인",
+    "yes": "예",
+    "no": "아니오",
+    "error": "설정을 업데이트하지 못했습니다"
+  },
+  "header": {
+    "changeLanguage": "언어 변경",
+    "toggleTheme": "테마 전환"
+  },
+  "settings": {
+    "preferences": "환경설정",
+    "languageSettings": "언어 설정",
+    "notifications": "알림",
+    "notificationsEnabled": "알림이 활성화되었습니다",
+    "notificationsDisabled": "알림이 비활성화되었습니다",
+    "timeSettings": "시간 설정",
+    "timezone": "시간대",
+    "keyboardShortcuts": "키보드 단축키",
+    "toggleTheme": "테마 전환",
+    "toggleThemeDescription": "라이트 모드와 다크 모드 간 전환"
+  }
+}

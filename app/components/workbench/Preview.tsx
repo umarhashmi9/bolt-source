@@ -593,7 +593,98 @@ export const Preview = memo(() => {
      * Intentionally disabled - we want to maintain scale of 1
      * No dynamic scaling to ensure device frame matches external window exactly
      */
-    return () => {};
+    return () => {
+      // Cleanup function for resize event listeners
+      document.removeEventListener('pointermove', (e: PointerEvent) => {
+        const state = resizingState.current;
+
+        if (!state.isResizing || e.pointerId !== state.pointerId) {
+          return;
+        }
+
+        const dx = e.clientX - state.startX;
+        const dxPercent = (dx / state.windowWidth) * 100 * SCALING_FACTOR;
+
+        let newWidthPercent = state.startWidthPercent;
+
+        if (state.side === 'right') {
+          newWidthPercent = state.startWidthPercent + dxPercent;
+        } else if (state.side === 'left') {
+          newWidthPercent = state.startWidthPercent - dxPercent;
+        }
+
+        newWidthPercent = Math.max(10, Math.min(newWidthPercent, 90));
+        setWidthPercent(newWidthPercent);
+
+        if (containerRef.current) {
+          const containerWidth = containerRef.current.clientWidth;
+          const newWidth = Math.round((containerWidth * newWidthPercent) / 100);
+          setCurrentWidth(newWidth);
+
+          const previewContainer = containerRef.current.querySelector('div[style*="width"]');
+
+          if (previewContainer) {
+            (previewContainer as HTMLElement).style.width = `${newWidthPercent}%`;
+          }
+        }
+      });
+      document.removeEventListener('pointerup', (e: PointerEvent) => {
+        const state = resizingState.current;
+
+        if (!state.isResizing || e.pointerId !== state.pointerId) {
+          return;
+        }
+
+        // 找到所有调整大小的手柄
+        const handles = document.querySelectorAll('.resize-handle-left, .resize-handle-right');
+
+        // 释放任何具有指针捕获的手柄
+        handles.forEach((handle) => {
+          if ((handle as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+            (handle as HTMLElement).releasePointerCapture(e.pointerId);
+          }
+        });
+
+        // 重置状态
+        resizingState.current = {
+          ...resizingState.current,
+          isResizing: false,
+          side: null,
+          pointerId: null,
+        };
+
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      });
+      document.removeEventListener('pointercancel', (e: PointerEvent) => {
+        const state = resizingState.current;
+
+        if (!state.isResizing || e.pointerId !== state.pointerId) {
+          return;
+        }
+
+        // 找到所有调整大小的手柄
+        const handles = document.querySelectorAll('.resize-handle-left, .resize-handle-right');
+
+        // 释放任何具有指针捕获的手柄
+        handles.forEach((handle) => {
+          if ((handle as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+            (handle as HTMLElement).releasePointerCapture(e.pointerId);
+          }
+        });
+
+        // 重置状态
+        resizingState.current = {
+          ...resizingState.current,
+          isResizing: false,
+          side: null,
+          pointerId: null,
+        };
+
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      });
+    };
   }, [isDeviceModeOn, showDeviceFrameInPreview, getDeviceScale, isLandscape, selectedWindowSize]);
 
   // Function to get the frame color based on dark mode
@@ -736,6 +827,8 @@ export const Preview = memo(() => {
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-[#6B7280] dark:text-gray-400">Show Device Frame</span>
                         <button
+                          type="button"
+                          title="Toggle Device Frame"
                           className={`w-10 h-5 rounded-full transition-colors duration-200 ${
                             showDeviceFrame ? 'bg-[#6D28D9]' : 'bg-gray-300 dark:bg-gray-700'
                           } relative`}
@@ -754,6 +847,7 @@ export const Preview = memo(() => {
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-[#6B7280] dark:text-gray-400">Landscape Mode</span>
                         <button
+                          title="Toggle Landscape Mode"
                           className={`w-10 h-5 rounded-full transition-colors duration-200 ${
                             isLandscape ? 'bg-[#6D28D9]' : 'bg-gray-300 dark:bg-gray-700'
                           } relative`}
