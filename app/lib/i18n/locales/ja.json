@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "設定",
+    "language": "言語",
+    "theme": "テーマ",
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム",
+    "notifications": "通知",
+    "enabled": "有効",
+    "disabled": "無効",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "ok": "OK",
+    "yes": "はい",
+    "no": "いいえ",
+    "error": "設定の更新に失敗しました"
+  },
+  "header": {
+    "changeLanguage": "言語を変更",
+    "toggleTheme": "テーマを切り替え"
+  },
+  "settings": {
+    "preferences": "環境設定",
+    "languageSettings": "言語設定",
+    "notifications": "通知",
+    "notificationsEnabled": "通知は有効です",
+    "notificationsDisabled": "通知は無効です",
+    "timeSettings": "時間設定",
+    "timezone": "タイムゾーン",
+    "keyboardShortcuts": "キーボードショートカット",
+    "toggleTheme": "テーマを切り替え",
+    "toggleThemeDescription": "ライトモードとダークモードを切り替える"
+  }
+}

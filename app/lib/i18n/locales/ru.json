@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "Настройки",
+    "language": "Язык",
+    "theme": "Тема",
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "system": "Системная",
+    "notifications": "Уведомления",
+    "enabled": "Включено",
+    "disabled": "Отключено",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "ok": "OK",
+    "yes": "Да",
+    "no": "Нет",
+    "error": "Не удалось обновить настройки"
+  },
+  "header": {
+    "changeLanguage": "Изменить язык",
+    "toggleTheme": "Переключить тему"
+  },
+  "settings": {
+    "preferences": "Предпочтения",
+    "languageSettings": "Настройки языка",
+    "notifications": "Уведомления",
+    "notificationsEnabled": "Уведомления включены",
+    "notificationsDisabled": "Уведомления отключены",
+    "timeSettings": "Настройки времени",
+    "timezone": "Часовой пояс",
+    "keyboardShortcuts": "Сочетания клавиш",
+    "toggleTheme": "Переключить тему",
+    "toggleThemeDescription": "Переключение между светлой и тёмной темой"
+  }
+}

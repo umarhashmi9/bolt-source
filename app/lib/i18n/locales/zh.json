@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "设置",
+    "language": "语言",
+    "theme": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "系统",
+    "notifications": "通知",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "save": "保存",
+    "cancel": "取消",
+    "ok": "确定",
+    "yes": "是",
+    "no": "否",
+    "error": "设置更新失败"
+  },
+  "header": {
+    "changeLanguage": "切换语言",
+    "toggleTheme": "切换主题"
+  },
+  "settings": {
+    "preferences": "偏好设置",
+    "languageSettings": "语言设置",
+    "notifications": "通知",
+    "notificationsEnabled": "通知已启用",
+    "notificationsDisabled": "通知已禁用",
+    "timeSettings": "时间设置",
+    "timezone": "时区",
+    "keyboardShortcuts": "键盘快捷键",
+    "toggleTheme": "切换主题",
+    "toggleThemeDescription": "在浅色和深色模式之间切换"
+  }
+}

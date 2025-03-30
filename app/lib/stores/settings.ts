@@ -12,6 +12,21 @@ import Cookies from 'js-cookie';
 import { toggleTheme } from './theme';
 import { create } from 'zustand';
 
+// 自定义防抖函数，避免使用 lodash 依赖
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return (...args: Parameters<T>) => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+}
+
 export interface Shortcut {
   key: string;
   ctrlKey?: boolean;
@@ -242,7 +257,11 @@ export const tabConfigurationStore = map<TabWindowConfig>(getInitialTabConfigura
 // Helper function to update tab configuration
 export const updateTabConfiguration = (config: TabVisibilityConfig) => {
   const currentConfig = tabConfigurationStore.get();
-  console.log('Current tab configuration before update:', currentConfig);
+
+  /*
+   * Remove excessive logging
+   * console.log('Current tab configuration before update:', currentConfig);
+   */
 
   const isUserTab = config.window === 'user';
   const targetArray = isUserTab ? 'userTabs' : 'developerTabs';
@@ -261,14 +280,41 @@ export const updateTabConfiguration = (config: TabVisibilityConfig) => {
     [targetArray]: updatedTabs,
   };
 
-  console.log('New tab configuration after update:', newConfig);
+  /*
+   * Remove excessive logging
+   * console.log('New tab configuration after update:', newConfig);
+   */
 
+  // Update store first for immediate UI response
   tabConfigurationStore.set(newConfig);
-  Cookies.set('tabConfiguration', JSON.stringify(newConfig), {
-    expires: 365, // Set cookie to expire in 1 year
-    path: '/',
-    sameSite: 'strict',
-  });
+
+  /*
+   * Use debounced localStorage update to prevent frequent writes
+   * This is defined outside this function to persist between calls
+   */
+  if (typeof window !== 'undefined') {
+    if (!(window as any).__debouncedTabConfigSave) {
+      (window as any).__debouncedTabConfigSave = debounce(() => {
+        const latestConfig = tabConfigurationStore.get();
+
+        // Use requestAnimationFrame to defer non-critical localStorage and Cookie operations
+        window.requestAnimationFrame(() => {
+          try {
+            localStorage.setItem('bolt_tab_configuration', JSON.stringify(latestConfig));
+            Cookies.set('tabConfiguration', JSON.stringify(latestConfig), {
+              expires: 365, // Set cookie to expire in 1 year
+              path: '/',
+              sameSite: 'strict',
+            });
+          } catch (error) {
+            console.error('Error saving tab configuration:', error);
+          }
+        });
+      }, 500); // 500ms debounce
+    }
+
+    (window as any).__debouncedTabConfigSave();
+  }
 };
 
 // Helper function to reset tab configuration
@@ -279,7 +325,13 @@ export const resetTabConfiguration = () => {
   };
 
   tabConfigurationStore.set(defaultConfig);
-  localStorage.setItem('bolt_tab_configuration', JSON.stringify(defaultConfig));
+
+  // Use requestAnimationFrame to defer non-critical localStorage operation
+  if (typeof window !== 'undefined') {
+    window.requestAnimationFrame(() => {
+      localStorage.setItem('bolt_tab_configuration', JSON.stringify(defaultConfig));
+    });
+  }
 };
 
 // Developer mode store with persistence

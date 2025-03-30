@@ -4,14 +4,13 @@ import { useStore } from '@nanostores/react';
 import { Switch } from '~/components/ui/Switch';
 import { classNames } from '~/utils/classNames';
 import { tabConfigurationStore } from '~/lib/stores/settings';
-import { TAB_LABELS } from '~/components/@settings/core/constants';
-import type { TabType } from '~/components/@settings/core/types';
+import type { TabType, UserTabConfig } from '~/components/@settings/core/types';
 import { toast } from 'react-toastify';
 import { TbLayoutGrid } from 'react-icons/tb';
 import { useSettingsStore } from '~/lib/stores/settings';
 
 // Define tab icons mapping
-const TAB_ICONS: Record<TabType, string> = {
+const TAB_ICONS: Record<string, string> = {
   profile: 'i-ph:user-circle-fill',
   settings: 'i-ph:gear-six-fill',
   notifications: 'i-ph:bell-fill',
@@ -26,6 +25,23 @@ const TAB_ICONS: Record<TabType, string> = {
   update: 'i-ph:arrow-clockwise-fill',
   'task-manager': 'i-ph:chart-line-fill',
   'tab-management': 'i-ph:squares-four-fill',
+};
+
+const TAB_LABELS: Record<string, string> = {
+  profile: 'Profile',
+  settings: 'Settings',
+  notifications: 'Notifications',
+  features: 'Features',
+  data: 'Data',
+  'cloud-providers': 'Cloud Providers',
+  'local-providers': 'Local Providers',
+  'service-status': 'Service Status',
+  connection: 'Connection',
+  debug: 'Debug',
+  'event-logs': 'Event Logs',
+  update: 'Update',
+  'task-manager': 'Task Manager',
+  'tab-management': 'Tab Management',
 };
 
 // Define which tabs are default in user mode
@@ -60,14 +76,14 @@ export const TabManagement = () => {
 
   const handleTabVisibilityChange = (tabId: TabType, checked: boolean) => {
     // Get current tab configuration
-    const currentTab = tabConfiguration.userTabs.find((tab) => tab.id === tabId);
+    const currentTab = tabConfiguration.userTabs.find((tab: UserTabConfig) => tab.id === tabId);
 
     // If tab doesn't exist in configuration, create it
     if (!currentTab) {
-      const newTab = {
+      const newTab: UserTabConfig = {
         id: tabId,
         visible: checked,
-        window: 'user' as const,
+        window: 'user',
         order: tabConfiguration.userTabs.length,
       };
 
@@ -92,7 +108,7 @@ export const TabManagement = () => {
     }
 
     // Update tab visibility
-    const updatedTabs = tabConfiguration.userTabs.map((tab) => {
+    const updatedTabs = tabConfiguration.userTabs.map((tab: UserTabConfig) => {
       if (tab.id === tabId) {
         return { ...tab, visible: checked };
       }
@@ -111,22 +127,24 @@ export const TabManagement = () => {
   };
 
   // Create a map of existing tab configurations
-  const tabConfigMap = new Map(tabConfiguration.userTabs.map((tab) => [tab.id, tab]));
+  const tabConfigMap = new Map(tabConfiguration.userTabs.map((tab: UserTabConfig) => [tab.id, tab]));
 
   // Generate the complete list of tabs, including those not in the configuration
-  const allTabs = ALL_USER_TABS.map((tabId) => {
+  const allTabs = ALL_USER_TABS.map((tabId: TabType) => {
     return (
       tabConfigMap.get(tabId) || {
         id: tabId,
         visible: false,
-        window: 'user' as const,
+        window: 'user',
         order: -1,
       }
     );
   });
 
   // Filter tabs based on search query
-  const filteredTabs = allTabs.filter((tab) => TAB_LABELS[tab.id].toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredTabs = allTabs.filter((tab: { id: TabType }) =>
+    TAB_LABELS[tab.id].toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   useEffect(() => {
     // Reset to first tab when component unmounts

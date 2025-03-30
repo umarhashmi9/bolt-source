@@ -360,10 +360,31 @@ const TaskManagerTab: React.FC = () => {
       }
     };
 
-    // Initial setup
+    // Initial setup - delay metrics update to prevent initial lag
     const initializeTab = async () => {
       try {
-        await updateMetrics();
+        // Set initial state with default values
+        setMetrics((prev) => ({
+          ...prev,
+          memory: {
+            used: 0,
+            total: 100,
+            percentage: 0,
+          },
+          network: {
+            ...prev.network,
+            latency: {
+              ...prev.network.latency,
+              current: 0,
+              average: 0,
+            },
+          },
+        }));
+
+        // Delay the initial metrics update to prevent lag when opening settings
+        setTimeout(() => {
+          updateMetrics();
+        }, 1000); // 1 second delay
       } catch (error) {
         console.error('Failed to initialize TaskManagerTab:', error);
         resetToDefaults();
@@ -380,9 +401,9 @@ const TaskManagerTab: React.FC = () => {
     };
   }, []);
 
-  // Effect to update metrics periodically
+  // Effect to update metrics periodically - optimize interval timing
   useEffect(() => {
-    const updateInterval = 5000; // Update every 5 seconds instead of 2.5 seconds
+    const updateInterval = 5000; // Update every 5 seconds
     let metricsInterval: NodeJS.Timeout;
 
     // Only run updates when tab is visible
@@ -390,7 +411,7 @@ const TaskManagerTab: React.FC = () => {
       if (document.hidden) {
         clearInterval(metricsInterval);
       } else {
-        updateMetrics();
+        // Don't update immediately on visibility change
         metricsInterval = setInterval(updateMetrics, updateInterval);
       }
     };
@@ -1231,7 +1252,7 @@ const TaskManagerTab: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-6 rounded-lg bg-[#F8F8F8] dark:bg-[#141414]">
+          <div className="flex flex-col items-center justify-center py-6">
             <div className="i-ph:hard-drive-fill w-12 h-12 text-bolt-elements-textTertiary mb-2" />
             <p className="text-bolt-elements-textSecondary text-sm">Disk information is not available</p>
             <p className="text-bolt-elements-textTertiary text-xs mt-1">
@@ -1289,7 +1310,7 @@ const TaskManagerTab: React.FC = () => {
                     <div className="text-bolt-elements-textSecondary">
                       User:{' '}
                       {metrics.processes.reduce((total, proc) => total + (proc.cpu >= 10 ? proc.cpu : 0), 0).toFixed(1)}
-                      %
+                      % %
                     </div>
                     <div className="text-bolt-elements-textSecondary">
                       Idle: {(100 - (metricsHistory.cpu[metricsHistory.cpu.length - 1] || 0)).toFixed(1)}%

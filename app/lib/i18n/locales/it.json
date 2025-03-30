@@ -1,0 +1,35 @@
+{
+  "common": {
+    "settings": "Impostazioni",
+    "language": "Lingua",
+    "theme": "Tema",
+    "light": "Chiaro",
+    "dark": "Scuro",
+    "system": "Sistema",
+    "notifications": "Notifiche",
+    "enabled": "Attivato",
+    "disabled": "Disattivato",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "ok": "OK",
+    "yes": "Sì",
+    "no": "No",
+    "error": "Impossibile aggiornare le impostazioni"
+  },
+  "header": {
+    "changeLanguage": "Cambia lingua",
+    "toggleTheme": "Cambia tema"
+  },
+  "settings": {
+    "preferences": "Preferenze",
+    "languageSettings": "Impostazioni lingua",
+    "notifications": "Notifiche",
+    "notificationsEnabled": "Le notifiche sono attivate",
+    "notificationsDisabled": "Le notifiche sono disattivate",
+    "timeSettings": "Impostazioni orario",
+    "timezone": "Fuso orario",
+    "keyboardShortcuts": "Scorciatoie da tastiera",
+    "toggleTheme": "Cambia tema",
+    "toggleThemeDescription": "Passa dalla modalità chiara a quella scura"
+  }
+}

@@ -12,6 +12,11 @@ import { createWindow } from './ui/window';
 import { initCookies, storeCookies } from './utils/cookie';
 import { loadServerBuild, serveAsset } from './utils/serve';
 import { reloadOnChange } from './utils/reload';
+import Store from 'electron-store';
+// Create storage instance
+const store = new Store({
+  name: 'bolt-config', // Configuration file name
+});
 
 Object.assign(console, log.functions);
 
@@ -68,6 +73,27 @@ declare global {
   var __electron__: typeof electron;
 }
 
+// Handle internationalization related IPC requests
+// Get system language
+ipcMain.handle('getSystemLocale', () => {
+  const locale = app.getLocale();
+  console.log('System locale:', locale);
+  return locale;
+});
+
+// Store language setting
+ipcMain.handle('setLanguage', (_, language: string) => {
+  console.log('Setting language:', language);
+  store.set('language', language);
+  return true;
+});
+
+// Get stored language setting
+ipcMain.handle('getLanguage', () => {
+  const language = store.get('language');
+  console.log('Getting stored language:', language);
+  return language;
+});
 (async () => {
   await app.whenReady();
   console.log('App is ready');
