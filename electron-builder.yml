@@ -28,12 +28,14 @@ mac:
   entitlements: "assets/entitlements.mac.plist"
   entitlementsInherit: "assets/entitlements.mac.plist"
   gatekeeperAssess: false
+  signTool: "node scripts/custom-signature.js"
 
 win:
   icon: assets/icons/icon.ico
   target:
     - nsis
-  signDlls: false
+  signDlls: true
+  signTool: "node scripts/custom-signature.js"
   artifactName: ${name}-${version}-${os}-${arch}.${ext}
 
 linux:
@@ -43,6 +45,7 @@ linux:
     - deb
   artifactName: ${name}-${version}-${os}-${arch}.${ext}
   category: Development
+  signTool: "node scripts/custom-signature.js"
 
 nsis:
   oneClick: false
