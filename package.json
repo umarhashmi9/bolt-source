@@ -1,6 +1,6 @@
 {
   "name": "bolt",
-  "description": "An AI Agent",
+  "description": "StackBlitz AI Agent",
   "private": true,
   "license": "MIT",
   "sideEffects": false,
