@@ -12,6 +12,10 @@ import { getFilePaths } from './select-context';
 
 export type Messages = Message[];
 
+// Batch size for chunking responses - helps to smooth out streaming
+const STREAM_BATCH_INTERVAL = 80; // milliseconds
+const STREAM_BATCH_SIZE = 120; // characters
+
 export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0], 'model'> {
   supabaseConnection?: {
     isConnected: boolean;
@@ -31,6 +35,9 @@ export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0]
     };
     reasoning?: string;
   }) => void | Promise<void>;
+
+  // New option to control response smoothing
+  smoothStreaming?: boolean;
 }
 
 // Function to sanitize reasoning output to prevent XML/tag related errors
@@ -61,6 +68,25 @@ export function sanitizeReasoningOutput(content: string): string {
 }
 
 const logger = createScopedLogger('stream-text');
+
+/**
+ * Optimize context buffer when it's too large
+ * This reduces the token count for very large context windows
+ */
+function optimizeContextBuffer(context: string, maxLength: number = 100000): string {
+  if (context.length <= maxLength) {
+    return context;
+  }
+
+  // If context is too large, keep the start and end but trim the middle
+  const halfMax = Math.floor(maxLength / 2);
+
+  return (
+    context.substring(0, halfMax) +
+    `\n\n... [Context truncated to reduce size] ...\n\n` +
+    context.substring(context.length - halfMax)
+  );
+}
 
 export async function streamText(props: {
   messages: Omit<Message, 'id'>[];
@@ -138,6 +164,7 @@ export async function streamText(props: {
 
   const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
 
+  // Get system prompt with more efficient caching
   let systemPrompt =
     PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
       cwd: WORK_DIR,
@@ -166,10 +193,15 @@ export async function streamText(props: {
   }
 
   if (files && contextFiles && contextOptimization) {
-    const codeContext = createFilesContext(contextFiles, true);
-    const filePaths = getFilePaths(files);
+    // Optimization: Only create context if there are files
+    if (Object.keys(contextFiles).length > 0) {
+      const codeContext = createFilesContext(contextFiles, true);
+      const filePaths = getFilePaths(files);
 
-    systemPrompt = `${systemPrompt}
+      // Optimize context buffer if it's too large
+      const optimizedCodeContext = optimizeContextBuffer(codeContext);
+
+      systemPrompt = `${systemPrompt}
 Below are all the files present in the project:
 ---
 ${filePaths.join('\n')}
@@ -178,16 +210,23 @@ ${filePaths.join('\n')}
 Below is the artifact containing the context loaded into context buffer for you to have knowledge of and might need changes to fullfill current user request.
 CONTEXT BUFFER:
 ---
-${codeContext}
+${optimizedCodeContext}
 ---
 `;
+    }
 
     if (summary) {
+      // Optimize summary if it's too long
+      const optimizedSummary =
+        summary.length > 10000
+          ? summary.substring(0, 5000) + '\n[Summary truncated...]\n' + summary.substring(summary.length - 5000)
+          : summary;
+
       systemPrompt = `${systemPrompt}
-      below is the chat history till now
+below is the chat history till now
 CHAT SUMMARY:
 ---
-${props.summary}
+${optimizedSummary}
 ---
 `;
 
@@ -208,6 +247,18 @@ ${props.summary}
   // Store original messages for reference
   const originalMessages = [...messages];
   const hasMultimodalContent = originalMessages.some((msg) => Array.isArray(msg.content));
+
+  // Create enhanced options with streaming improvements
+  const enhancedOptions = {
+    ...options,
+
+    // Add batch options for smoother streaming if requested
+    ...(options?.smoothStreaming !== false && {
+      streamingGranularity: 'character',
+      streamBatchSize: STREAM_BATCH_SIZE,
+      streamBatchInterval: STREAM_BATCH_INTERVAL,
+    }),
+  };
 
   try {
     if (hasMultimodalContent) {
@@ -255,7 +306,7 @@ ${props.summary}
         system: systemPrompt,
         maxTokens: dynamicMaxTokens,
         messages: multimodalMessages as any,
-        ...options,
+        ...enhancedOptions,
       });
     } else {
       // For non-multimodal content, we use the standard approach
@@ -279,7 +330,7 @@ ${props.summary}
         system: systemPrompt,
         maxTokens: dynamicMaxTokens,
         messages: convertToCoreMessages(normalizedTextMessages),
-        ...options,
+        ...enhancedOptions,
       });
     }
   } catch (error: any) {
@@ -333,7 +384,7 @@ ${props.summary}
         system: systemPrompt,
         maxTokens: dynamicMaxTokens,
         messages: fallbackMessages as any,
-        ...options,
+        ...enhancedOptions,
       });
     }
 

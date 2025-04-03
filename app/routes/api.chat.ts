@@ -195,6 +195,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         const options: StreamingOptions = {
           supabaseConnection: supabase,
           toolChoice: 'none',
+          smoothStreaming: true,
           onFinish: async ({ text: content, finishReason, usage, reasoning }) => {
             logger.debug('usage', JSON.stringify(usage));
 
@@ -272,6 +273,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             result.mergeIntoDataStream(dataStream);
 
             (async () => {
+              // Small delay to allow buffer initialization
+              await new Promise((resolve) => setTimeout(resolve, 15));
+
               for await (const part of result.fullStream) {
                 if (part.type === 'error') {
                   const error: any = part.error;
@@ -309,6 +313,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         });
 
         (async () => {
+          // Small delay to allow buffer initialization
+          await new Promise((resolve) => setTimeout(resolve, 15));
+
           for await (const part of result.fullStream) {
             if (part.type === 'error') {
               const error: any = part.error;

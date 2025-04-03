@@ -12,6 +12,7 @@ export class LLMManager {
   private _providers: Map<string, BaseProvider> = new Map();
   private _modelList: ModelInfo[] = [];
   private readonly _env: any = {};
+  private _modelInstanceCache: Map<string, { instance: LanguageModelV1; lastAccessed: number }> = new Map();
 
   private constructor(_env: Record<string, string>) {
     this._registerProvidersFromDirectory();
@@ -29,7 +30,21 @@ export class LLMManager {
     return this._env;
   }
 
-  // Get model instance with middleware applied (for external use)
+  clearOldModelInstances(maxAgeMs: number = 5 * 60 * 1000): void {
+    const now = Date.now();
+    const cacheSize = this._modelInstanceCache.size;
+
+    // Delete instances older than maxAgeMs
+    for (const [key, { lastAccessed }] of this._modelInstanceCache.entries()) {
+      if (now - lastAccessed > maxAgeMs) {
+        this._modelInstanceCache.delete(key);
+      }
+    }
+
+    // Log cache cleanup info
+    logger.debug(`Model cache cleaned: ${cacheSize} → ${this._modelInstanceCache.size}`);
+  }
+
   getModelInstance(options: {
     model: string;
     provider: string;
@@ -43,13 +58,39 @@ export class LLMManager {
       throw new Error(`Provider "${options.provider}" not found`);
     }
 
-    // Use the new middleware-enabled model getter
-    return provider.getModelWithMiddleware({
+    // Create a cache key
+    const cacheKey = `${options.provider}:${options.model}`;
+
+    // Check cache first
+    const cached = this._modelInstanceCache.get(cacheKey);
+
+    if (cached) {
+      // Update access time and return cached instance
+      cached.lastAccessed = Date.now();
+      return cached.instance;
+    }
+
+    // Use the middleware-enabled model getter
+    const modelInstance = provider.getModelWithMiddleware({
       model: options.model,
       serverEnv: options.serverEnv,
       apiKeys: options.apiKeys,
       providerSettings: options.providerSettings,
     });
+
+    // Cache the instance
+    this._modelInstanceCache.set(cacheKey, {
+      instance: modelInstance,
+
+      lastAccessed: Date.now(),
+    });
+
+    // Run cleanup if cache gets too large
+    if (this._modelInstanceCache.size > 20) {
+      this.clearOldModelInstances();
+    }
+
+    return modelInstance;
   }
 
   // Enhance static models with features
