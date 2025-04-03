@@ -1,8 +1,10 @@
+import type { LanguageModelV1 } from 'ai';
 import type { IProviderSetting } from '~/types/model';
 import { BaseProvider } from './base-provider';
 import type { ModelInfo, ProviderInfo } from './types';
 import * as providers from './registry';
 import { createScopedLogger } from '~/utils/logger';
+import { modelSupportsReasoning } from './middleware';
 
 const logger = createScopedLogger('LLMManager');
 export class LLMManager {
@@ -27,6 +29,43 @@ export class LLMManager {
     return this._env;
   }
 
+  // Get model instance with middleware applied (for external use)
+  getModelInstance(options: {
+    model: string;
+    provider: string;
+    serverEnv?: Env;
+    apiKeys?: Record<string, string>;
+    providerSettings?: Record<string, IProviderSetting>;
+  }): LanguageModelV1 {
+    const provider = this.getProvider(options.provider);
+
+    if (!provider) {
+      throw new Error(`Provider "${options.provider}" not found`);
+    }
+
+    // Use the new middleware-enabled model getter
+    return provider.getModelWithMiddleware({
+      model: options.model,
+      serverEnv: options.serverEnv,
+      apiKeys: options.apiKeys,
+      providerSettings: options.providerSettings,
+    });
+  }
+
+  // Enhance static models with features
+  enhanceStaticModels() {
+    // Update all static models to include reasoning feature if supported
+    for (const provider of this._providers.values()) {
+      provider.staticModels = provider.staticModels.map((model) => ({
+        ...model,
+        features: {
+          ...model.features,
+          reasoning: model.features?.reasoning || modelSupportsReasoning(model.name),
+        },
+      }));
+    }
+  }
+
   private async _registerProvidersFromDirectory() {
     try {
       /*
@@ -46,6 +85,9 @@ export class LLMManager {
           }
         }
       }
+
+      // Enhance static models with features
+      this.enhanceStaticModels();
     } catch (error) {
       logger.error('Error registering providers:', error);
     }
