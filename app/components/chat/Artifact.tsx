@@ -11,7 +11,7 @@ import { WORK_DIR } from '~/utils/constants';
 import { createScopedLogger } from '~/utils/logger';
 
 const highlighterOptions = {
-  langs: ['shell'],
+  langs: ['shell', 'javascript', 'typescript', 'json', 'html', 'css', 'python', 'go', 'rust'],
   themes: ['light-plus', 'dark-plus'],
 };
 
@@ -299,8 +299,45 @@ function safeShellHighlight(content: string, theme: string): string {
       }
     }
 
+    // Detect language based on content
+    let lang = 'shell';
+
+    // Simple language detection based on file extensions or content patterns
+    if (content.includes('npm ') || content.includes('package.json') || content.includes('node')) {
+      // Keep as shell
+    } else if (
+      content.includes('function') ||
+      content.includes('const ') ||
+      content.includes('let ') ||
+      content.includes('var ')
+    ) {
+      if (content.includes('.tsx') || content.includes('React') || content.includes('<div>')) {
+        lang = 'typescript';
+      } else if (content.includes('.ts')) {
+        lang = 'typescript';
+      } else {
+        lang = 'javascript';
+      }
+    } else if (
+      content.includes('{') &&
+      content.includes('}') &&
+      content.includes(':') &&
+      !content.includes('function')
+    ) {
+      lang = 'json';
+    } else if (content.includes('<html>') || content.includes('<!DOCTYPE')) {
+      lang = 'html';
+    } else if (content.includes('.css') || content.includes('@media') || content.includes(':root')) {
+      lang = 'css';
+    } else if (content.includes('def ') || (content.includes('import ') && content.includes('print('))) {
+      lang = 'python';
+    }
+
     // Apply shell highlighting with error handling
-    return shellHighlighter.codeToHtml(content, { lang: 'shell', theme });
+    const html = shellHighlighter.codeToHtml(content, { lang, theme });
+
+    // Add a 'shell' class to the shiki container for better styling
+    return html.replace('<pre class="shiki', '<pre class="shiki shell');
   } catch (error) {
     artifactLogger.error('Shell highlighting error:', error);
     return `<pre><code>${escapeHtml(content)}</code></pre>`;

@@ -184,7 +184,11 @@ export const ModelSelector = ({
         className="flex-1 p-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-prompt-background text-bolt-elements-textPrimary focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus transition-all"
       >
         {providerList.map((provider: ProviderInfo) => (
-          <option key={provider.name} value={provider.name}>
+          <option
+            key={provider.name}
+            value={provider.name}
+            className="text-bolt-elements-textPrimary bg-bolt-elements-background-depth-2"
+          >
             {provider.name}
           </option>
         ))}
@@ -282,37 +286,33 @@ export const ModelSelector = ({
               ) : filteredModels.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-bolt-elements-textTertiary">No models found</div>
               ) : (
-                filteredModels.map((modelOption, index) => (
+                filteredModels.map((model, index) => (
                   <div
+                    key={model.name}
                     ref={(el) => (optionsRef.current[index] = el)}
-                    key={`${modelOption.provider}-${modelOption.name}`}
-                    role="option"
-                    aria-selected={model === modelOption.name}
-                    className={classNames(
-                      'flex items-center justify-between px-4 py-2 cursor-pointer text-sm',
-                      'hover:bg-bolt-elements-prompt-background-hover',
-                      focusedIndex === index ? 'bg-bolt-elements-prompt-background-hover' : undefined,
-                      'transition-colors duration-100',
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModel?.(modelOption.name);
+                    onClick={() => {
+                      setModel?.(model.name);
                       setIsModelDropdownOpen(false);
                       setModelSearchQuery('');
                     }}
-                    tabIndex={focusedIndex === index ? 0 : -1}
+                    onMouseEnter={() => setFocusedIndex(index)}
+                    className={classNames(
+                      'cursor-pointer px-3 py-2 text-sm rounded-md mx-1',
+                      focusedIndex === index
+                        ? 'bg-bolt-elements-focus/20 text-bolt-elements-textPrimary'
+                        : 'hover:bg-bolt-elements-hover text-bolt-elements-textPrimary',
+                    )}
+                    role="option"
+                    aria-selected={focusedIndex === index}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="truncate">{modelOption.label}</span>
-                      {modelOption.features?.reasoning && (
+                      <div className="truncate">{model.label}</div>
+                      {model.features?.reasoning && (
                         <span className="px-1.5 py-0.5 text-xs rounded-full bg-purple-500/10 text-purple-500 font-medium whitespace-nowrap">
                           Reasoning
                         </span>
                       )}
                     </div>
-                    {modelOption.name === model && (
-                      <div className="i-ph:check w-4 h-4 text-bolt-elements-textSecondary" />
-                    )}
                   </div>
                 ))
               )}
