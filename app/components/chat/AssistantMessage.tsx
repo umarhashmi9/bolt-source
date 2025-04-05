@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useState, useMemo } from 'react';
 import Markdown from './Markdown';
 import type { JSONValue } from 'ai';
 import Popover from '~/components/ui/Popover';
@@ -39,6 +39,9 @@ export const AssistantMessage = memo(({ content, annotations }: AssistantMessage
   const filteredAnnotations = (annotations?.filter(
     (annotation: JSONValue) => annotation && typeof annotation === 'object' && Object.keys(annotation).includes('type'),
   ) || []) as { type: string; value: any } & { [key: string]: any }[];
+
+  // Use memoization to prevent unnecessary re-renders during streaming
+  const memoizedContent = useMemo(() => content, [content]);
 
   let chatSummary: string | undefined = undefined;
 
@@ -127,7 +130,7 @@ export const AssistantMessage = memo(({ content, annotations }: AssistantMessage
           <Markdown>{reasoning}</Markdown>
         </div>
       )}
-      <Markdown html>{content}</Markdown>
+      <Markdown html>{memoizedContent}</Markdown>
     </div>
   );
 });

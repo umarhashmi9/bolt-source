@@ -7,6 +7,7 @@ export interface ModelInfo {
     reasoning?: boolean;
     imageGeneration?: boolean;
     structuredOutput?: boolean;
+    codeDiff?: boolean;
   };
 }
 
