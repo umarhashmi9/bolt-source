@@ -9,6 +9,7 @@ import {
   isFetchingApiKeys,
   updateSupabaseConnection,
   fetchProjectApiKeys,
+  fetchSupabaseStats,
 } from '~/lib/stores/supabase';
 
 export function useSupabaseConnection() {
@@ -119,6 +120,20 @@ export function useSupabaseConnection() {
 
   const handleCreateProject = async () => {
     window.open('https://app.supabase.com/new/new-project', '_blank');
+
+    // Set a flag in localStorage to indicate we're creating a new project
+    localStorage.setItem('supabase_creating_project', 'true');
+
+    // Show a notification to the user
+    toast.info('After creating your project, return here and click "Refresh Projects" to see it in the list');
+
+    // Schedule a refresh for when the user comes back to this tab
+    setTimeout(() => {
+      if (connection.token && localStorage.getItem('supabase_creating_project') === 'true') {
+        localStorage.removeItem('supabase_creating_project');
+        fetchSupabaseStats(connection.token).catch(console.error);
+      }
+    }, 5000); // Check after 5 seconds
   };
 
   return {

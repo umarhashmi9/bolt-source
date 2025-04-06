@@ -75,6 +75,25 @@ export function SupabaseConnection() {
     }
   }, [isConnected, supabaseConn.selectedProjectId, supabaseConn.token, supabaseConn.credentials]);
 
+  useEffect(() => {
+    // Handle window focus events to refresh projects list when returning from Supabase dashboard
+    const handleFocus = () => {
+      if (isConnected && localStorage.getItem('supabase_creating_project') === 'true') {
+        localStorage.removeItem('supabase_creating_project');
+
+        if (supabaseConn.token) {
+          fetchSupabaseStats(supabaseConn.token).catch(console.error);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isConnected, supabaseConn.token]);
+
   return (
     <div className="relative">
       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden mr-2 text-sm">
@@ -218,10 +237,10 @@ export function SupabaseConnection() {
                         <button
                           onClick={() => fetchSupabaseStats(supabaseConn.token)}
                           className="px-2 py-1 rounded-md text-xs bg-[#F0F0F0] dark:bg-[#252525] text-bolt-elements-textSecondary hover:bg-[#E5E5E5] dark:hover:bg-[#333333] flex items-center gap-1"
-                          title="Refresh projects list"
+                          title="Refresh the projects list to see newly created projects"
                         >
                           <div className="i-ph:arrows-clockwise w-3 h-3" />
-                          Refresh
+                          Refresh Projects
                         </button>
                         <button
                           onClick={() => handleCreateProject()}
