@@ -8,7 +8,6 @@ import { SettingsButton } from '~/components/ui/SettingsButton';
 import { Button } from '~/components/ui/Button';
 import { db, deleteById, getAll, chatId, type ChatHistoryItem, useChatHistory } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
-import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
@@ -89,58 +88,119 @@ export const Menu = () => {
     }
   }, []);
 
+  const deleteChat = useCallback(
+    async (id: string): Promise<void> => {
+      if (!db) {
+        throw new Error('Database not available');
+      }
+
+      // Delete chat snapshot from localStorage
+      try {
+        const snapshotKey = `snapshot:${id}`;
+        localStorage.removeItem(snapshotKey);
+        console.log('Removed snapshot for chat:', id);
+      } catch (snapshotError) {
+        console.error(`Error deleting snapshot for chat ${id}:`, snapshotError);
+      }
+
+      // Delete the chat from the database
+      await deleteById(db, id);
+      console.log('Successfully deleted chat:', id);
+    },
+    [db],
+  );
+
   const deleteItem = useCallback(
     (event: React.UIEvent, item: ChatHistoryItem) => {
       event.preventDefault();
+      event.stopPropagation();
 
-      if (db) {
-        deleteById(db, item.id)
-          .then(() => {
-            loadEntries();
+      // Log the delete operation to help debugging
+      console.log('Attempting to delete chat:', { id: item.id, description: item.description });
 
-            if (chatId.get() === item.id) {
-              // hard page navigation to clear the stores
-              window.location.pathname = '/';
-            }
-          })
-          .catch((error) => {
-            toast.error('Failed to delete conversation');
-            logger.error(error);
+      deleteChat(item.id)
+        .then(() => {
+          toast.success('Chat deleted successfully', {
+            position: 'bottom-right',
+            autoClose: 3000,
           });
-      }
+
+          // Always refresh the list
+          loadEntries();
+
+          if (chatId.get() === item.id) {
+            // hard page navigation to clear the stores
+            console.log('Navigating away from deleted chat');
+            window.location.pathname = '/';
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to delete chat:', error);
+          toast.error('Failed to delete conversation', {
+            position: 'bottom-right',
+            autoClose: 3000,
+          });
+
+          // Still try to reload entries in case data has changed
+          loadEntries();
+        });
     },
-    [loadEntries],
+    [loadEntries, deleteChat],
   );
 
-  const deleteSelectedItems = useCallback(async () => {
-    if (!db || selectedItems.length === 0) {
-      return;
-    }
-
-    try {
-      // Delete all selected items
-      for (const id of selectedItems) {
-        await deleteById(db, id);
-      }
-
-      // Check if current chat is among deleted ones
-      const currentChatId = chatId.get();
-
-      if (currentChatId && selectedItems.includes(currentChatId)) {
-        window.location.pathname = '/';
+  const deleteSelectedItems = useCallback(
+    async (itemsToDeleteIds: string[]) => {
+      if (!db || itemsToDeleteIds.length === 0) {
+        console.log('Bulk delete skipped: No DB or no items to delete.');
         return;
       }
 
-      // Reload entries and reset selection
-      loadEntries();
+      console.log(`Starting bulk delete for ${itemsToDeleteIds.length} chats`, itemsToDeleteIds);
+
+      let deletedCount = 0;
+      const errors: string[] = [];
+      const currentChatId = chatId.get();
+      let shouldNavigate = false;
+
+      // Process deletions sequentially using the shared deleteChat logic
+      for (const id of itemsToDeleteIds) {
+        try {
+          await deleteChat(id);
+          deletedCount++;
+
+          if (id === currentChatId) {
+            shouldNavigate = true;
+          }
+        } catch (error) {
+          console.error(`Error deleting chat ${id}:`, error);
+          errors.push(id);
+        }
+      }
+
+      // Show appropriate toast message
+      if (errors.length === 0) {
+        toast.success(`${deletedCount} chat${deletedCount === 1 ? '' : 's'} deleted successfully`);
+      } else {
+        toast.warning(`Deleted ${deletedCount} of ${itemsToDeleteIds.length} chats. ${errors.length} failed.`, {
+          autoClose: 5000,
+        });
+      }
+
+      // Reload the list after all deletions
+      await loadEntries();
+
+      // Clear selection state
       setSelectedItems([]);
       setSelectionMode(false);
-      toast.success(`${selectedItems.length} ${selectedItems.length === 1 ? 'chat' : 'chats'} deleted`);
-    } catch (error) {
-      toast.error('Failed to delete conversations');
-      logger.error(error);
-    }
-  }, [selectedItems, loadEntries]);
+
+      // Navigate if needed
+      if (shouldNavigate) {
+        console.log('Navigating away from deleted chat');
+        window.location.pathname = '/';
+      }
+    },
+    [deleteChat, loadEntries, db],
+  );
 
   const closeDialog = () => {
     setDialogContent(null);
@@ -150,37 +210,56 @@ export const Menu = () => {
     setSelectionMode(!selectionMode);
 
     if (selectionMode) {
+      // If turning selection mode OFF, clear selection
       setSelectedItems([]);
     }
   };
 
-  const toggleItemSelection = (id: string) => {
+  const toggleItemSelection = useCallback((id: string) => {
     setSelectedItems((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((itemId) => itemId !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
+      const newSelectedItems = prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id];
+      console.log('Selected items updated:', newSelectedItems);
 
-  const handleBulkDeleteClick = () => {
+      return newSelectedItems; // Return the new array
+    });
+  }, []); // No dependencies needed
+
+  const handleBulkDeleteClick = useCallback(() => {
     if (selectedItems.length === 0) {
       toast.info('Select at least one chat to delete');
       return;
     }
 
     const selectedChats = list.filter((item) => selectedItems.includes(item.id));
-    setDialogContent({ type: 'bulkDelete', items: selectedChats });
-  };
 
-  const selectAll = () => {
-    if (selectedItems.length === filteredList.length) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(filteredList.map((item) => item.id));
+    if (selectedChats.length === 0) {
+      toast.error('Could not find selected chats');
+      return;
     }
-  };
+
+    setDialogContent({ type: 'bulkDelete', items: selectedChats });
+  }, [selectedItems, list]); // Keep list dependency
+
+  const selectAll = useCallback(() => {
+    const allFilteredIds = filteredList.map((item) => item.id);
+    setSelectedItems((prev) => {
+      const allFilteredAreSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => prev.includes(id));
+
+      if (allFilteredAreSelected) {
+        // Deselect only the filtered items
+        const newSelectedItems = prev.filter((id) => !allFilteredIds.includes(id));
+        console.log('Deselecting all filtered items. New selection:', newSelectedItems);
+
+        return newSelectedItems;
+      } else {
+        // Select all filtered items, adding them to any existing selections
+        const newSelectedItems = [...new Set([...prev, ...allFilteredIds])];
+        console.log('Selecting all filtered items. New selection:', newSelectedItems);
+
+        return newSelectedItems;
+      }
+    });
+  }, [filteredList]); // Depends only on filteredList
 
   useEffect(() => {
     if (open) {
@@ -191,8 +270,11 @@ export const Menu = () => {
   // Exit selection mode when sidebar is closed
   useEffect(() => {
     if (!open && selectionMode) {
-      setSelectionMode(false);
-      setSelectedItems([]);
+      /*
+       * Don't clear selection state anymore when sidebar closes
+       * This allows the selection to persist when reopening the sidebar
+       */
+      console.log('Sidebar closed, preserving selection state');
     }
   }, [open, selectionMode]);
 
@@ -221,11 +303,6 @@ export const Menu = () => {
     };
   }, [isSettingsOpen]);
 
-  const handleDeleteClick = (event: React.UIEvent, item: ChatHistoryItem) => {
-    event.preventDefault();
-    setDialogContent({ type: 'delete', item });
-  };
-
   const handleDuplicate = async (id: string) => {
     await duplicateCurrentChat(id);
     loadEntries(); // Reload the list after duplication
@@ -239,6 +316,11 @@ export const Menu = () => {
   const handleSettingsClose = () => {
     setIsSettingsOpen(false);
   };
+
+  const setDialogContentWithLogging = useCallback((content: DialogContent) => {
+    console.log('Setting dialog content:', content);
+    setDialogContent(content);
+  }, []);
 
   return (
     <>
@@ -317,21 +399,14 @@ export const Menu = () => {
             <div className="font-medium text-gray-600 dark:text-gray-400">Your Chats</div>
             {selectionMode && (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={selectAll} className="text-xs">
+                <Button variant="ghost" size="sm" onClick={selectAll}>
                   {selectedItems.length === filteredList.length ? 'Deselect all' : 'Select all'}
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
                   onClick={handleBulkDeleteClick}
                   disabled={selectedItems.length === 0}
-                  className={classNames(
-                    'text-xs',
-                    selectedItems.length > 0
-                      ? 'text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400'
-                      : 'text-gray-400 dark:text-gray-600',
-                    'hover:bg-red-50 dark:hover:bg-red-900/20',
-                  )}
                 >
                   Delete selected
                 </Button>
@@ -356,7 +431,12 @@ export const Menu = () => {
                         key={item.id}
                         item={item}
                         exportChat={exportChat}
-                        onDelete={(event) => handleDeleteClick(event, item)}
+                        onDelete={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          console.log('Delete triggered for item:', item);
+                          setDialogContentWithLogging({ type: 'delete', item });
+                        }}
                         onDuplicate={() => handleDuplicate(item.id)}
                         selectionMode={selectionMode}
                         isSelected={selectedItems.includes(item.id)}
@@ -388,6 +468,7 @@ export const Menu = () => {
                       <DialogButton
                         type="danger"
                         onClick={(event) => {
+                          console.log('Dialog delete button clicked for item:', dialogContent.item);
                           deleteItem(event, dialogContent.item);
                           closeDialog();
                         }}
@@ -425,7 +506,13 @@ export const Menu = () => {
                       <DialogButton
                         type="danger"
                         onClick={() => {
-                          deleteSelectedItems();
+                          /*
+                           * Pass the current selectedItems to the delete function.
+                           * This captures the state at the moment the user confirms.
+                           */
+                          const itemsToDeleteNow = [...selectedItems];
+                          console.log('Bulk delete confirmed for', itemsToDeleteNow.length, 'items', itemsToDeleteNow);
+                          deleteSelectedItems(itemsToDeleteNow);
                           closeDialog();
                         }}
                       >
