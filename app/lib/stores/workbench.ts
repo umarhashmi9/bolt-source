@@ -600,7 +600,13 @@ export class WorkbenchStore {
     return syncedFiles;
   }
 
-  async pushToGitHub(repoName: string, commitMessage?: string, githubUsername?: string, ghToken?: string) {
+  async pushToGitHub(
+    repoName: string,
+    commitMessage?: string,
+    githubUsername?: string,
+    ghToken?: string,
+    isPrivate: boolean = false,
+  ) {
     try {
       // Use cookies if username and token are not provided
       const githubToken = ghToken || Cookies.get('githubToken');
@@ -624,7 +630,7 @@ export class WorkbenchStore {
           // Repository doesn't exist, so create a new one
           const { data: newRepo } = await octokit.repos.createForAuthenticatedUser({
             name: repoName,
-            private: false,
+            private: isPrivate,
             auto_init: true,
           });
           repo = newRepo;

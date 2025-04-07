@@ -449,10 +449,10 @@ export const Workbench = memo(
           <PushToGitHubDialog
             isOpen={isPushDialogOpen}
             onClose={() => setIsPushDialogOpen(false)}
-            onPush={async (repoName, username, token) => {
+            onPush={async (repoName, username, token, isPrivate) => {
               try {
                 const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
-                await workbenchStore.pushToGitHub(repoName, commitMessage, username, token);
+                await workbenchStore.pushToGitHub(repoName, commitMessage, username, token, isPrivate);
 
                 const repoUrl = `https://github.com/${username}/${repoName}`;
 
