@@ -714,6 +714,37 @@ export const Preview = memo(() => {
             title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
           />
 
+          {/* Simple preview button */}
+          <IconButton
+            icon="i-ph:browser"
+            onClick={() => {
+              if (!activePreview?.baseUrl) {
+                console.warn('[Preview] No active preview available');
+                return;
+              }
+
+              const match = activePreview.baseUrl.match(
+                /^https?:\/\/([^.]+)\.local-credentialless\.webcontainer-api\.io/,
+              );
+
+              if (!match) {
+                console.warn('[Preview] Invalid WebContainer URL:', activePreview.baseUrl);
+                return;
+              }
+
+              const previewId = match[1];
+              const previewUrl = `/webcontainer/preview/${previewId}`;
+
+              // Open in a new window with simple parameters
+              window.open(
+                previewUrl,
+                `preview-${previewId}`,
+                'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes',
+              );
+            }}
+            title="Open Preview in New Window"
+          />
+
           <div className="flex items-center relative">
             <IconButton
               icon="i-ph:arrow-square-out"
