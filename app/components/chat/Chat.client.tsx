@@ -420,7 +420,21 @@ export const ChatImpl = memo(
       chatStore.setKey('aborted', false);
 
       if (modifiedFiles !== undefined) {
-        const userUpdateArtifact = filesToArtifacts(modifiedFiles, `${Date.now()}`);
+        const modifiedFilesWithContent = Object.fromEntries(
+          (modifiedFiles || [])
+            .map((filePath) => {
+              const file = files[filePath];
+
+              if (file?.type === 'file') {
+                return [filePath, { content: file.content }];
+              }
+
+              return null; // or skip folders
+            })
+            .filter(Boolean) as [string, { content: string }][], // <- Type assertion to satisfy TS
+        );
+
+        const userUpdateArtifact = filesToArtifacts(modifiedFilesWithContent, `${Date.now()}`);
         append({
           role: 'user',
           content: [
