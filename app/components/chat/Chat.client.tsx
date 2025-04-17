@@ -422,8 +422,16 @@ export const ChatImpl = memo(
 
       chatStore.setKey('aborted', false);
 
-      if (modifiedFiles !== undefined) {
-        const userUpdateArtifact = filesToArtifacts(modifiedFiles, `${Date.now()}`);
+      if (modifiedFiles) {
+        // Convert the modifiedFiles object to an array of [filePath, file] entries
+        const modifiedFilesWithContent = Object.entries(modifiedFiles).reduce<Record<string, { content: string }>>((acc, [filePath, file]) => {
+          if (file?.type === 'file') {
+            acc[filePath] = { content: file.content };
+          }
+          return acc;
+        }, {});
+
+        const userUpdateArtifact = filesToArtifacts(modifiedFilesWithContent, `${Date.now()}`);
         append({
           role: 'user',
           content: [
