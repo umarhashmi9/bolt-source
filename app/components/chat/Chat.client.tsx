@@ -503,6 +503,40 @@ export const ChatImpl = memo(
       Cookies.set('selectedProvider', newProvider.name, { expires: 30 });
     };
 
+    // 监听导入对话消息
+    useEffect(() => {
+      if (typeof window.ipc === 'undefined') {
+        return;
+      }
+
+      // 添加导入聊天数据的监听器
+      const unsubscribe = window.ipc.on('import-chat-data', (event, args) => {
+        const { description, messages } = args as { description: string; messages: any[] };
+
+        if (Array.isArray(messages) && messages.length > 0) {
+          // 导入对话
+          setMessages(messages);
+          setChatStarted(true);
+
+          if (description) {
+            // 尝试更新描述
+            if (typeof importChat === 'function') {
+              importChat(description, messages).catch((error) => {
+                console.error('导入对话失败:', error);
+              });
+            }
+          }
+        }
+      });
+
+      // eslint-disable-next-line consistent-return
+      return () => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      };
+    }, [importChat, setMessages]);
+
     return (
       <BaseChat
         ref={animationScope}

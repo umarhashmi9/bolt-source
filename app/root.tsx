@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClientOnly } from 'remix-utils/client-only';
+import { useMenuActions } from './hooks/useMenuActions';
+import { Toaster } from 'react-hot-toast';
 
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
 import globalStyles from './styles/index.scss?url';
@@ -67,6 +69,7 @@ export const Head = createHead(() => (
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const theme = useStore(themeStore);
+  useMenuActions();
 
   useEffect(() => {
     document.querySelector('html')?.setAttribute('data-theme', theme);
@@ -75,6 +78,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>
+      <Toaster position="top-right" />
       <ScrollRestoration />
       <Scripts />
     </>
