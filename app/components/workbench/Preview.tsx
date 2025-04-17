@@ -1,9 +1,10 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useStore } from '@nanostores/react';
 import { IconButton } from '~/components/ui/IconButton';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { PortDropdown } from './PortDropdown';
 import { ScreenshotSelector } from './ScreenshotSelector';
+import type { PreviewInfo } from '~/lib/stores/previews';
 
 type ResizeSide = 'left' | 'right' | null;
 
@@ -55,7 +56,31 @@ export const Preview = memo(() => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPreviewOnly, setIsPreviewOnly] = useState(false);
   const hasSelectedPreview = useRef(false);
-  const previews = useStore(workbenchStore.previews);
+
+  // Fix: Handle the previews store correctly
+
+  // First, get the raw data from the store
+
+  const rawPreviews = useStore(workbenchStore.previews);
+
+  // Change from a callback to a memoized value
+  const previews = useMemo(() => {
+    if (rawPreviews && typeof rawPreviews === 'object' && !Array.isArray(rawPreviews)) {
+      return Object.values(rawPreviews)
+        .map((v) => v as unknown)
+        .filter(
+          (v): v is PreviewInfo =>
+            typeof v === 'object' &&
+            v !== null &&
+            typeof (v as any).port === 'number' &&
+            typeof (v as any).ready === 'boolean' &&
+            typeof (v as any).baseUrl === 'string',
+        );
+    }
+
+    return [];
+  }, [rawPreviews]);
+
   const activePreview = previews[activePreviewIndex];
 
   const [url, setUrl] = useState('');
@@ -120,8 +145,15 @@ export const Preview = memo(() => {
   );
 
   const findMinPortIndex = useCallback(
-    (minIndex: number, preview: { port: number }, index: number, array: { port: number }[]) => {
-      return preview.port < array[minIndex].port ? index : minIndex;
+    (minIndex: number, preview: PreviewInfo, index: number, array: PreviewInfo[]) => {
+      // Make sure port is treated as a number
+
+      const currentPort = typeof preview.port === 'string' ? parseInt(preview.port, 10) : preview.port;
+
+      const minPort =
+        typeof array[minIndex].port === 'string' ? parseInt(array[minIndex].port, 10) : array[minIndex].port;
+
+      return currentPort < minPort ? index : minIndex;
     },
     [],
   );
@@ -471,11 +503,11 @@ export const Preview = memo(() => {
                   overflow: hidden;
                   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                 }
-                
+
                 .device-container {
                   position: relative;
                 }
-                
+
                 .device-name {
                   position: absolute;
                   top: -30px;
@@ -485,7 +517,7 @@ export const Preview = memo(() => {
                   font-size: 14px;
                   color: #333;
                 }
-                
+
                 .device-frame {
                   position: relative;
                   border-radius: ${frameRadius};
@@ -494,7 +526,7 @@ export const Preview = memo(() => {
                   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
                   overflow: hidden;
                 }
-                
+
                 /* Notch */
                 .device-frame:before {
                   content: '';
@@ -508,7 +540,7 @@ export const Preview = memo(() => {
                   border-radius: 4px;
                   z-index: 2;
                 }
-                
+
                 /* Home button */
                 .device-frame:after {
                   content: '';
@@ -522,7 +554,7 @@ export const Preview = memo(() => {
                   border-radius: 50%;
                   z-index: 2;
                 }
-                
+
                 iframe {
                   border: none;
                   width: ${width}px;
