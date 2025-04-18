@@ -120,8 +120,9 @@ export function useMenuActions() {
         case 'new-file':
           toast.success('新建对话');
 
-         // 创建新对话 - 导航到首页而不是打开新标签
-          navigate('/');
+          // 创建新对话
+          window.open('/', '_blank');
+          break;
 
         case 'open-file':
           toast.success('打开文件');
