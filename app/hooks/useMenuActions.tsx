@@ -4,6 +4,7 @@ import { useNavigate } from '@remix-run/react';
 import { useStore } from '@nanostores/react';
 import { chatStore } from '~/lib/stores/chat';
 import { db } from '~/lib/persistence/useChatHistory';
+import { useSettingsStore } from '~/lib/stores/settings';
 
 // 在window对象上定义ipc接口
 declare global {
@@ -283,9 +284,8 @@ export function useMenuActions() {
         case 'open-settings':
           toast.success('打开设置');
 
-          // 打开设置页面
-          navigate('/settings');
-          break;
+          // 使用Settings Store打开设置面板，而不是导航到不存在的路由
+          useSettingsStore.getState().openSettings();
 
         case 'clear-history':
           toast.success('正在清除历史记录...');
