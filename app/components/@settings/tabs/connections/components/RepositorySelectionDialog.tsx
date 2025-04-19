@@ -1,4 +1,4 @@
-import type { GitHubRepoInfo, GitHubContent, RepositoryStats, GitHubUserResponse } from '~/types/GitHub';
+import type { GitHubRepoInfo, GitLabProjectInfo, RepositoryStats, GitHubUserResponse } from '~/types/GitHub';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -8,14 +8,7 @@ import { motion } from 'framer-motion';
 import { formatSize } from '~/utils/formatSize';
 import { Input } from '~/components/ui/Input';
 import Cookies from 'js-cookie';
-
-interface GitHubTreeResponse {
-  tree: Array<{
-    path: string;
-    type: string;
-    size?: number;
-  }>;
-}
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface RepositorySelectionDialogProps {
   isOpen: boolean;
@@ -114,6 +107,178 @@ function StatsDialog({ isOpen, onClose, onConfirm, stats, isLargeRepo }: StatsDi
                 >
                   OK
                 </button>
+              </div>
+            </Dialog.Content>
+          </motion.div>
+        </div>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function GitlabAuthDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [token, setToken] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gitlabUrl, setGitlabUrl] = useState('https://gitlab.com');
+  const tokenType = 'personal-access-token';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!token.trim()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${gitlabUrl}/api/v4/user`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const userData = (await response.json()) as {
+          username: string;
+          avatar_url: string;
+          name?: string;
+        };
+
+        // Save connection data
+        const connectionData = {
+          token,
+          tokenType,
+          user: {
+            login: userData.username,
+            avatar_url: userData.avatar_url,
+            name: userData.name || userData.username,
+          },
+          connected_at: new Date().toISOString(),
+          gitlabUrl,
+        };
+
+        localStorage.setItem('gitlab_connection', JSON.stringify(connectionData));
+
+        // Set cookies for API requests
+        Cookies.set('gitlabToken', token);
+        Cookies.set('gitlabUsername', userData.username);
+        Cookies.set('git:gitlab.com', JSON.stringify({ username: userData.username, password: token }));
+        Cookies.set('gitlabUrl', gitlabUrl);
+
+        toast.success(`Successfully connected as ${userData.username}`);
+        onClose();
+      } else {
+        if (response.status === 401) {
+          toast.error('Invalid GitLab token. Please check and try again.');
+        } else {
+          toast.error(`GitLab API error: ${response.status} ${response.statusText}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error connecting to GitLab:', error);
+      toast.error('Failed to connect to GitLab. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999]" />
+        <div className="fixed inset-0 flex items-center justify-center z-[9999]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Dialog.Content className="bg-white dark:bg-[#1A1A1A] rounded-lg shadow-xl max-w-sm w-full mx-4 overflow-hidden">
+              <div className="p-4 space-y-3">
+                <h2 className="text-lg font-semibold text-[#111111] dark:text-white">Access Private Repositories</h2>
+
+                <p className="text-sm text-[#666666] dark:text-[#999999]">
+                  To access private repositories, you need to connect your GitLab account by providing a personal access
+                  token.
+                </p>
+
+                <div className="bg-[#F9F9F9] dark:bg-[#252525] p-4 rounded-lg space-y-3">
+                  <h3 className="text-base font-medium text-[#111111] dark:text-white">Connect with GitLab Token</h3>
+
+                  <form onSubmit={handleSubmit} className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-[#666666] dark:text-[#999999] mb-1">GitLab URL</label>
+                      <input
+                        type="text"
+                        value={gitlabUrl}
+                        onChange={(e) => setGitlabUrl(e.target.value)}
+                        placeholder="https://gitlab.com"
+                        className="w-full px-3 py-1.5 rounded-lg border border-[#E5E5E5] dark:border-[#333333] bg-white dark:bg-[#1A1A1A] text-[#111111] dark:text-white placeholder-[#999999] text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#666666] dark:text-[#999999] mb-1">
+                        GitLab Personal Access Token
+                      </label>
+                      <input
+                        type="password"
+                        value={token}
+                        onChange={(e) => setToken(e.target.value)}
+                        placeholder="glpat-xxxxxxxxxxxxxxxxxxxx"
+                        className="w-full px-3 py-1.5 rounded-lg border border-[#E5E5E5] dark:border-[#333333] bg-white dark:bg-[#1A1A1A] text-[#111111] dark:text-white placeholder-[#999999] text-sm"
+                      />
+                      <div className="mt-1 text-xs text-[#666666] dark:text-[#999999]">
+                        Get your token at{' '}
+                        <a
+                          href={`${gitlabUrl}/-/user_settings/personal_access_tokens`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-purple-500 hover:underline"
+                        >
+                          GitLab Personal Access Tokens
+                        </a>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full py-2 bg-[#FC6D26] hover:bg-[#E24329] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {isSubmitting ? 'Connecting...' : 'Connect to GitLab'}
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg space-y-1.5">
+                  <h3 className="text-sm text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1.5">
+                    <span className="i-ph:warning-circle w-4 h-4" />
+                    Accessing Private Repositories
+                  </h3>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Important things to know about accessing private repositories:
+                  </p>
+                  <ul className="list-disc pl-4 text-xs text-amber-700 dark:text-amber-400 space-y-0.5">
+                    <li>You must be granted access to the repository by its owner</li>
+                    <li>Your GitLab token must have the 'api' and 'read_repository' scopes</li>
+                    <li>For organization repositories, you may need additional permissions</li>
+                    <li>No token can give you access to repositories you don't have permission for</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="border-t border-[#E5E5E5] dark:border-[#333333] p-3 flex justify-end">
+                <Dialog.Close asChild>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-1.5 bg-[#F5F5F5] hover:bg-[#E5E5E5] dark:bg-[#252525] dark:hover:bg-[#333333] rounded-lg text-[#111111] dark:text-white transition-colors text-sm"
+                  >
+                    Close
+                  </button>
+                </Dialog.Close>
               </div>
             </Dialog.Content>
           </motion.div>
@@ -316,16 +481,85 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
   const [currentStats, setCurrentStats] = useState<RepositoryStats | null>(null);
   const [pendingGitUrl, setPendingGitUrl] = useState<string>('');
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showAuthGitlabDialog, setShowAuthGitlabDialog] = useState(false);
+  const [hasGitlabConnection, setHasGitlabConnection] = useState(false);
+
+  useEffect(() => {
+    const savedConnection = localStorage.getItem('gitlab_connection');
+
+    if (savedConnection) {
+      setHasGitlabConnection(true);
+    }
+  }, []);
 
   // Handle GitHub auth dialog close and refresh repositories
-  const handleAuthDialogClose = () => {
+  const handleAuthDialogClose = (category: 'github' | 'gitlab') => {
     setShowAuthDialog(false);
+    setShowAuthGitlabDialog(false);
 
     // If we're on the my-repos tab, refresh the repository list
     if (activeTab === 'my-repos') {
-      fetchUserRepos();
+      fetchUserRepos(category);
     }
   };
+
+  // Initialize GitLab connection and fetch projects
+  useEffect(() => {
+    const savedConnection = getLocalStorage('gitlab_connection');
+
+    // If no connection exists but environment variables are set, create a connection
+    if (!savedConnection && import.meta.env.VITE_GITLAB_ACCESS_TOKEN) {
+      const token = import.meta.env.VITE_GITLAB_ACCESS_TOKEN;
+
+      // Fetch GitLab user info to initialize the connection
+      fetch('https://gitlab.com/api/v4/user', {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Invalid token or unauthorized');
+          }
+
+          return response.json();
+        })
+        .then((data: unknown) => {
+          const userData = data as {
+            username: string;
+            avatar_url: string;
+            name: string;
+          };
+
+          // Save connection to local storage
+          const newConnection = {
+            token,
+            user: {
+              login: userData.username,
+              avatar_url: userData.avatar_url,
+              name: userData.name || userData.username,
+            },
+            connected_at: new Date().toISOString(),
+          };
+
+          localStorage.setItem('gitlab_connection', JSON.stringify(newConnection));
+
+          // Also save as cookies for API requests
+          Cookies.set('gitlabToken', token);
+          Cookies.set('gitlabUsername', userData.username);
+          Cookies.set('git:gitlab.com', JSON.stringify({ username: 'oauth2', password: token }));
+
+          // Refresh projects after connection is established
+          if (isOpen && activeTab === 'my-repos') {
+            fetchUserRepos('gitlab'); // You'll need to define this function similarly to fetchUserRepos
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to initialize GitLab connection from environment variables:', error);
+        });
+    }
+  }, [isOpen]);
 
   // Initialize GitHub connection and fetch repositories
   useEffect(() => {
@@ -374,7 +608,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
 
           // Refresh repositories after connection is established
           if (isOpen && activeTab === 'my-repos') {
-            fetchUserRepos();
+            fetchUserRepos('github');
           }
         })
         .catch((error) => {
@@ -386,46 +620,89 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
   // Fetch repositories when dialog opens or tab changes
   useEffect(() => {
     if (isOpen && activeTab === 'my-repos') {
-      fetchUserRepos();
+      fetchUserRepos('gitlab');
     }
   }, [isOpen, activeTab]);
 
-  const fetchUserRepos = async () => {
-    const connection = getLocalStorage('github_connection');
+  const fetchUserRepos = async (category: 'github' | 'gitlab') => {
+    const githubConnection = getLocalStorage('github_connection');
+    const gitlabConnection = getLocalStorage('gitlab_connection');
 
-    if (!connection?.token) {
-      toast.error('Please connect your GitHub account first');
+    if (!gitlabConnection?.token && !githubConnection?.token) {
+      toast.error('Please connect your Gitlab our Github account first');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&type=all', {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `Bearer ${connection.token}`,
-        },
-      });
+      let response;
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch repositories');
-      }
+      if (category === 'github') {
+        response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100&type=all', {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            Authorization: `Bearer ${githubConnection.token}`,
+          },
+        });
 
-      const data = await response.json();
+        if (!response.ok) {
+          throw new Error('Failed to fetch GitHub repositories');
+        }
 
-      // Add type assertion and validation
-      if (
-        Array.isArray(data) &&
-        data.every((item) => typeof item === 'object' && item !== null && 'full_name' in item)
-      ) {
-        setRepositories(data as GitHubRepoInfo[]);
-      } else {
-        throw new Error('Invalid repository data format');
+        const data = await response.json();
+
+        if (
+          Array.isArray(data) &&
+          data.every((item) => typeof item === 'object' && item !== null && 'full_name' in item)
+        ) {
+          setRepositories(data as GitHubRepoInfo[]);
+        } else {
+          throw new Error('Invalid GitHub repository data format');
+        }
+      } else if (category === 'gitlab') {
+        response = await fetch(
+          'https://gitlab.com/api/v4/projects?membership=true&&min_access_level=20&order_by=last_activity_at&per_page=100',
+          {
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${gitlabConnection.token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch GitLab projects');
+        }
+
+        const data = await response.json();
+
+        if (
+          Array.isArray(data) &&
+          data.every((item) => typeof item === 'object' && item !== null && 'path_with_namespace' in item)
+        ) {
+          const normalizedData: GitHubRepoInfo[] = data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            full_name: item.path_with_namespace,
+            html_url: item.web_url,
+            description: item.description,
+            stargazers_count: item.star_count,
+            forks_count: item.forks_count,
+            default_branch: item.default_branch || 'main', // fallback if missing
+            updated_at: item.last_activity_at,
+            language: item.language || 'Unknown',
+            languages_url: `https://gitlab.com/api/v4/projects/${item.id}/languages`,
+          }));
+
+          setRepositories(normalizedData);
+        } else {
+          throw new Error('Invalid GitLab project data format');
+        }
       }
     } catch (error) {
-      console.error('Error fetching repos:', error);
-      toast.error('Failed to fetch your repositories');
+      console.error('Failed to fecth repositories:', error);
+      toast.error(`Failed to fetch your ${category} repositories`);
     } finally {
       setIsLoading(false);
     }
@@ -479,37 +756,77 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
     }
   };
 
-  const fetchBranches = async (repo: GitHubRepoInfo) => {
+  const fetchBranches = async (repo: GitHubRepoInfo | GitLabProjectInfo) => {
     setIsLoading(true);
 
     try {
-      const connection = getLocalStorage('github_connection');
-      const headers: HeadersInit = connection?.token
-        ? {
-            Accept: 'application/vnd.github.v3+json',
-            Authorization: `Bearer ${connection.token}`,
-          }
-        : {};
-      const response = await fetch(`https://api.github.com/repos/${repo.full_name}/branches`, {
-        headers,
-      });
+      let isGitHub = true;
+      const githubConnection = getLocalStorage('github_connection');
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch branches');
+      if (typeof githubConnection?.token === 'undefined') {
+        isGitHub = false;
       }
 
-      const data = await response.json();
+      let headers: HeadersInit = {};
+      let response: Response;
 
-      // Add type assertion and validation
-      if (Array.isArray(data) && data.every((item) => typeof item === 'object' && item !== null && 'name' in item)) {
-        setBranches(
-          data.map((branch) => ({
-            name: branch.name,
-            default: branch.name === repo.default_branch,
-          })),
-        );
+      if (isGitHub) {
+        headers = githubConnection?.token
+          ? {
+              Accept: 'application/vnd.github.v3+json',
+              Authorization: `Bearer ${githubConnection.token}`,
+            }
+          : {};
+
+        response = await fetch(`https://api.github.com/repos/${repo.full_name}/branches`, {
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch GitHub branches');
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data) && data.every((item) => typeof item === 'object' && 'name' in item)) {
+          setBranches(
+            data.map((branch) => ({
+              name: branch.name,
+              default: branch.name === (repo as GitHubRepoInfo).default_branch,
+            })),
+          );
+        } else {
+          throw new Error('Invalid GitHub branch data format');
+        }
       } else {
-        throw new Error('Invalid branch data format');
+        const connection = getLocalStorage('gitlab_connection');
+        headers = connection?.token
+          ? {
+              Accept: 'application/json',
+              Authorization: `Bearer ${connection.token}`,
+            }
+          : {};
+
+        response = await fetch(`https://gitlab.com/api/v4/projects/${repo.id}/repository/branches`, {
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch GitLab branches');
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data) && data.every((item) => typeof item === 'object' && 'name' in item)) {
+          setBranches(
+            data.map((branch) => ({
+              name: branch.name,
+              default: branch.default,
+            })),
+          );
+        } else {
+          throw new Error('Invalid GitLab branch data format');
+        }
       }
     } catch (error) {
       console.error('Error fetching branches:', error);
@@ -533,9 +850,8 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
     return `${baseUrl}.git`;
   };
 
-  const verifyRepository = async (repoUrl: string): Promise<RepositoryStats | null> => {
+  const verifyRepository = async (repoUrl: string, repoId: string = ''): Promise<RepositoryStats | null> => {
     try {
-      // Extract branch from URL if present (format: url#branch)
       let branch: string | null = null;
       let cleanUrl = repoUrl;
 
@@ -545,131 +861,171 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         branch = parts[1];
       }
 
-      const [owner, repo] = cleanUrl
+      const isGitHub = cleanUrl.includes('github.com');
+      const isGitLab = cleanUrl.includes('gitlab.com');
+
+      const [ownerOrNamespace, repo] = cleanUrl
         .replace(/\.git$/, '')
         .split('/')
         .slice(-2);
 
-      // Try to get token from local storage first
-      const connection = getLocalStorage('github_connection');
-
-      // If no connection in local storage, check environment variables
       let headers: HeadersInit = {};
+      let defaultBranch = branch || 'main';
+      let treeData: any;
 
-      if (connection?.token) {
-        headers = {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `Bearer ${connection.token}`,
-        };
-      } else if (import.meta.env.VITE_GITHUB_ACCESS_TOKEN) {
-        // Use token from environment variables
-        headers = {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `Bearer ${import.meta.env.VITE_GITHUB_ACCESS_TOKEN}`,
-        };
+      if (isGitHub) {
+        const connection = getLocalStorage('github_connection');
+
+        if (connection?.token) {
+          headers = {
+            Accept: 'application/vnd.github.v3+json',
+            Authorization: `Bearer ${connection.token}`,
+          };
+        } else if (import.meta.env.VITE_GITHUB_ACCESS_TOKEN) {
+          headers = {
+            Accept: 'application/vnd.github.v3+json',
+            Authorization: `Bearer ${import.meta.env.VITE_GITHUB_ACCESS_TOKEN}`,
+          };
+        }
+
+        const repoInfoResponse = await fetch(`https://api.github.com/repos/${ownerOrNamespace}/${repo}`, { headers });
+
+        if (!repoInfoResponse.ok) {
+          throw new Error(`GitHub repository fetch failed (${repoInfoResponse.status})`);
+        }
+
+        const repoInfo = (await repoInfoResponse.json()) as { default_branch?: string };
+
+        if (!branch) {
+          defaultBranch = repoInfo.default_branch || 'main';
+        }
+
+        let treeResponse = await fetch(
+          `https://api.github.com/repos/${ownerOrNamespace}/${repo}/git/trees/${defaultBranch}?recursive=1`,
+          { headers },
+        );
+
+        if (!treeResponse.ok) {
+          treeResponse = await fetch(
+            `https://api.github.com/repos/${ownerOrNamespace}/${repo}/git/trees/master?recursive=1`,
+            { headers },
+          );
+
+          if (!treeResponse.ok) {
+            treeResponse = await fetch(
+              `https://api.github.com/repos/${ownerOrNamespace}/${repo}/git/trees/main?recursive=1`,
+              { headers },
+            );
+          }
+
+          if (!treeResponse.ok) {
+            throw new Error('Failed to fetch GitHub repository structure.');
+          }
+        }
+
+        treeData = await treeResponse.json();
       }
 
-      // First, get the repository info to determine the default branch
-      const repoInfoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-        headers,
-      });
+      if (isGitLab) {
+        const connection = getLocalStorage('gitlab_connection');
 
-      if (!repoInfoResponse.ok) {
-        if (repoInfoResponse.status === 401 || repoInfoResponse.status === 403) {
-          throw new Error(
-            `Authentication failed (${repoInfoResponse.status}). Your GitHub token may be invalid or missing the required permissions.`,
-          );
-        } else if (repoInfoResponse.status === 404) {
-          throw new Error(
-            `Repository not found or is private (${repoInfoResponse.status}). To access private repositories, you need to connect your GitHub account or provide a valid token with appropriate permissions.`,
-          );
+        if (connection?.token) {
+          headers = {
+            Accept: 'application/json',
+            Authorization: `Bearer ${connection.token}`,
+          };
+        } else if (import.meta.env.VITE_GITLAB_ACCESS_TOKEN) {
+          headers = {
+            Accept: 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_GITLAB_ACCESS_TOKEN}`,
+          };
+        }
+
+        let fullPath: string;
+
+        if (repoId !== '') {
+          fullPath = repoId;
         } else {
-          throw new Error(
-            `Failed to fetch repository information: ${repoInfoResponse.statusText} (${repoInfoResponse.status})`,
-          );
+          fullPath = encodeURIComponent(`${ownerOrNamespace}/${repo}`);
         }
-      }
 
-      const repoInfo = (await repoInfoResponse.json()) as { default_branch: string };
-      let defaultBranch = repoInfo.default_branch || 'main';
+        const repoInfoResponse = await fetch(`https://gitlab.com/api/v4/projects/${fullPath}`, { headers });
 
-      // If a branch was specified in the URL, use that instead of the default
-      if (branch) {
-        defaultBranch = branch;
-      }
+        if (!repoInfoResponse.ok) {
+          throw new Error(`GitLab repository fetch failed (${repoInfoResponse.status})`);
+        }
 
-      // Try to fetch the repository tree using the selected branch
-      let treeResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
-        {
-          headers,
-        },
-      );
+        const repoInfo = (await repoInfoResponse.json()) as { default_branch?: string; id?: string };
 
-      // If the selected branch doesn't work, try common branch names
-      if (!treeResponse.ok) {
-        // Try 'master' branch if default branch failed
-        treeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`, {
-          headers,
-        });
+        if (!branch) {
+          defaultBranch = repoInfo.default_branch || 'main';
+        }
 
-        // If master also fails, try 'main' branch
+        const treeResponse = await fetch(
+          `https://gitlab.com/api/v4/projects/${repoInfo.id}/repository/tree?recursive=true&per_page=100&ref=${defaultBranch}`,
+          { headers },
+        );
+
         if (!treeResponse.ok) {
-          treeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`, {
-            headers,
-          });
+          throw new Error('Failed to fetch GitLab repository structure.');
         }
 
-        // If all common branches fail, throw an error
-        if (!treeResponse.ok) {
-          throw new Error(
-            'Failed to fetch repository structure. Please check the repository URL and your access permissions.',
-          );
-        }
+        const files = (await treeResponse.json()) as Array<{ path: string; type: string }>;
+        treeData = { tree: files.map((f: any) => ({ path: f.path, type: f.type })) };
       }
 
-      const treeData = (await treeResponse.json()) as GitHubTreeResponse;
-
-      // Calculate repository stats
-      let totalSize = 0;
+      // === Analyze files ===
+      const totalSize = 0;
       let totalFiles = 0;
       const languages: { [key: string]: number } = {};
       let hasPackageJson = false;
       let hasDependencies = false;
 
       for (const file of treeData.tree) {
-        if (file.type === 'blob') {
+        if (file.type === 'blob' || file.type === 'file') {
           totalFiles++;
 
-          if (file.size) {
-            totalSize += file.size;
-          }
-
-          // Check for package.json
-          if (file.path === 'package.json') {
-            hasPackageJson = true;
-
-            // Fetch package.json content to check dependencies
-            const contentResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/package.json`, {
-              headers,
-            });
-
-            if (contentResponse.ok) {
-              const content = (await contentResponse.json()) as GitHubContent;
-              const packageJson = JSON.parse(Buffer.from(content.content, 'base64').toString());
-              hasDependencies = !!(
-                packageJson.dependencies ||
-                packageJson.devDependencies ||
-                packageJson.peerDependencies
-              );
-            }
-          }
-
-          // Detect language based on file extension
           const ext = file.path.split('.').pop()?.toLowerCase();
 
           if (ext) {
             languages[ext] = (languages[ext] || 0) + (file.size || 0);
+          }
+
+          if (file.path === 'package.json') {
+            hasPackageJson = true;
+
+            if (isGitHub) {
+              const contentRes = await fetch(
+                `https://api.github.com/repos/${ownerOrNamespace}/${repo}/contents/package.json`,
+                { headers },
+              );
+
+              if (contentRes.ok) {
+                const content = (await contentRes.json()) as { content: string };
+                const packageJson = JSON.parse(Buffer.from(content.content, 'base64').toString());
+                hasDependencies = !!(
+                  packageJson.dependencies ||
+                  packageJson.devDependencies ||
+                  packageJson.peerDependencies
+                );
+              }
+            }
+
+            if (isGitLab) {
+              const rawUrl = `https://gitlab.com/api/v4/projects/${`${ownerOrNamespace}/${repo}`}/repository/files/package.json/raw?ref=${defaultBranch}`;
+
+              const contentRes = await fetch(rawUrl, { headers });
+
+              if (contentRes.ok) {
+                const text = await contentRes.text();
+                const packageJson = JSON.parse(text);
+                hasDependencies = !!(
+                  packageJson.dependencies ||
+                  packageJson.devDependencies ||
+                  packageJson.peerDependencies
+                );
+              }
+            }
           }
         }
       }
@@ -686,15 +1042,13 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
     } catch (error) {
       console.error('Error verifying repository:', error);
 
-      // Check if it's an authentication error and show the auth dialog
       const errorMessage = error instanceof Error ? error.message : 'Failed to verify repository';
 
       if (
         errorMessage.includes('Authentication failed') ||
         errorMessage.includes('may be private') ||
-        errorMessage.includes('Repository not found or is private') ||
+        errorMessage.includes('Repository not found') ||
         errorMessage.includes('Unauthorized') ||
-        errorMessage.includes('401') ||
         errorMessage.includes('403') ||
         errorMessage.includes('404') ||
         errorMessage.includes('access permissions')
@@ -711,11 +1065,13 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
   const handleImport = async () => {
     try {
       let gitUrl: string;
+      let repoId: string = '';
 
       if (activeTab === 'url' && customUrl) {
         gitUrl = formatGitUrl(customUrl);
       } else if (selectedRepository) {
         gitUrl = formatGitUrl(selectedRepository.html_url);
+        repoId = selectedRepository.id;
 
         if (selectedBranch) {
           gitUrl = `${gitUrl}#${selectedBranch}`;
@@ -725,7 +1081,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
       }
 
       // Verify repository before importing
-      const stats = await verifyRepository(gitUrl);
+      const stats = await verifyRepository(gitUrl, repoId);
 
       if (!stats) {
         return;
@@ -812,7 +1168,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
           <Dialog.Content className="fixed top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[90vw] md:w-[600px] max-h-[85vh] overflow-hidden bg-white dark:bg-[#1A1A1A] rounded-xl shadow-xl z-[51] border border-[#E5E5E5] dark:border-[#333333]">
             <div className="p-4 border-b border-[#E5E5E5] dark:border-[#333333] flex items-center justify-between">
               <Dialog.Title className="text-lg font-semibold text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
-                Import GitHub Repository
+                Import GitHub/Gitlab Repository
               </Dialog.Title>
               <Dialog.Close
                 onClick={handleClose}
@@ -830,19 +1186,54 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
             </div>
 
             <div className="p-4 border-b border-[#E5E5E5] dark:border-[#333333] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="i-ph:info text-blue-500" />
-                <span className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
-                  Need to access private repositories?
-                </span>
+              <div className="ml-auto">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger className="text-sm flex items-center gap-1 text-bolt-elements-item-contentDefault bg-transparent enabled:hover:text-bolt-elements-item-contentActive rounded-md p-1 enabled:hover:bg-bolt-elements-item-backgroundActive disabled:cursor-not-allowed">
+                    <div className="i-ph:box-arrow-up" />
+                    Need to access private repositories?
+                  </DropdownMenu.Trigger>
+
+                  <DropdownMenu.Content
+                    className={classNames(
+                      'min-w-[240px] z-[250]',
+                      'bg-white dark:bg-[#141414]',
+                      'rounded-lg shadow-lg',
+                      'border border-gray-200/50 dark:border-gray-800/50',
+                      'animate-in fade-in-0 zoom-in-95',
+                      'py-1',
+                    )}
+                    sideOffset={5}
+                    align="end"
+                  >
+                    <DropdownMenu.Item
+                      className={classNames(
+                        'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary' +
+                          ' hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
+                      )}
+                      onClick={() => setShowAuthGitlabDialog(true)} // Corrected line
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="i-ph:key" />
+                        GitHub Account
+                      </div>
+                    </DropdownMenu.Item>
+
+                    {!hasGitlabConnection && (
+                      <DropdownMenu.Item
+                        className={classNames(
+                          'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
+                        )}
+                        onClick={() => setShowAuthGitlabDialog(true)} // Corrected line
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="i-ph:gitlab-logo" />
+                          Gitlab Account
+                        </div>
+                      </DropdownMenu.Item>
+                    )}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
               </div>
-              <button
-                onClick={() => setShowAuthDialog(true)}
-                className="px-3 py-1.5 rounded-lg bg-purple-500 hover:bg-purple-600 text-white text-sm transition-colors flex items-center gap-1.5"
-              >
-                <span className="i-ph:key" />
-                Connect GitHub Account
-              </button>
             </div>
 
             <div className="p-4">
@@ -988,7 +1379,9 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         </Dialog.Portal>
 
         {/* GitHub Auth Dialog */}
-        <GitHubAuthDialog isOpen={showAuthDialog} onClose={handleAuthDialogClose} />
+        <GitHubAuthDialog isOpen={showAuthDialog} onClose={() => handleAuthDialogClose('github')} />
+
+        <GitlabAuthDialog isOpen={showAuthGitlabDialog} onClose={() => handleAuthDialogClose('gitlab')} />
 
         {/* Repository Stats Dialog */}
         {currentStats && (
@@ -1069,7 +1462,7 @@ function RepositoryCard({ repo, onSelect }: { repo: GitHubRepoInfo; onSelect: ()
           Import
         </button>
       </div>
-      {repo.description && <p className="text-sm text-bolt-elements-textSecondary mb-3">{repo.description}</p>}
+
       <div className="flex items-center gap-4 text-sm text-bolt-elements-textTertiary">
         {repo.language && (
           <span className="flex items-center gap-1">
