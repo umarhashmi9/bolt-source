@@ -126,7 +126,10 @@ export default defineConfig((config) => {
       },
     },
     server: {
-      allowedHosts: 'all'
+      allowedHosts: [
+        'bolt-38cy.onrender.com', // Add your Render.com host here
+        // You can keep other allowed hosts if they exist
+      ]
     },
   };
 });
