@@ -125,6 +125,9 @@ export default defineConfig((config) => {
         },
       },
     },
+    server: {
+      allowedHosts: 'all'
+    },
   };
 });
 
