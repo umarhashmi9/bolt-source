@@ -150,6 +150,31 @@ class ActionCommandError extends Error {
 }
 
 export class ActionRunner {
+  /**
+   * Public method to update the status and extra data of an action.
+   * Used by deployment components to signal status changes.
+   */
+  updateActionStatus(actionId: string, status: ActionStatus, extra: Record<string, any> = {}) {
+    // Only allow updating if action exists
+    const action = this.actions.get()[actionId];
+
+    if (!action) {
+      return;
+    }
+
+    // Remove status from extra to avoid accidental override
+    const { status: _ignored, ...rest } = extra;
+
+    // If setting status to 'failed', ensure an error string is provided
+    if (status === 'failed') {
+      const error = typeof rest.error === 'string' ? rest.error : 'Unknown error';
+      this.#updateAction(actionId, { status: 'failed', error, ...rest });
+    } else {
+      // Remove error if present for non-failed statuses
+      const { error, ...restWithoutError } = rest;
+      this.#updateAction(actionId, { status, ...restWithoutError });
+    }
+  }
   #webcontainer: Promise<WebContainer>;
   #currentExecutionPromise: Promise<void> = Promise.resolve();
   #shellTerminal: () => BoltShell;

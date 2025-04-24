@@ -50,6 +50,17 @@ export interface SupabaseAlert {
   source?: 'supabase';
 }
 
+export interface DeployAlert {
+  type: string;
+  title: string;
+  description: string;
+  content?: string;
+  url?: string;
+  stage?: string;
+  buildStatus?: 'running' | 'complete' | 'failed';
+  deployStatus?: 'running' | 'complete' | 'failed';
+}
+
 export interface FileHistory {
   originalContent: string;
   lastModified: number;
