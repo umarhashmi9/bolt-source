@@ -1,0 +1,120 @@
+I want to build a professional, modern, and responsive web application for an educational and social welfare NGO. The website should focus on four main pillars: Education, Women & Girl Child Welfare, Environmental Activities, and Health Initiatives. It should be visually appealing with a blue gradient color scheme and a white background to match the blue-colored logo. Please generate the complete source code (HTML/CSS/JavaScript + backend in Node.js or PHP or Firebase), structured content, and all UI elements based on the following detailed requirements:
+
+🎯 Main Objectives
+Educational and awareness platform.
+
+Promote and engage in Women Welfare, Old Age Homes, Tree Plantation, Blood Donation, Yoga Centers.
+
+Offer ways for users to participate, donate, and spread awareness.
+
+📋 Pages and Content Requirements
+1. Login Page
+Simple login form (email, password).
+
+Option for "Admin Login".
+
+Link to “Register as a Volunteer” or “Become a Beneficiary”.
+
+2. Home Page
+Sections: Hero banner, About Us, Vision & Mission, Donor Wall (carousel of top donors or quotes).
+
+Smooth animations, minimalist icons, and CTA buttons like “Take Action”, “Donate Now”.
+
+3. What We Do Page
+Subsections with icons/images:
+
+Education
+
+Girl Child Welfare
+
+Women Welfare
+
+Engagement with Govt. Schemes & Policies (with key regulations)
+
+Our Programmes (list with images)
+
+Child Rights
+
+Our Campaigns
+
+4. Take Action Page
+How You Can Help: Informational content.
+
+Forms for:
+
+Become a Volunteer
+
+Register as a Beneficiary
+
+Secure, user-friendly, validated forms
+
+5. Resources Page
+Blogs (cards with summaries)
+
+Reports & PDFs
+
+Media Coverages (images or video links)
+
+Downloadable Certifications (like 80G, 12A, FCRA, etc.)
+
+6. Contact Us Page
+Contact form (Name, Email, Message)
+
+NGO address & map integration
+
+Phone, email, working hours
+
+7. Donation System
+Secure Payment Gateway Integration
+
+Cards, UPI, Net Banking
+
+Donor details form (Name, PAN, Email, Mobile)
+
+Confirmation + Receipt Email System
+
+8. Admin Panel (Basic)
+Secure login
+
+Update content on:
+
+Blogs, Reports
+
+Donor Wall
+
+Resources and Programmes
+
+View and download volunteer & beneficiary forms
+
+📱 Other Features
+Social Media Integration (Facebook, Instagram, Twitter, LinkedIn).
+
+Responsive Design (Mobile, Tablet, Desktop friendly).
+
+Animations using AOS or Framer Motion (optional).
+
+Clean UI using TailwindCSS or Bootstrap.
+
+SEO-friendly structure with meta tags for each page.
+
+⚖ Legal & Privacy Requirements
+Include Privacy Policy page explaining:
+
+How donor/volunteer data is used.
+
+Compliance with Indian laws (IT Act 2000, DPDP Act 2023).
+
+Secure storage & no third-party sharing.
+
+Terms and Conditions page for users & donors.
+
+🧠 Optional Additions
+Testimonial Carousel from volunteers/beneficiaries.
+
+FAQ section about NGO, donations, volunteering.
+
+Newsletter Subscription (Email ID collection + Mailchimp/Firebase link).
+
+Multilingual support (English, Hindi, Gujarati).
+
+Expected Output: Generate a complete educational NGO web app project with clean code structure, full dummy content for all pages, working forms (with backend logic where needed), an admin panel, and embedded legal/privacy policy content. The code should be ready to deploy on a hosting service like Netlify, Firebase, or Vercel. Provide proper folder structure and assets.
