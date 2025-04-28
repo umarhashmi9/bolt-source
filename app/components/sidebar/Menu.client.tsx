@@ -15,6 +15,7 @@ import { classNames } from '~/utils/classNames';
 import { useStore } from '@nanostores/react';
 import { profileStore } from '~/lib/stores/profile';
 import { themeStore } from '~/lib/stores/theme';
+import { AccountSelector } from './AccountSelector';
 
 const menuVariants = {
   closed: {
@@ -326,27 +327,27 @@ export const Menu = () => {
     {
       name: "Settings",
       icon: "/icons/setting-icon.svg",
-      path: "/settings",
+      path: "controlPanel",
     },
     {
       name: "Help Center",
       icon: "/icons/help-center.svg",
-      path: "/help-center",
+      path: "helpCenter",
     },
     {
       name: "My subscription",
       icon: "/icons/my-subscription.svg",
-      path: "/usage",
+      path: "usage",
     },
     {
       name: "Select Account",
       icon: "/icons/select-account.svg",
-      path: "/profile",
+      path: "profile",
     },
     {
       name: "Sign Out",
       icon: "/icons/sign-out.svg",
-      path: "#",
+      path: "signOut",
     },
   ];
   return (
@@ -572,6 +573,8 @@ export const Menu = () => {
               </div>
             ))}
           </div>
+         <AccountSelector />
+
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 px-4 py-3">
             <SettingsButton onClick={handleSettingsClick} />
             <ThemeSwitch />

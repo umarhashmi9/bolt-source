@@ -29,7 +29,7 @@ const EXAMPLE_PROMPTS = [
 
 export function ExamplePrompts(sendMessage?: { (event: React.UIEvent, messageInput?: string): void | undefined }) {
   return (
-    <div id="examples" className="relative flex flex-col gap-9 w-full max-w-3xl mx-auto flex justify-center mt-6">
+    <div id="examples" className="relative flex flex-col gap-9 w-full max-w-[788px] mx-auto flex justify-center mt-6">
       <div
         className="flex flex-wrap justify-center gap-2"
         style={{
@@ -43,7 +43,7 @@ export function ExamplePrompts(sendMessage?: { (event: React.UIEvent, messageInp
               onClick={(event) => {
                 sendMessage?.(event, examplePrompt.text);
               }}
-              className="border border-bolt-elements-borderColor rounded-full bg-gray-50 hover:bg-gray-100 dark:bg-gray-950 dark:hover:bg-gray-900 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary px-3 py-1 text-xs transition-theme flex items-center gap-2">
+              className="border border-bolt-elements-borderColor rounded-full bg-[#0A0A0A] hover:bg-gray-100 dark:bg-gray-950 dark:hover:bg-gray-900 text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary px-3 py-1 text-xs transition-theme flex items-center gap-2">
                 <img src={examplePrompt.icon} alt={examplePrompt.text} className="w-4 h-4" />
               {examplePrompt.text}
             </button>
