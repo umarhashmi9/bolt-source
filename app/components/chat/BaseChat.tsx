@@ -23,7 +23,6 @@ import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
 
 import FilePreview from './FilePreview';
-import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
 import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
@@ -430,34 +429,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                   </svg>
                   <div>
-                    <ClientOnly>
-                      {() => (
-                        <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
-                          <ModelSelector
-                            key={provider?.name + ':' + modelList.length}
-                            model={model}
-                            setModel={setModel}
-                            modelList={modelList}
-                            provider={provider}
-                            setProvider={setProvider}
-                            providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
-                            apiKeys={apiKeys}
-                            modelLoading={isModelLoading}
-                          />
-                          {(providerList || []).length > 0 &&
-                            provider &&
-                            (!LOCAL_PROVIDERS.includes(provider.name) || 'OpenAILike') && (
-                              <APIKeyManager
-                                provider={provider}
-                                apiKey={apiKeys[provider.name] || ''}
-                                setApiKey={(key) => {
-                                  onApiKeysChange(provider.name, key);
-                                }}
-                              />
-                            )}
-                        </div>
-                      )}
-                    </ClientOnly>
+                    
                   </div>
                   <FilePreview
                     files={uploadedFiles}
