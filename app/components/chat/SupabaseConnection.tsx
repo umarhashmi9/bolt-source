@@ -82,15 +82,16 @@ export function SupabaseConnection() {
           active
           disabled={connecting}
           onClick={() => setIsDialogOpen(!isDialogOpen)}
-          className="hover:bg-bolt-elements-item-backgroundActive !text-white flex items-center gap-2"
+          className="hover:bg-bolt-elements-item-backgroundActive !text-white flex items-center gap-[4px] rounded-[6px] px-[6px] py-[8px] bg-[linear-gradient(90deg,_#0584A9_0%,_#0072FF_33.33%,_#B721FF_66.67%,_#FDBB2D_100%)]"
         >
           <img
             className="w-4 h-4"
             height="20"
             width="20"
             crossOrigin="anonymous"
-            src="https://cdn.simpleicons.org/supabase"
+            src="/icons/start-to-build.svg"
           />
+          Start to build
           {isConnected && supabaseConn.project && (
             <span className="ml-1 text-xs max-w-[100px] truncate">{supabaseConn.project.name}</span>
           )}
