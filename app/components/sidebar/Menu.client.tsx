@@ -14,6 +14,7 @@ import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { classNames } from '~/utils/classNames';
 import { useStore } from '@nanostores/react';
 import { profileStore } from '~/lib/stores/profile';
+import { themeStore } from '~/lib/stores/theme';
 
 const menuVariants = {
   closed: {
@@ -316,12 +317,38 @@ export const Menu = () => {
   const handleSettingsClose = () => {
     setIsSettingsOpen(false);
   };
-
+ 
   const setDialogContentWithLogging = useCallback((content: DialogContent) => {
     console.log('Setting dialog content:', content);
     setDialogContent(content);
   }, []);
-
+  const menuItems = [
+    {
+      name: "Settings",
+      icon: "/icons/setting-icon.svg",
+      path: "/settings",
+    },
+    {
+      name: "Help Center",
+      icon: "/icons/help-center.svg",
+      path: "/help-center",
+    },
+    {
+      name: "My subscription",
+      icon: "/icons/my-subscription.svg",
+      path: "/usage",
+    },
+    {
+      name: "Select Account",
+      icon: "/icons/select-account.svg",
+      path: "/profile",
+    },
+    {
+      name: "Sign Out",
+      icon: "/icons/sign-out.svg",
+      path: "#",
+    },
+  ];
   return (
     <>
       <motion.div
@@ -396,7 +423,7 @@ export const Menu = () => {
             </div>
           </div>
           <div className="flex items-center justify-between text-sm px-4 py-2">
-            <div className="font-medium text-gray-600 dark:text-gray-400">Your Chats</div>
+            <div className="font-medium text-gray-600 dark:text-gray-400">Your Chats dsfds</div>
             {selectionMode && (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={selectAll}>
@@ -523,6 +550,27 @@ export const Menu = () => {
                 )}
               </Dialog>
             </DialogRoot>
+          </div>
+          <div className="flex flex-col text-bolt-elements-textPrimary bg-transparent w-full">
+            {menuItems.map((item) => (
+              <div key={item.name}>
+                <a
+                  href={item.path}
+                  className="flex gap-2 items-center p-2 hover:bg-bolt-elements-background-depth-3 rounded-md cursor-pointer text-inherit no-underline"
+                >
+                  <img
+                    src={item.icon}
+                    alt="" className="h-4 w-4 svg-black"
+                  />
+                  <span className="text-bolt-elements-textPrimary">
+                    {item.name}
+                  </span>
+                </a>
+                {item.name === "Help Center" && (
+                  <div className="h-[1px] w-full bg-white/20"></div>
+                )}
+              </div>
+            ))}
           </div>
           <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 px-4 py-3">
             <SettingsButton onClick={handleSettingsClick} />
