@@ -1,64 +1,74 @@
-# render.yaml for bolt.diy
-services:
-  - type: web         # Specifies a web service
-    name: bolt-diy    # Name for the service on Render
-    env: docker       # Deploy using the Dockerfile
-    # repo: https://github.com/shapefuture/bolt.diy # Optional: Usually inferred from deploy link
-    dockerfilePath: ./Dockerfile # Path to the Dockerfile in your repo
-    dockerContext: .         # Root directory is the build context
-    plan: free               # Use Render's free instance type (subject to limitations like sleeping)
-    autoDeploy: false        # CRITICAL: Prevents pushes to *your* repo triggering redeploys for others
-    envVars:
-      - key: PORT
-        # IMPORTANT: Verify the port Bolt.DIY runs on inside the Docker container.
-        # Check the Dockerfile (EXPOSE instruction) or how the app starts.
-        # Common ports might be 3000, 5173, or 8080. Update if needed.
-        value: 5173
+# render.yaml - Revised for Bolt.DIY Docker Deployment on Render
 
-      # === API Keys (User will be prompted by Render to enter these) ===
-      # Add entries for all providers you might want users to configure easily.
-      # 'sync: false' means Render asks the user clicking the button for *their* key.
+services:
+  - type: web           # Specifies a web service
+    name: bolt-diy      # Service name on Render (user can change during setup)
+    env: docker         # Use the Dockerfile in the repository
+    # repo: automatically inferred from the Deploy to Render button link
+    dockerfilePath: ./Dockerfile # Path to the Dockerfile relative to repo root
+    dockerContext: .           # Build context is the repository root
+    plan: free                 # Use Render's free instance type (note limitations like inactivity sleeps)
+    autoDeploy: false          # IMPORTANT: Prevent auto-deploys for button users on repo push
+
+    envVars:
+      # --- Core Configuration ---
+      - key: PORT                # Render uses this to route traffic and check health
+        value: "5173"            # CRITICAL: Must match the EXPOSE port in Dockerfile
+
+      # --- API Keys & Secrets (User will be prompted via 'sync: false') ---
+      # Verify these key names match what Bolt.DIY expects!
       - key: OPENAI_API_KEY
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: GOOGLE_GENERATIVE_AI_API_KEY # For Gemini
         sync: false
-      - key: OPENROUTER_API_KEY
+      - key: OPEN_ROUTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
         sync: false
       - key: MISTRAL_API_KEY
         sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: HUGGINGFACE_API_KEY # Or specific HF key name if needed
-        sync: false
-      - key: X_API_KEY # Or specific xAI key name if needed
-        sync: false
       - key: COHERE_API_KEY
+        sync: false
+      - key: HuggingFace_KEY # Check if this exact name is correct
+        sync: false
+      - key: XAI_API_KEY
         sync: false
       - key: TOGETHER_API_KEY
         sync: false
       - key: PERPLEXITY_API_KEY
         sync: false
-      - key: AWS_ACCESS_KEY_ID # For Bedrock
+
+      # --- AWS Bedrock Keys (Separate for clarity) ---
+      - key: AWS_ACCESS_KEY_ID
         sync: false
-      - key: AWS_SECRET_ACCESS_KEY # For Bedrock
+      - key: AWS_SECRET_ACCESS_KEY
         sync: false
-      - key: AWS_REGION # For Bedrock (e.g., us-east-1)
+      - key: AWS_REGION            # e.g., us-east-1
         sync: false
 
-      # === Custom Base URLs (User will be prompted by Render) ===
-      # Useful for Ollama, LMStudio, OpenAILike endpoints
-      - key: OLLAMA_BASE_URL # Or the specific env var bolt.diy uses
+      # --- Custom Base URLs (User will be prompted) ---
+      - key: OLLAMA_API_BASE_URL   # For local Ollama instances
         sync: false
-      - key: LMSTUDIO_BASE_URL # Or the specific env var bolt.diy uses
+      - key: LMSTUDIO_BASE_URL     # For local LMStudio instances (verify key name)
         sync: false
-      - key: OPENAI_LIKE_BASE_URL # Or the specific env var bolt.diy uses
+      - key: OPENAI_LIKE_BASE_URL  # For other OpenAI-compatible endpoints (verify key name)
+        sync: false
+      - key: TOGETHER_API_BASE_URL # If needed separately from key
         sync: false
 
-      # Add any other non-secret environment variables needed by bolt.diy at runtime here
-      # Example:
-      # - key: SOME_OTHER_CONFIG
-      #   value: "some_default"
+      # --- Optional Runtime Flags (Set defaults or let user override if needed) ---
+      # Example: Provide a default, but allow override via Render dashboard later if needed
+      # - key: VITE_LOG_LEVEL
+      #   value: "info"
+      # - key: DEFAULT_NUM_CTX
+      #   value: "4096" # Example default
+
+      # --- Internal Flags (Already set in Dockerfile, no need to sync) ---
+      - key: NODE_ENV
+        value: production
+      - key: RUNNING_IN_DOCKER
+        value: "true"
