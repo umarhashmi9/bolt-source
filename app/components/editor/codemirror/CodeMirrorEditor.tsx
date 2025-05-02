@@ -21,6 +21,7 @@ import type { Theme } from '~/types/theme';
 import { classNames } from '~/utils/classNames';
 import { debounce } from '~/utils/debounce';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
+import { isFileLocked } from '~/utils/fileLocks';
 import { BinaryContent } from './BinaryContent';
 import { getTheme, reconfigureTheme } from './cm-theme';
 import { indentKeyBinding } from './indent';
@@ -28,6 +29,9 @@ import { getLanguage } from './languages';
 import { createEnvMaskingExtension } from './EnvMasking';
 
 const logger = createScopedLogger('CodeMirrorEditor');
+
+// Create a module-level reference to the current document for use in tooltip functions
+let currentDocRef: EditorDocument | undefined;
 
 export interface EditorDocument {
   value: string;
@@ -158,6 +162,9 @@ export const CodeMirrorEditor = memo(
       onChangeRef.current = onChange;
       onSaveRef.current = onSave;
       docRef.current = doc;
+
+      // Update the module-level reference for use in tooltip functions
+      currentDocRef = doc;
       themeRef.current = theme;
     });
 
@@ -278,6 +285,15 @@ export const CodeMirrorEditor = memo(
         autoFocusOnDocumentChange,
         doc as TextEditorDocument,
       );
+
+      // Check if the file is locked and update the editor state accordingly
+      const { locked } = isFileLocked(doc.filePath);
+
+      if (locked) {
+        view.dispatch({
+          effects: [editableStateEffect.of(false)],
+        });
+      }
     }, [doc?.value, editable, doc?.filePath, autoFocusOnDocumentChange]);
 
     return (
@@ -419,8 +435,12 @@ function setEditorDocument(
     });
   }
 
+  // Check if the file is locked
+  const { locked } = isFileLocked(doc.filePath);
+
+  // Set editable state based on both the editable prop and the file's lock state
   view.dispatch({
-    effects: [editableStateEffect.of(editable && !doc.isBinary)],
+    effects: [editableStateEffect.of(editable && !doc.isBinary && !locked)],
   });
 
   getLanguage(doc.filePath).then((languageSupport) => {
@@ -477,6 +497,22 @@ function getReadOnlyTooltip(state: EditorState) {
     return [];
   }
 
+  // Get the current document from the module-level reference
+  const currentDoc = currentDocRef;
+  let tooltipMessage = 'Cannot edit file while AI response is being generated';
+
+  // If we have a current document, check if it's locked
+  if (currentDoc?.filePath) {
+    const { locked, lockMode } = isFileLocked(currentDoc.filePath);
+
+    if (locked) {
+      tooltipMessage =
+        lockMode === 'full'
+          ? 'This file is locked and cannot be edited'
+          : 'This file has scoped locking - only additions are allowed';
+    }
+  }
+
   return state.selection.ranges
     .filter((range) => {
       return range.empty;
@@ -490,7 +526,7 @@ function getReadOnlyTooltip(state: EditorState) {
         create: () => {
           const divElement = document.createElement('div');
           divElement.className = 'cm-readonly-tooltip';
-          divElement.textContent = 'Cannot edit file while AI response is being generated';
+          divElement.textContent = tooltipMessage;
 
           return { dom: divElement };
         },

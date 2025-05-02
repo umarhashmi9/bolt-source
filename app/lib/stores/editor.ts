@@ -1,10 +1,13 @@
 import { atom, computed, map, type MapStore, type WritableAtom } from 'nanostores';
 import type { EditorDocument, ScrollPosition } from '~/components/editor/codemirror/CodeMirrorEditor';
 import type { FileMap, FilesStore } from './files';
+import { createScopedLogger } from '~/utils/logger';
 
 export type EditorDocuments = Record<string, EditorDocument>;
 
 type SelectedFile = WritableAtom<string | undefined>;
+
+const logger = createScopedLogger('EditorStore');
 
 export class EditorStore {
   #filesStore: FilesStore;
@@ -81,6 +84,20 @@ export class EditorStore {
     if (!documentState) {
       return;
     }
+
+    // Check if the file is locked by getting the file from the filesStore
+    const file = this.#filesStore.getFile(filePath);
+
+    if (file?.locked && file.lockMode === 'full') {
+      logger.warn(`Attempted to update locked file: ${filePath}`);
+      return;
+    }
+
+    /*
+     * For scoped locks, we would need to implement diff checking here
+     * to determine if the edit is modifying existing code or just adding new code
+     * This is a more complex feature that would be implemented in a future update
+     */
 
     const currentContent = documentState.value;
     const contentChanged = currentContent !== newContent;

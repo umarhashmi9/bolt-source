@@ -8,6 +8,7 @@ import { WORK_DIR } from '~/utils/constants';
 import { computeFileModifications } from '~/utils/diff';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
+import { getLockedFiles, addLockedFile, removeLockedFile, type LockMode } from '~/lib/persistence/lockedFiles';
 
 const logger = createScopedLogger('FilesStore');
 
@@ -17,6 +18,8 @@ export interface File {
   type: 'file';
   content: string;
   isBinary: boolean;
+  locked?: boolean;
+  lockMode?: 'full' | 'scoped' | null;
 }
 
 export interface Folder {
@@ -76,6 +79,9 @@ export class FilesStore {
       logger.error('Failed to load deleted paths from localStorage', error);
     }
 
+    // Load locked files from localStorage
+    this.#loadLockedFiles();
+
     if (import.meta.hot) {
       // Persist our state across hot reloads
       import.meta.hot.data.files = this.files;
@@ -84,6 +90,121 @@ export class FilesStore {
     }
 
     this.#init();
+  }
+
+  /**
+   * Load locked files from localStorage and update the file objects
+   */
+  #loadLockedFiles() {
+    try {
+      const lockedFiles = getLockedFiles();
+
+      if (lockedFiles.length === 0) {
+        logger.info('No locked files found in localStorage');
+        return;
+      }
+
+      logger.info(`Found ${lockedFiles.length} locked files in localStorage`);
+
+      const currentFiles = this.files.get();
+      const updates: FileMap = {};
+
+      for (const lockedFile of lockedFiles) {
+        logger.info(`Applying lock to file: ${lockedFile.path} (mode: ${lockedFile.lockMode})`);
+
+        const file = currentFiles[lockedFile.path];
+
+        if (file?.type === 'file') {
+          updates[lockedFile.path] = {
+            ...file,
+            locked: true,
+            lockMode: lockedFile.lockMode,
+          };
+        } else {
+          /*
+           * The file exists in localStorage but not in the current files
+           * This could happen if the file was deleted or renamed
+           * We'll keep track of it anyway in case it gets created later
+           */
+          logger.warn(`Locked file not found in current files: ${lockedFile.path}`);
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        logger.info(`Updating ${Object.keys(updates).length} files with lock state`);
+        this.files.set({ ...currentFiles, ...updates });
+      }
+    } catch (error) {
+      logger.error('Failed to load locked files from localStorage', error);
+    }
+  }
+
+  /**
+   * Lock a file
+   */
+  lockFile(filePath: string, lockMode: LockMode) {
+    const file = this.getFile(filePath);
+
+    if (!file) {
+      logger.error(`Cannot lock non-existent file: ${filePath}`);
+      return false;
+    }
+
+    // Update the file in the store
+    this.files.setKey(filePath, {
+      ...file,
+      locked: true,
+      lockMode,
+    });
+
+    // Persist to localStorage
+    addLockedFile(filePath, lockMode);
+
+    logger.info(`File locked: ${filePath} (mode: ${lockMode})`);
+
+    return true;
+  }
+
+  /**
+   * Unlock a file
+   */
+  unlockFile(filePath: string) {
+    const file = this.getFile(filePath);
+
+    if (!file) {
+      logger.error(`Cannot unlock non-existent file: ${filePath}`);
+      return false;
+    }
+
+    // Update the file in the store
+    this.files.setKey(filePath, {
+      ...file,
+      locked: false,
+      lockMode: null,
+    });
+
+    // Remove from localStorage
+    removeLockedFile(filePath);
+
+    logger.info(`File unlocked: ${filePath}`);
+
+    return true;
+  }
+
+  /**
+   * Check if a file is locked
+   */
+  isFileLocked(filePath: string): { locked: boolean; lockMode?: LockMode } {
+    const file = this.getFile(filePath);
+
+    if (!file) {
+      return { locked: false };
+    }
+
+    return {
+      locked: !!file.locked,
+      lockMode: file.lockMode as LockMode | undefined,
+    };
   }
 
   getFile(filePath: string) {
@@ -149,8 +270,19 @@ export class FilesStore {
         this.#modifiedFiles.set(filePath, oldContent);
       }
 
+      // Get the current lock state before updating
+      const currentFile = this.files.get()[filePath];
+      const locked = currentFile?.type === 'file' ? currentFile.locked : false;
+      const lockMode = currentFile?.type === 'file' ? currentFile.lockMode : null;
+
       // we immediately update the file and don't rely on the `change` event coming from the watcher
-      this.files.setKey(filePath, { type: 'file', content, isBinary: false });
+      this.files.setKey(filePath, {
+        type: 'file',
+        content,
+        isBinary: false,
+        locked,
+        lockMode,
+      });
 
       logger.info('File updated');
     } catch (error) {
@@ -166,10 +298,28 @@ export class FilesStore {
     // Clean up any files that were previously deleted
     this.#cleanupDeletedFiles();
 
+    // Set up file watcher
     webcontainer.internal.watchPaths(
       { include: [`${WORK_DIR}/**`], exclude: ['**/node_modules', '.git'], includeContent: true },
       bufferWatchEvents(100, this.#processEventBuffer.bind(this)),
     );
+
+    // Load locked files immediately
+    this.#loadLockedFiles();
+
+    /*
+     * Also set up a timer to load locked files again after a delay
+     * This ensures that locks are applied even if files are loaded asynchronously
+     */
+    setTimeout(() => {
+      this.#loadLockedFiles();
+      logger.info('Reapplied locked files from localStorage');
+    }, 2000);
+
+    // Set up a periodic check to ensure locks remain applied
+    setInterval(() => {
+      this.#loadLockedFiles();
+    }, 10000);
   }
 
   /**
@@ -302,7 +452,17 @@ export class FilesStore {
             content = existingFile.content;
           }
 
-          this.files.setKey(sanitizedPath, { type: 'file', content, isBinary });
+          // Preserve lock state if the file already exists
+          const locked = existingFile?.type === 'file' ? existingFile.locked : false;
+          const lockMode = existingFile?.type === 'file' ? existingFile.lockMode : null;
+
+          this.files.setKey(sanitizedPath, {
+            type: 'file',
+            content,
+            isBinary,
+            locked,
+            lockMode,
+          });
           break;
         }
         case 'remove_file': {
@@ -353,14 +513,26 @@ export class FilesStore {
         await webcontainer.fs.writeFile(relativePath, Buffer.from(content));
 
         const base64Content = Buffer.from(content).toString('base64');
-        this.files.setKey(filePath, { type: 'file', content: base64Content, isBinary: true });
+        this.files.setKey(filePath, {
+          type: 'file',
+          content: base64Content,
+          isBinary: true,
+          locked: false,
+          lockMode: null,
+        });
 
         this.#modifiedFiles.set(filePath, base64Content);
       } else {
         const contentToWrite = (content as string).length === 0 ? ' ' : content;
         await webcontainer.fs.writeFile(relativePath, contentToWrite);
 
-        this.files.setKey(filePath, { type: 'file', content: content as string, isBinary: false });
+        this.files.setKey(filePath, {
+          type: 'file',
+          content: content as string,
+          isBinary: false,
+          locked: false,
+          lockMode: null,
+        });
 
         this.#modifiedFiles.set(filePath, content as string);
       }

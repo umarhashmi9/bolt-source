@@ -49,11 +49,11 @@ export class WorkbenchStore {
   currentView: WritableAtom<WorkbenchViewType> = import.meta.hot?.data.currentView ?? atom('code');
   unsavedFiles: WritableAtom<Set<string>> = import.meta.hot?.data.unsavedFiles ?? atom(new Set<string>());
   actionAlert: WritableAtom<ActionAlert | undefined> =
-    import.meta.hot?.data.unsavedFiles ?? atom<ActionAlert | undefined>(undefined);
+    import.meta.hot?.data.actionAlert ?? atom<ActionAlert | undefined>(undefined);
   supabaseAlert: WritableAtom<SupabaseAlert | undefined> =
-    import.meta.hot?.data.unsavedFiles ?? atom<ActionAlert | undefined>(undefined);
+    import.meta.hot?.data.supabaseAlert ?? atom<SupabaseAlert | undefined>(undefined);
   deployAlert: WritableAtom<DeployAlert | undefined> =
-    import.meta.hot?.data.unsavedFiles ?? atom<DeployAlert | undefined>(undefined);
+    import.meta.hot?.data.deployAlert ?? atom<DeployAlert | undefined>(undefined);
   modifiedFiles = new Set<string>();
   artifactIdList: string[] = [];
   #globalExecutionQueue = Promise.resolve();
@@ -226,6 +226,30 @@ export class WorkbenchStore {
       return;
     }
 
+    // Check if the file is locked
+    const { locked, lockMode } = this.isFileLocked(filePath);
+
+    if (locked && lockMode === 'full') {
+      // File is fully locked, don't allow saving
+      console.warn(`Attempted to save locked file: ${filePath}`);
+
+      this.actionAlert.set({
+        type: 'error',
+        title: 'File Save Blocked',
+        description: `Cannot save locked file: ${filePath}`,
+        content: 'This file is locked and cannot be modified.',
+        isLockedFile: true,
+      });
+
+      return;
+    }
+
+    /*
+     * For scoped locks, we would need to implement diff checking here
+     * to determine if the user is modifying existing code or just adding new code
+     * This is a more complex feature that would be implemented in a future update
+     */
+
     await this.#filesStore.saveFile(filePath, document.value);
 
     const newUnsavedFiles = new Set(this.unsavedFiles.get());
@@ -277,6 +301,34 @@ export class WorkbenchStore {
 
   resetAllFileModifications() {
     this.#filesStore.resetFileModifications();
+  }
+
+  /**
+   * Lock a file to prevent edits
+   * @param filePath Path to the file to lock
+   * @param lockMode Type of lock to apply ("full" or "scoped")
+   * @returns True if the file was successfully locked
+   */
+  lockFile(filePath: string, lockMode: 'full' | 'scoped') {
+    return this.#filesStore.lockFile(filePath, lockMode);
+  }
+
+  /**
+   * Unlock a file to allow edits
+   * @param filePath Path to the file to unlock
+   * @returns True if the file was successfully unlocked
+   */
+  unlockFile(filePath: string) {
+    return this.#filesStore.unlockFile(filePath);
+  }
+
+  /**
+   * Check if a file is locked
+   * @param filePath Path to the file to check
+   * @returns Object with locked status and lock mode
+   */
+  isFileLocked(filePath: string) {
+    return this.#filesStore.isFileLocked(filePath);
   }
 
   async createFile(filePath: string, content: string | Uint8Array = '') {
@@ -496,6 +548,43 @@ export class WorkbenchStore {
     if (data.action.type === 'file') {
       const wc = await webcontainer;
       const fullPath = path.join(wc.workdir, data.action.filePath);
+
+      // Check if the file is locked
+      const { locked, lockMode } = this.isFileLocked(fullPath);
+
+      if (locked && lockMode === 'full') {
+        // File is fully locked, don't allow any modifications
+        console.warn(`AI attempted to modify locked file: ${fullPath}`);
+
+        /*
+         * Instead of trying to update the action directly, we'll just add a notification
+         * and prevent the action from being executed
+         */
+        this.actionAlert.set({
+          type: 'error',
+          title: 'File Modification Blocked',
+          description: `AI attempted to modify locked file: ${data.action.filePath}`,
+          content: 'This file is locked and cannot be modified by the AI.',
+          isLockedFile: true,
+        });
+
+        // Still select the file to show the user what the AI tried to modify
+        if (this.selectedFile.value !== fullPath) {
+          this.setSelectedFile(fullPath);
+        }
+
+        if (this.currentView.value !== 'code') {
+          this.currentView.set('code');
+        }
+
+        return;
+      }
+
+      /*
+       * For scoped locks, we would need to implement diff checking here
+       * to determine if the AI is modifying existing code or just adding new code
+       * This is a more complex feature that would be implemented in a future update
+       */
 
       if (this.selectedFile.value !== fullPath) {
         this.setSelectedFile(fullPath);

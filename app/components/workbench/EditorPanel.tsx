@@ -71,7 +71,12 @@ export const EditorPanel = memo(
     }, [editorDocument]);
 
     const activeFileUnsaved = useMemo(() => {
-      return editorDocument !== undefined && unsavedFiles?.has(editorDocument.filePath);
+      if (!editorDocument || !unsavedFiles) {
+        return false;
+      }
+
+      // Make sure unsavedFiles is a Set before calling has()
+      return unsavedFiles instanceof Set && unsavedFiles.has(editorDocument.filePath);
     }, [editorDocument, unsavedFiles]);
 
     return (
