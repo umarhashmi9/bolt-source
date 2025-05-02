@@ -8,7 +8,14 @@ import { WORK_DIR } from '~/utils/constants';
 import { computeFileModifications } from '~/utils/diff';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
-import { getLockedFiles, addLockedFile, removeLockedFile, type LockMode } from '~/lib/persistence/lockedFiles';
+import {
+  addLockedFile,
+  removeLockedFile,
+  getLockedFilesForChat,
+  migrateLegacyLocks,
+  type LockMode,
+} from '~/lib/persistence/lockedFiles';
+import { getCurrentChatId } from '~/utils/fileLocks';
 
 const logger = createScopedLogger('FilesStore');
 
@@ -89,22 +96,47 @@ export class FilesStore {
       import.meta.hot.data.deletedPaths = this.#deletedPaths;
     }
 
+    // Listen for URL changes to detect chat ID changes
+    if (typeof window !== 'undefined') {
+      let lastChatId = getCurrentChatId();
+
+      // Use MutationObserver to detect URL changes (for SPA navigation)
+      const observer = new MutationObserver(() => {
+        const currentChatId = getCurrentChatId();
+
+        if (currentChatId !== lastChatId) {
+          logger.info(`Chat ID changed from ${lastChatId} to ${currentChatId}, reloading locks`);
+          lastChatId = currentChatId;
+          this.#loadLockedFiles(currentChatId);
+        }
+      });
+
+      observer.observe(document, { subtree: true, childList: true });
+    }
+
     this.#init();
   }
 
   /**
    * Load locked files from localStorage and update the file objects
+   * @param chatId Optional chat ID to load locks for (defaults to current chat)
    */
-  #loadLockedFiles() {
+  #loadLockedFiles(chatId?: string) {
     try {
-      const lockedFiles = getLockedFiles();
+      const currentChatId = chatId || getCurrentChatId();
+
+      // Migrate any legacy locks to the current chat
+      migrateLegacyLocks(currentChatId);
+
+      // Get locks for the current chat
+      const lockedFiles = getLockedFilesForChat(currentChatId);
 
       if (lockedFiles.length === 0) {
-        logger.info('No locked files found in localStorage');
+        logger.info(`No locked files found for chat ID: ${currentChatId}`);
         return;
       }
 
-      logger.info(`Found ${lockedFiles.length} locked files in localStorage`);
+      logger.info(`Found ${lockedFiles.length} locked files for chat ID: ${currentChatId}`);
 
       const currentFiles = this.files.get();
       const updates: FileMap = {};
@@ -141,9 +173,14 @@ export class FilesStore {
 
   /**
    * Lock a file
+   * @param filePath Path to the file to lock
+   * @param lockMode Type of lock to apply
+   * @param chatId Optional chat ID (defaults to current chat)
+   * @returns True if the file was successfully locked
    */
-  lockFile(filePath: string, lockMode: LockMode) {
+  lockFile(filePath: string, lockMode: LockMode, chatId?: string) {
     const file = this.getFile(filePath);
+    const currentChatId = chatId || getCurrentChatId();
 
     if (!file) {
       logger.error(`Cannot lock non-existent file: ${filePath}`);
@@ -157,19 +194,23 @@ export class FilesStore {
       lockMode,
     });
 
-    // Persist to localStorage
-    addLockedFile(filePath, lockMode);
+    // Persist to localStorage with chat ID
+    addLockedFile(currentChatId, filePath, lockMode);
 
-    logger.info(`File locked: ${filePath} (mode: ${lockMode})`);
+    logger.info(`File locked: ${filePath} (mode: ${lockMode}) for chat: ${currentChatId}`);
 
     return true;
   }
 
   /**
    * Unlock a file
+   * @param filePath Path to the file to unlock
+   * @param chatId Optional chat ID (defaults to current chat)
+   * @returns True if the file was successfully unlocked
    */
-  unlockFile(filePath: string) {
+  unlockFile(filePath: string, chatId?: string) {
     const file = this.getFile(filePath);
+    const currentChatId = chatId || getCurrentChatId();
 
     if (!file) {
       logger.error(`Cannot unlock non-existent file: ${filePath}`);
@@ -183,28 +224,55 @@ export class FilesStore {
       lockMode: null,
     });
 
-    // Remove from localStorage
-    removeLockedFile(filePath);
+    // Remove from localStorage with chat ID
+    removeLockedFile(currentChatId, filePath);
 
-    logger.info(`File unlocked: ${filePath}`);
+    logger.info(`File unlocked: ${filePath} for chat: ${currentChatId}`);
 
     return true;
   }
 
   /**
    * Check if a file is locked
+   * @param filePath Path to the file to check
+   * @param chatId Optional chat ID (defaults to current chat)
+   * @returns Object with locked status and lock mode
    */
-  isFileLocked(filePath: string): { locked: boolean; lockMode?: LockMode } {
+  isFileLocked(filePath: string, chatId?: string): { locked: boolean; lockMode?: LockMode } {
     const file = this.getFile(filePath);
+    const currentChatId = chatId || getCurrentChatId();
 
     if (!file) {
       return { locked: false };
     }
 
-    return {
-      locked: !!file.locked,
-      lockMode: file.lockMode as LockMode | undefined,
-    };
+    // First check the in-memory state
+    if (file.locked) {
+      return {
+        locked: true,
+        lockMode: file.lockMode as LockMode | undefined,
+      };
+    }
+
+    /*
+     * Then check localStorage for this specific chat
+     * This ensures we catch any locks that might have been set in other tabs
+     */
+    const lockedFiles = getLockedFilesForChat(currentChatId);
+    const lockedFile = lockedFiles.find((file) => file.path === filePath);
+
+    if (lockedFile) {
+      // Update the in-memory state to match localStorage
+      this.files.setKey(filePath, {
+        ...file,
+        locked: true,
+        lockMode: lockedFile.lockMode,
+      });
+
+      return { locked: true, lockMode: lockedFile.lockMode };
+    }
+
+    return { locked: false };
   }
 
   getFile(filePath: string) {
@@ -304,21 +372,28 @@ export class FilesStore {
       bufferWatchEvents(100, this.#processEventBuffer.bind(this)),
     );
 
-    // Load locked files immediately
-    this.#loadLockedFiles();
+    // Get the current chat ID
+    const currentChatId = getCurrentChatId();
+
+    // Migrate any legacy locks to the current chat
+    migrateLegacyLocks(currentChatId);
+
+    // Load locked files immediately for the current chat
+    this.#loadLockedFiles(currentChatId);
 
     /*
      * Also set up a timer to load locked files again after a delay
      * This ensures that locks are applied even if files are loaded asynchronously
      */
     setTimeout(() => {
-      this.#loadLockedFiles();
-      logger.info('Reapplied locked files from localStorage');
+      this.#loadLockedFiles(currentChatId);
+      logger.info(`Reapplied locked files for chat ID: ${currentChatId}`);
     }, 2000);
 
     // Set up a periodic check to ensure locks remain applied
     setInterval(() => {
-      this.#loadLockedFiles();
+      const latestChatId = getCurrentChatId();
+      this.#loadLockedFiles(latestChatId);
     }, 10000);
   }
 

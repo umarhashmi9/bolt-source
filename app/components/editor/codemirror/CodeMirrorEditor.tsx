@@ -21,7 +21,7 @@ import type { Theme } from '~/types/theme';
 import { classNames } from '~/utils/classNames';
 import { debounce } from '~/utils/debounce';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
-import { isFileLocked } from '~/utils/fileLocks';
+import { isFileLocked, getCurrentChatId } from '~/utils/fileLocks';
 import { BinaryContent } from './BinaryContent';
 import { getTheme, reconfigureTheme } from './cm-theme';
 import { indentKeyBinding } from './indent';
@@ -287,7 +287,8 @@ export const CodeMirrorEditor = memo(
       );
 
       // Check if the file is locked and update the editor state accordingly
-      const { locked } = isFileLocked(doc.filePath);
+      const currentChatId = getCurrentChatId();
+      const { locked } = isFileLocked(doc.filePath, currentChatId);
 
       if (locked) {
         view.dispatch({
@@ -436,7 +437,8 @@ function setEditorDocument(
   }
 
   // Check if the file is locked
-  const { locked } = isFileLocked(doc.filePath);
+  const currentChatId = getCurrentChatId();
+  const { locked } = isFileLocked(doc.filePath, currentChatId);
 
   // Set editable state based on both the editable prop and the file's lock state
   view.dispatch({
@@ -503,7 +505,8 @@ function getReadOnlyTooltip(state: EditorState) {
 
   // If we have a current document, check if it's locked
   if (currentDoc?.filePath) {
-    const { locked, lockMode } = isFileLocked(currentDoc.filePath);
+    const currentChatId = getCurrentChatId();
+    const { locked, lockMode } = isFileLocked(currentDoc.filePath, currentChatId);
 
     if (locked) {
       tooltipMessage =
