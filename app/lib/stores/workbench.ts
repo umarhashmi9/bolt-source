@@ -314,6 +314,16 @@ export class WorkbenchStore {
   }
 
   /**
+   * Lock a folder and all its contents to prevent edits
+   * @param folderPath Path to the folder to lock
+   * @param lockMode Type of lock to apply ("full" or "scoped")
+   * @returns True if the folder was successfully locked
+   */
+  lockFolder(folderPath: string, lockMode: 'full' | 'scoped') {
+    return this.#filesStore.lockFolder(folderPath, lockMode);
+  }
+
+  /**
    * Unlock a file to allow edits
    * @param filePath Path to the file to unlock
    * @returns True if the file was successfully unlocked
@@ -323,12 +333,30 @@ export class WorkbenchStore {
   }
 
   /**
+   * Unlock a folder and all its contents to allow edits
+   * @param folderPath Path to the folder to unlock
+   * @returns True if the folder was successfully unlocked
+   */
+  unlockFolder(folderPath: string) {
+    return this.#filesStore.unlockFolder(folderPath);
+  }
+
+  /**
    * Check if a file is locked
    * @param filePath Path to the file to check
-   * @returns Object with locked status and lock mode
+   * @returns Object with locked status, lock mode, and what caused the lock
    */
   isFileLocked(filePath: string) {
     return this.#filesStore.isFileLocked(filePath);
+  }
+
+  /**
+   * Check if a folder is locked
+   * @param folderPath Path to the folder to check
+   * @returns Object with locked status, lock mode, and what caused the lock
+   */
+  isFolderLocked(folderPath: string) {
+    return this.#filesStore.isFolderLocked(folderPath);
   }
 
   async createFile(filePath: string, content: string | Uint8Array = '') {

@@ -1,4 +1,10 @@
-import { getLockedFiles, type LockMode } from '~/lib/persistence/lockedFiles';
+import {
+  getLockedItems,
+  isFileLocked as isFileLockedInternal,
+  isFolderLocked as isFolderLockedInternal,
+  isPathInLockedFolder,
+  type LockMode,
+} from '~/lib/persistence/lockedFiles';
 import { createScopedLogger } from './logger';
 
 const logger = createScopedLogger('FileLocks');
@@ -32,28 +38,66 @@ export function getCurrentChatId(): string {
  * @param filePath The path of the file to check
  * @param chatId Optional chat ID (will be extracted from URL if not provided)
  */
-export function isFileLocked(filePath: string, chatId?: string): { locked: boolean; lockMode?: LockMode } {
+export function isFileLocked(
+  filePath: string,
+  chatId?: string,
+): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
   try {
     const currentChatId = chatId || getCurrentChatId();
-    const lockedFiles = getLockedFiles();
 
-    // First check for a chat-specific lock
-    const lockedFile = lockedFiles.find((file) => file.chatId === currentChatId && file.path === filePath);
+    // Use the internal function from lockedFiles.ts
+    const result = isFileLockedInternal(currentChatId, filePath);
 
-    if (lockedFile) {
-      return { locked: true, lockMode: lockedFile.lockMode };
+    // If the file itself is not locked, check if it's in a locked folder
+    if (!result.locked) {
+      const folderLockResult = isPathInLockedFolder(currentChatId, filePath);
+
+      if (folderLockResult.locked) {
+        return folderLockResult;
+      }
     }
 
-    // For backward compatibility, also check for legacy locks without chatId
-    const legacyLock = lockedFiles.find((file) => !file.chatId && file.path === filePath);
-
-    if (legacyLock) {
-      return { locked: true, lockMode: legacyLock.lockMode };
-    }
-
-    return { locked: false };
+    return result;
   } catch (error) {
     logger.error('Failed to check if file is locked', error);
     return { locked: false };
+  }
+}
+
+/**
+ * Check if a folder is locked directly from localStorage
+ * This avoids circular dependencies between components and stores
+ * @param folderPath The path of the folder to check
+ * @param chatId Optional chat ID (will be extracted from URL if not provided)
+ */
+export function isFolderLocked(
+  folderPath: string,
+  chatId?: string,
+): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+  try {
+    const currentChatId = chatId || getCurrentChatId();
+
+    // Use the internal function from lockedFiles.ts
+    return isFolderLockedInternal(currentChatId, folderPath);
+  } catch (error) {
+    logger.error('Failed to check if folder is locked', error);
+    return { locked: false };
+  }
+}
+
+/**
+ * Check if any files are locked in the current chat
+ * @param chatId Optional chat ID (will be extracted from URL if not provided)
+ * @returns True if any files or folders are locked
+ */
+export function hasLockedItems(chatId?: string): boolean {
+  try {
+    const currentChatId = chatId || getCurrentChatId();
+    const lockedItems = getLockedItems();
+
+    return lockedItems.some((item) => item.chatId === currentChatId);
+  } catch (error) {
+    logger.error('Failed to check for locked items', error);
+    return false;
   }
 }

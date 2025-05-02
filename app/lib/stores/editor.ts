@@ -39,7 +39,7 @@ export class EditorStore {
       Object.fromEntries<EditorDocument>(
         Object.entries(files)
           .map(([filePath, dirent]) => {
-            if (dirent === undefined || dirent.type === 'folder') {
+            if (dirent === undefined || dirent.type !== 'file') {
               return undefined;
             }
 
