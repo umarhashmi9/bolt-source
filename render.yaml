@@ -1,0 +1,64 @@
+# render.yaml for bolt.diy
+services:
+  - type: web         # Specifies a web service
+    name: bolt-diy    # Name for the service on Render
+    env: docker       # Deploy using the Dockerfile
+    # repo: https://github.com/shapefuture/bolt.diy # Optional: Usually inferred from deploy link
+    dockerfilePath: ./Dockerfile # Path to the Dockerfile in your repo
+    dockerContext: .         # Root directory is the build context
+    plan: free               # Use Render's free instance type (subject to limitations like sleeping)
+    autoDeploy: false        # CRITICAL: Prevents pushes to *your* repo triggering redeploys for others
+    envVars:
+      - key: PORT
+        # IMPORTANT: Verify the port Bolt.DIY runs on inside the Docker container.
+        # Check the Dockerfile (EXPOSE instruction) or how the app starts.
+        # Common ports might be 3000, 5173, or 8080. Update if needed.
+        value: 5173
+
+      # === API Keys (User will be prompted by Render to enter these) ===
+      # Add entries for all providers you might want users to configure easily.
+      # 'sync: false' means Render asks the user clicking the button for *their* key.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_KEY # Or specific HF key name if needed
+        sync: false
+      - key: X_API_KEY # Or specific xAI key name if needed
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
+      - key: TOGETHER_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID # For Bedrock
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY # For Bedrock
+        sync: false
+      - key: AWS_REGION # For Bedrock (e.g., us-east-1)
+        sync: false
+
+      # === Custom Base URLs (User will be prompted by Render) ===
+      # Useful for Ollama, LMStudio, OpenAILike endpoints
+      - key: OLLAMA_BASE_URL # Or the specific env var bolt.diy uses
+        sync: false
+      - key: LMSTUDIO_BASE_URL # Or the specific env var bolt.diy uses
+        sync: false
+      - key: OPENAI_LIKE_BASE_URL # Or the specific env var bolt.diy uses
+        sync: false
+
+      # Add any other non-secret environment variables needed by bolt.diy at runtime here
+      # Example:
+      # - key: SOME_OTHER_CONFIG
+      #   value: "some_default"
