@@ -1,0 +1,83 @@
+# fly.toml app configuration file generated for bolt-diy
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+# app = "bolt-diy-template" # Users will override this with 'fly launch'
+primary_region = "iad" # Choose a default region, users might change it
+
+# Use the Dockerfile in the repository for building
+[build]
+  dockerfile = "Dockerfile"
+  # # Optional: Pass build args if needed (less common if ENVs are set at runtime)
+  # [build.args]
+  #   SOME_BUILD_ARG = "value"
+
+# Define runtime environment variables
+# Secrets should be set via 'fly secrets set'
+[env]
+  PORT = "5173" # Matches the internal port exposed in Dockerfile
+  NODE_ENV = "production"
+  RUNNING_IN_DOCKER = "true" # Consistent with Dockerfile
+
+# Define the main web service
+[[services]]
+  internal_port = 5173 # The port the app listens on *inside* the container
+  processes = ["app"] # Matches the default process group name
+  protocol = "tcp"
+  script_checks = [] # Use http_checks instead for web services
+
+  # Health check configuration
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  # Map external HTTP/HTTPS ports to the internal port
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  # Define TCP health checks (adjust path/interval as needed)
+  [[services.tcp_checks]]
+    grace_period = "5s"
+    interval = "15s"
+    port = 5173 # Check the internal port
+    restart_limit = 0
+    timeout = "2s"
+
+  # # Optional: HTTP health check (can be more robust)
+  # [[services.http_checks]]
+  #   interval = "10s"
+  #   grace_period = "5s"
+  #   method = "get"
+  #   path = "/" # Path that should return 2xx status
+  #   protocol = "http"
+  #   port = 5173 # Check the internal port
+  #   timeout = "2s"
+  #   tls_skip_verify = false
+  #   [services.http_checks.headers]
+
+# Optional: Configure Machines to autostop/autostart on inactivity (good for free tier)
+[http_service]
+  internal_port = 5173
+  force_https = true
+  auto_stop_machines = true # Stop VM after inactivity
+  auto_start_machines = true # Start VM on new request
+  min_machines_running = 0 # Allow scaling to zero
+  processes = ["app"]
+
+# Optional: Define VM resources (start with shared for free tier)
+[machines]
+   size = "shared-cpu-1x" # Or dedicated-cpu-1x etc.
+   memory = "512mb" # Align with free tier limits if applicable
+
+# # Optional: Define volume storage if Bolt.DIY needs persistent data
+# [mounts]
+#   source="bolt_data"
+#   destination="/data" # Path inside the container where volume is mounted
