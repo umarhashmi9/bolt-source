@@ -157,16 +157,25 @@ export function useLockedFilesChecker() {
     folders: { path: string; lockMode: string }[];
   }>({ files: [], folders: [] });
 
+  // Keep track of previously locked items that might have been unlocked
+  const [previouslyLockedItems, setPreviouslyLockedItems] = useState<{
+    files: { path: string; lockMode: string }[];
+    folders: { path: string; lockMode: string }[];
+  }>({ files: [], folders: [] });
+
   /**
    * Check if a prompt is trying to modify locked files or folders
    * @param prompt The user's prompt
+   * @param checkPreviouslyLocked Whether to check if previously locked items are now unlocked
    * @returns An object with the modified prompt and whether any locked items were found
    */
-  const checkForLockedItems = (prompt: string) => {
+  const checkForLockedItems = (prompt: string, checkPreviouslyLocked = false) => {
     const potentialPaths = extractPotentialFilePaths(prompt);
     const currentChatId = getCurrentChatId();
     const lockedFiles: { path: string; lockMode: string }[] = [];
     const lockedFolders: { path: string; lockMode: string }[] = [];
+    const unlockedFiles: { path: string }[] = [];
+    const unlockedFolders: { path: string }[] = [];
 
     // Check each potential path
     potentialPaths.forEach((path) => {
@@ -193,7 +202,34 @@ export function useLockedFilesChecker() {
       }
     });
 
+    // If we're checking previously locked items, check if any of them are now unlocked
+    if (checkPreviouslyLocked) {
+      previouslyLockedItems.files.forEach((file) => {
+        const fileCheck = isFileLocked(file.path, currentChatId);
+
+        if (!fileCheck.locked) {
+          unlockedFiles.push({ path: file.path });
+          logger.info(`Previously locked file is now unlocked: ${file.path}`);
+        }
+      });
+
+      previouslyLockedItems.folders.forEach((folder) => {
+        const folderCheck = isFolderLocked(folder.path, currentChatId);
+
+        if (!folderCheck.locked) {
+          unlockedFolders.push({ path: folder.path });
+          logger.info(`Previously locked folder is now unlocked: ${folder.path}`);
+        }
+      });
+    }
+
+    // Update the state with the current locked items
     setLockedItems({ files: lockedFiles, folders: lockedFolders });
+
+    // If we found locked items, save them for future reference
+    if (lockedFiles.length > 0 || lockedFolders.length > 0) {
+      setPreviouslyLockedItems({ files: lockedFiles, folders: lockedFolders });
+    }
 
     // If we found locked items, modify the prompt to warn the AI
     let modifiedPrompt = prompt;
@@ -233,16 +269,33 @@ export function useLockedFilesChecker() {
       });
     }
 
+    // Check if the user is responding to a locked file message and has unlocked some files
+    const isRespondingToLockMessage = /unlock|unlocked|unlocking/i.test(prompt);
+    const hasUnlockedItems = unlockedFiles.length > 0 || unlockedFolders.length > 0;
+
     return {
       modifiedPrompt,
       hasLockedItems: lockedFiles.length > 0 || lockedFolders.length > 0,
       lockedFiles,
       lockedFolders,
+      isRespondingToLockMessage,
+      hasUnlockedItems,
+      unlockedFiles,
+      unlockedFolders,
     };
+  };
+
+  /**
+   * Reset the previously locked items state
+   */
+  const resetPreviouslyLockedItems = () => {
+    setPreviouslyLockedItems({ files: [], folders: [] });
   };
 
   return {
     lockedItems,
+    previouslyLockedItems,
     checkForLockedItems,
+    resetPreviouslyLockedItems,
   };
 }

@@ -311,8 +311,59 @@ export const ChatImpl = memo(
         return;
       }
 
-      // Check if the message is trying to modify locked files or folders
-      const { hasLockedItems, lockedFiles, lockedFolders } = checkForLockedItems(messageContent);
+      /*
+       * Check if the message is trying to modify locked files or folders
+       * Also check if previously locked files are now unlocked
+       */
+      const {
+        hasLockedItems,
+        lockedFiles,
+        lockedFolders,
+        isRespondingToLockMessage,
+        hasUnlockedItems,
+        unlockedFiles,
+        unlockedFolders,
+      } = checkForLockedItems(messageContent, true);
+
+      // Special case: User has unlocked files and is responding to a lock message
+      if (isRespondingToLockMessage && hasUnlockedItems) {
+        // Create a list of unlocked items for display
+        const unlockedItemsList = [
+          ...unlockedFiles.map((f) => `File: ${f.path}`),
+          ...unlockedFolders.map((f) => `Folder: ${f.path}`),
+        ].join('\n- ');
+
+        // Add a user message to the chat
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: messageContent,
+        };
+
+        // Add an assistant message acknowledging the unlocked files
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `I see you've unlocked the following items:\n\n- ${unlockedItemsList}\n\nI can now proceed with modifying these items. What would you like me to do with them?`,
+        };
+
+        // Add both messages to the chat
+        setMessages([...messages, userMessage, assistantMessage]);
+
+        // Clear the input
+        setInput('');
+
+        // Show a success alert
+        workbenchStore.actionAlert.set({
+          type: 'success',
+          title: 'Files/Folders Unlocked',
+          description: 'You have successfully unlocked files/folders',
+          content: 'The AI can now modify these items.',
+          isLockedFile: false,
+        });
+
+        return;
+      }
 
       // If we have locked items, we'll handle this specially
       if (hasLockedItems) {
