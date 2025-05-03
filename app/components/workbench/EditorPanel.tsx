@@ -1,7 +1,8 @@
 import { useStore } from '@nanostores/react';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import * as Tabs from '@radix-ui/react-tabs'; // <-- Import Radix UI Tabs
+import { LockManagerDialog } from './LockManagerDialog';
 import {
   CodeMirrorEditor,
   type EditorDocument,
@@ -61,6 +62,7 @@ export const EditorPanel = memo(
 
     const theme = useStore(themeStore);
     const showTerminal = useStore(workbenchStore.showTerminal);
+    const [isLockManagerOpen, setIsLockManagerOpen] = useState(false);
 
     const activeFileSegments = useMemo(() => {
       if (!editorDocument) {
@@ -84,46 +86,61 @@ export const EditorPanel = memo(
         <Panel defaultSize={showTerminal ? DEFAULT_EDITOR_SIZE : 100} minSize={20}>
           <PanelGroup direction="horizontal">
             <Panel defaultSize={20} minSize={15} collapsible className="border-r border-bolt-elements-borderColor">
-              <Tabs.Root defaultValue="files" className="flex flex-col h-full">
-                <PanelHeader className="w-full text-sm font-medium text-bolt-elements-textSecondary px-1">
-                  <Tabs.List className="h-full flex-shrink-0 flex items-center">
-                    <Tabs.Trigger
-                      value="files"
-                      className={classNames(
-                        'h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary data-[state=active]:text-bolt-elements-textPrimary',
-                      )}
-                    >
-                      Files
-                    </Tabs.Trigger>
-                    <Tabs.Trigger
-                      value="search"
-                      className={classNames(
-                        'h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary data-[state=active]:text-bolt-elements-textPrimary',
-                      )}
-                    >
-                      Search
-                    </Tabs.Trigger>
-                  </Tabs.List>
-                </PanelHeader>
+              <div className="h-full">
+                <Tabs.Root defaultValue="files" className="flex flex-col h-full">
+                  <PanelHeader className="w-full text-sm font-medium text-bolt-elements-textSecondary px-1">
+                    <div className="h-full flex-shrink-0 flex items-center justify-between w-full">
+                      <Tabs.List className="h-full flex-shrink-0 flex items-center">
+                        <Tabs.Trigger
+                          value="files"
+                          className={classNames(
+                            'h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary data-[state=active]:text-bolt-elements-textPrimary',
+                          )}
+                        >
+                          Files
+                        </Tabs.Trigger>
+                        <Tabs.Trigger
+                          value="search"
+                          className={classNames(
+                            'h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary data-[state=active]:text-bolt-elements-textPrimary',
+                          )}
+                        >
+                          Search
+                        </Tabs.Trigger>
+                      </Tabs.List>
 
-                <Tabs.Content value="files" className="flex-grow overflow-auto focus-visible:outline-none">
-                  <FileTree
-                    className="h-full"
-                    files={files}
-                    hideRoot
-                    unsavedFiles={unsavedFiles}
-                    fileHistory={fileHistory}
-                    rootFolder={WORK_DIR}
-                    selectedFile={selectedFile}
-                    onFileSelect={onFileSelect}
-                  />
-                </Tabs.Content>
+                      <button
+                        onClick={() => setIsLockManagerOpen(true)}
+                        className="flex items-center h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
+                      >
+                        <span className="i-ph:lock-simple-duotone mr-1" />
+                        Locks
+                      </button>
+                    </div>
+                  </PanelHeader>
 
-                <Tabs.Content value="search" className="flex-grow overflow-auto focus-visible:outline-none">
-                  <Search />
-                </Tabs.Content>
-              </Tabs.Root>
+                  <Tabs.Content value="files" className="flex-grow overflow-auto focus-visible:outline-none">
+                    <FileTree
+                      className="h-full"
+                      files={files}
+                      hideRoot
+                      unsavedFiles={unsavedFiles}
+                      fileHistory={fileHistory}
+                      rootFolder={WORK_DIR}
+                      selectedFile={selectedFile}
+                      onFileSelect={onFileSelect}
+                    />
+                  </Tabs.Content>
+
+                  <Tabs.Content value="search" className="flex-grow overflow-auto focus-visible:outline-none">
+                    <Search />
+                  </Tabs.Content>
+                </Tabs.Root>
+              </div>
             </Panel>
+
+            {/* Lock Manager Dialog */}
+            <LockManagerDialog isOpen={isLockManagerOpen} onClose={() => setIsLockManagerOpen(false)} />
 
             <PanelResizeHandle />
             <Panel className="flex flex-col" defaultSize={80} minSize={20}>
