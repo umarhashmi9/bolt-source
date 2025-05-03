@@ -8,7 +8,7 @@ import { useChat } from 'ai/react';
 import { useAnimate } from 'framer-motion';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { cssTransition, toast, ToastContainer } from 'react-toastify';
-import { useMessageParser, usePromptEnhancer, useShortcuts } from '~/lib/hooks';
+import { useMessageParser, usePromptEnhancer, useShortcuts, useLockedFilesChecker } from '~/lib/hooks';
 import { description, useChatHistory } from '~/lib/persistence';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
@@ -232,6 +232,7 @@ export const ChatImpl = memo(
 
     const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
     const { parsedMessages, parseMessages } = useMessageParser();
+    const { checkForLockedItems } = useLockedFilesChecker();
 
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
 
@@ -310,6 +311,12 @@ export const ChatImpl = memo(
         return;
       }
 
+      // Check if the message is trying to modify locked files or folders
+      const { modifiedPrompt, hasLockedItems } = checkForLockedItems(messageContent);
+
+      // Use the modified prompt that includes warnings about locked files/folders
+      const finalMessageContent = hasLockedItems ? modifiedPrompt : messageContent;
+
       runAnimation();
 
       if (!chatStarted) {
@@ -317,7 +324,7 @@ export const ChatImpl = memo(
 
         if (autoSelectTemplate) {
           const { template, title } = await selectStarterTemplate({
-            message: messageContent,
+            message: finalMessageContent,
             model,
             provider,
           });
@@ -342,7 +349,7 @@ export const ChatImpl = memo(
                   content: [
                     {
                       type: 'text',
-                      text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${messageContent}`,
+                      text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`,
                     },
                     ...imageDataList.map((imageData) => ({
                       type: 'image',
@@ -387,7 +394,7 @@ export const ChatImpl = memo(
             content: [
               {
                 type: 'text',
-                text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${messageContent}`,
+                text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`,
               },
               ...imageDataList.map((imageData) => ({
                 type: 'image',
@@ -426,7 +433,7 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userUpdateArtifact}${messageContent}`,
+              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userUpdateArtifact}${finalMessageContent}`,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
@@ -442,7 +449,7 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${messageContent}`,
+              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
