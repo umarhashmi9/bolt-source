@@ -312,10 +312,51 @@ export const ChatImpl = memo(
       }
 
       // Check if the message is trying to modify locked files or folders
-      const { modifiedPrompt, hasLockedItems } = checkForLockedItems(messageContent);
+      const { hasLockedItems, lockedFiles, lockedFolders } = checkForLockedItems(messageContent);
 
-      // Use the modified prompt that includes warnings about locked files/folders
-      const finalMessageContent = hasLockedItems ? modifiedPrompt : messageContent;
+      // If we have locked items, we'll handle this specially
+      if (hasLockedItems) {
+        // Create a list of locked items for display
+        const lockedItems = [
+          ...lockedFiles.map((f) => `File: ${f.path} (${f.lockMode} lock)`),
+          ...lockedFolders.map((f) => `Folder: ${f.path} (${f.lockMode} lock)`),
+        ].join('\n- ');
+
+        // Add a user message to the chat
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: messageContent,
+        };
+
+        // Add an assistant message explaining the locked files
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `I've detected that you're asking me to modify locked files or folders. These items are currently locked and cannot be modified:\n\n- ${lockedItems}\n\nPlease unlock these items first if you want me to modify them. You can do this by right-clicking on the file/folder in the file tree and selecting "Unlock".`,
+        };
+
+        // Add both messages to the chat
+        setMessages([...messages, userMessage, assistantMessage]);
+
+        // Clear the input
+        setInput('');
+
+        // Show an alert
+        workbenchStore.actionAlert.set({
+          type: 'warning',
+          title: 'Locked Files/Folders Detected',
+          description: 'Your request mentions locked files or folders',
+          content:
+            'These items are locked and cannot be modified. Please unlock them first if you want to modify them.',
+          isLockedFile: true,
+        });
+
+        return;
+      }
+
+      // If no locked items, proceed normally with the original message
+      const finalMessageContent = messageContent;
 
       runAnimation();
 

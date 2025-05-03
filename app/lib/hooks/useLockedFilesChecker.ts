@@ -12,6 +12,7 @@ const logger = createScopedLogger('useLockedFilesChecker');
  * - Update app/components/file.tsx
  * - Change the code in src/utils/helper.ts
  * - Fix the bug in folder/file.js
+ * - Update the readme
  */
 function extractPotentialFilePaths(prompt: string): string[] {
   // Common file extensions to look for
@@ -59,8 +60,92 @@ function extractPotentialFilePaths(prompt: string): string[] {
   const folderMatches = [...prompt.matchAll(folderRegex)];
   const folderPaths = folderMatches.map((match) => match[2]);
 
+  // Look for common file names without extensions
+  const commonFileNames = [
+    { pattern: /\b(readme|read\s*me)\b/gi, path: 'README.md' },
+    { pattern: /\b(license)\b/gi, path: 'LICENSE' },
+    { pattern: /\b(changelog|change\s*log)\b/gi, path: 'CHANGELOG.md' },
+    { pattern: /\b(package\.json)\b/gi, path: 'package.json' },
+    { pattern: /\b(tsconfig|ts\s*config)\b/gi, path: 'tsconfig.json' },
+    { pattern: /\b(gitignore|git\s*ignore)\b/gi, path: '.gitignore' },
+    { pattern: /\b(env|environment|\.env)\b/gi, path: '.env' },
+    { pattern: /\b(docker\s*file)\b/gi, path: 'Dockerfile' },
+    { pattern: /\b(compose\.ya?ml)\b/gi, path: 'docker-compose.yml' },
+
+    // Common action verbs that might indicate file modification intent
+    { pattern: /\b(update|modify|change|edit|fix|create|add to|implement|write|rewrite)\b/gi, path: '' },
+  ];
+
+  const commonFilePaths = commonFileNames.flatMap(({ pattern, path }) => {
+    // If this is an action verb pattern and it matches, we need to check all files
+    if (path === '' && prompt.match(pattern)) {
+      return []; // We'll handle action verbs separately
+    }
+
+    return prompt.match(pattern) ? [path] : [];
+  });
+
+  // Also check for files in the current workbench store
+  const workbenchFiles = Object.keys(workbenchStore.files.get());
+
+  // Check if the prompt mentions updating or modifying any of these files
+  const actionWords = [
+    'update',
+    'modify',
+    'change',
+    'edit',
+    'fix',
+    'create',
+    'add to',
+    'implement',
+    'write',
+    'rewrite',
+  ];
+
+  // Check if any action word is in the prompt
+  const hasActionWord = actionWords.some((action) => new RegExp(`\\b${action}\\b`, 'i').test(prompt));
+
+  // If we detect an action word, we need to be more cautious and check all important files
+  let mentionedFiles: string[] = [];
+
+  if (hasActionWord) {
+    // First, check for specific file mentions
+    mentionedFiles = workbenchFiles.filter((file) => {
+      const fileName = file.split('/').pop() || '';
+
+      // Check if any action word is followed by this filename
+      return actionWords.some((action) => {
+        const regex = new RegExp(`${action}\\s+(?:the\\s+)?(?:file\\s+)?['"]?${fileName}['"]?`, 'i');
+        return regex.test(prompt);
+      });
+    });
+
+    /*
+     * If no specific files are mentioned but action words are present,
+     * include common important files that are often modified
+     */
+    if (mentionedFiles.length === 0) {
+      const importantFilePatterns = [
+        /README\.md$/i,
+        /package\.json$/i,
+        /index\.(js|ts|jsx|tsx)$/i,
+        /app\.(js|ts|jsx|tsx)$/i,
+        /main\.(js|ts|jsx|tsx)$/i,
+        /styles\.(css|scss)$/i,
+      ];
+
+      mentionedFiles = workbenchFiles.filter((file) => importantFilePatterns.some((pattern) => pattern.test(file)));
+    }
+  } else {
+    // If no action words, just check for direct file mentions
+    mentionedFiles = workbenchFiles.filter((file) => {
+      const fileName = file.split('/').pop() || '';
+      return new RegExp(`\\b${fileName}\\b`, 'i').test(prompt);
+    });
+  }
+
   // Combine and remove duplicates
-  return [...new Set([...filePaths, ...folderPaths])];
+  return [...new Set([...filePaths, ...folderPaths, ...commonFilePaths, ...mentionedFiles])];
 }
 
 /**
