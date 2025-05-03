@@ -323,6 +323,7 @@ export const ChatImpl = memo(
         hasUnlockedItems,
         unlockedFiles,
         unlockedFolders,
+        alternativeSuggestions,
       } = checkForLockedItems(messageContent, true);
 
       // Special case: User has unlocked files and is responding to a lock message
@@ -380,11 +381,16 @@ export const ChatImpl = memo(
           content: messageContent,
         };
 
-        // Add an assistant message explaining the locked files
+        // Add an assistant message explaining the locked files and providing alternatives
+        const alternativeSuggestionsText =
+          alternativeSuggestions && alternativeSuggestions.length > 0
+            ? `\n\n**Alternative approaches you could try:**\n\n${alternativeSuggestions.map((s) => `- ${s}`).join('\n\n')}`
+            : '';
+
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `I've detected that you're asking me to modify locked files or folders. These items are currently locked and cannot be modified:\n\n- ${lockedItems}\n\nPlease unlock these items first if you want me to modify them. You can do this by right-clicking on the file/folder in the file tree and selecting "Unlock".`,
+          content: `I've detected that you're asking me to modify locked files or folders. These items are currently locked and cannot be modified:\n\n- ${lockedItems}\n\nPlease unlock these items first if you want me to modify them. You can do this by right-clicking on the file/folder in the file tree and selecting "Unlock".${alternativeSuggestionsText}`,
         };
 
         // Add both messages to the chat

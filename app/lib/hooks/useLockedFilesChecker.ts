@@ -164,6 +164,117 @@ export function useLockedFilesChecker() {
   }>({ files: [], folders: [] });
 
   /**
+   * Generate alternative suggestions for locked files
+   * @param lockedFiles Array of locked files
+   * @param lockedFolders Array of locked folders
+   * @param prompt The original user prompt
+   * @returns An array of alternative suggestions
+   */
+  const generateAlternativeSuggestions = (
+    lockedFiles: { path: string; lockMode: string }[],
+    lockedFolders: { path: string; lockMode: string }[],
+    prompt: string,
+  ): string[] => {
+    const suggestions: string[] = [];
+    const allFiles = workbenchStore.files.get();
+
+    // Check if the prompt is asking to modify a specific file
+    const isModifyingSpecificFile =
+      lockedFiles.length === 1 && prompt.toLowerCase().includes(lockedFiles[0].path.toLowerCase());
+
+    /*
+     * Check if the prompt is asking to modify a specific folder
+     * const isModifyingSpecificFolder =
+     *   lockedFolders.length === 1 && prompt.toLowerCase().includes(lockedFolders[0].path.toLowerCase());
+     */
+
+    // 1. Suggest creating a temporary copy
+    if (isModifyingSpecificFile) {
+      const filePath = lockedFiles[0].path;
+      const fileName = filePath.split('/').pop() || '';
+      const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
+      const baseName = fileName.includes('.') ? fileName.split('.').slice(0, -1).join('.') : fileName;
+      const newFileName = `${baseName}_temp.${extension}`;
+      const newFilePath = filePath.replace(fileName, newFileName);
+
+      suggestions.push(`Create a temporary copy of the file as "${newFilePath}" and make changes there`);
+    }
+
+    // 2. Suggest alternative files that are similar but not locked
+    const lockedFileExtensions = lockedFiles
+      .map((f) => {
+        const parts = f.path.split('.');
+        return parts.length > 1 ? parts.pop() : '';
+      })
+      .filter(Boolean);
+
+    const lockedFileNames = lockedFiles.map((f) => f.path.split('/').pop() || '');
+
+    // Find similar files that aren't locked
+    const similarFiles = Object.keys(allFiles)
+      .filter((path) => {
+        const file = allFiles[path];
+
+        if (!file || file.type !== 'file') {
+          return false;
+        }
+
+        // Skip if this file is locked
+        if (file.locked) {
+          return false;
+        }
+
+        // Check if it has the same extension as any locked file
+        const extension = path.includes('.') ? path.split('.').pop() : '';
+
+        if (lockedFileExtensions.includes(extension)) {
+          return true;
+        }
+
+        // Check if the filename is similar to any locked file
+        const fileName = path.split('/').pop() || '';
+
+        return lockedFileNames.some((lockedName) => {
+          // Simple similarity check - if they share at least 3 characters
+          const minLength = Math.min(fileName.length, lockedName.length);
+          let commonChars = 0;
+
+          for (let i = 0; i < minLength; i++) {
+            if (fileName[i].toLowerCase() === lockedName[i].toLowerCase()) {
+              commonChars++;
+            }
+          }
+
+          return commonChars >= 3;
+        });
+      })
+      .slice(0, 3); // Limit to 3 suggestions
+
+    if (similarFiles.length > 0) {
+      suggestions.push(`Work with similar unlocked files instead: ${similarFiles.join(', ')}`);
+    }
+
+    // 3. Suggest creating a new file with similar functionality
+    if (isModifyingSpecificFile) {
+      const filePath = lockedFiles[0].path;
+      const fileName = filePath.split('/').pop() || '';
+      const directory = filePath.substring(0, filePath.lastIndexOf('/'));
+      const newFileName = `new_${fileName}`;
+      const newFilePath = `${directory}/${newFileName}`;
+
+      suggestions.push(`Create a new file "${newFilePath}" with similar functionality`);
+    }
+
+    // 4. Suggest documenting the changes that would be made
+    suggestions.push("Document the changes you'd like to make, and I'll help implement them once the file is unlocked");
+
+    // 5. Suggest using the Lock Manager
+    suggestions.push('Use the Lock Manager (button in the header) to view and manage all locked files');
+
+    return suggestions;
+  };
+
+  /**
    * Check if a prompt is trying to modify locked files or folders
    * @param prompt The user's prompt
    * @param checkPreviouslyLocked Whether to check if previously locked items are now unlocked
@@ -231,6 +342,12 @@ export function useLockedFilesChecker() {
       setPreviouslyLockedItems({ files: lockedFiles, folders: lockedFolders });
     }
 
+    // Generate alternative suggestions if we found locked items
+    const alternativeSuggestions =
+      lockedFiles.length > 0 || lockedFolders.length > 0
+        ? generateAlternativeSuggestions(lockedFiles, lockedFolders, prompt)
+        : [];
+
     // If we found locked items, modify the prompt to warn the AI
     let modifiedPrompt = prompt;
 
@@ -282,6 +399,7 @@ export function useLockedFilesChecker() {
       hasUnlockedItems,
       unlockedFiles,
       unlockedFolders,
+      alternativeSuggestions,
     };
   };
 
