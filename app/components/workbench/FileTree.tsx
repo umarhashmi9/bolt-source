@@ -422,26 +422,6 @@ function FileContextMenu({
     }
   };
 
-  // Handler for locking a file with scoped lock
-  const handleScopedLockFile = () => {
-    try {
-      if (isFolder) {
-        return;
-      }
-
-      const success = workbenchStore.lockFile(fullPath, 'scoped');
-
-      if (success) {
-        toast.success(`File locked (scoped) successfully`);
-      } else {
-        toast.error(`Failed to lock file`);
-      }
-    } catch (error) {
-      toast.error(`Error locking file`);
-      logger.error(error);
-    }
-  };
-
   // Handler for unlocking a file
   const handleUnlockFile = () => {
     try {
@@ -473,26 +453,6 @@ function FileContextMenu({
 
       if (success) {
         toast.success(`Folder locked successfully`);
-      } else {
-        toast.error(`Failed to lock folder`);
-      }
-    } catch (error) {
-      toast.error(`Error locking folder`);
-      logger.error(error);
-    }
-  };
-
-  // Handler for locking a folder with scoped lock
-  const handleScopedLockFolder = () => {
-    try {
-      if (!isFolder) {
-        return;
-      }
-
-      const success = workbenchStore.lockFolder(fullPath, 'scoped');
-
-      if (success) {
-        toast.success(`Folder locked (scoped) successfully`);
       } else {
         toast.error(`Failed to lock folder`);
       }
@@ -568,13 +528,7 @@ function FileContextMenu({
                   <ContextMenuItem onSelect={handleLockFile}>
                     <div className="flex items-center gap-2">
                       <div className="i-ph:lock-simple" />
-                      Lock File (Full)
-                    </div>
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={handleScopedLockFile}>
-                    <div className="flex items-center gap-2">
-                      <div className="i-ph:lock-simple-open" />
-                      Lock File (Scoped)
+                      Lock File
                     </div>
                   </ContextMenuItem>
                   <ContextMenuItem onSelect={handleUnlockFile}>
@@ -589,13 +543,7 @@ function FileContextMenu({
                   <ContextMenuItem onSelect={handleLockFolder}>
                     <div className="flex items-center gap-2">
                       <div className="i-ph:lock-simple" />
-                      Lock Folder (Full)
-                    </div>
-                  </ContextMenuItem>
-                  <ContextMenuItem onSelect={handleScopedLockFolder}>
-                    <div className="flex items-center gap-2">
-                      <div className="i-ph:lock-simple-open" />
-                      Lock Folder (Scoped)
+                      Lock Folder
                     </div>
                   </ContextMenuItem>
                   <ContextMenuItem onSelect={handleUnlockFolder}>

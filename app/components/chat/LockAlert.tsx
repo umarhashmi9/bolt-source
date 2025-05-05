@@ -7,9 +7,7 @@ interface Props {
   clearAlert: () => void;
 }
 
-export default function LockAlert({ alert, clearAlert }: Props) {
-  const { description } = alert;
-
+export default function LockAlert({ clearAlert }: Props) {
   return (
     <AnimatePresence>
       <motion.div
@@ -35,7 +33,7 @@ export default function LockAlert({ alert, clearAlert }: Props) {
             transition={{ delay: 0.1 }}
             className="text-sm font-medium text-amber-500"
           >
-            Terminal Error
+            File Lock Error
           </motion.h3>
         </div>
 
@@ -50,22 +48,12 @@ export default function LockAlert({ alert, clearAlert }: Props) {
             <p className="mb-3">
               The file is locked and cannot be modified. You need to unlock the file before making changes.
             </p>
-
-            {description && (
-              <div className="text-xs p-3 bg-bolt-elements-background-depth-3 rounded-md mb-3 font-mono border border-bolt-elements-borderColor">
-                <div className="flex items-center mb-1">
-                  <div className="i-ph:lock-simple-duotone text-sm text-amber-500 mr-1.5"></div>
-                  <span className="font-medium text-bolt-elements-textPrimary">Error Details</span>
-                </div>
-                <div className="pl-5 border-l border-bolt-elements-borderColor">{description}</div>
-              </div>
-            )}
           </motion.div>
         </div>
 
         {/* Actions */}
         <motion.div
-          className="p-3 bg-bolt-elements-background-depth-1 border-t border-bolt-elements-borderColor"
+          className="p-3 bg-bolt-elements-background-depth-2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}

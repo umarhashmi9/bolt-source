@@ -1,8 +1,7 @@
 import { useStore } from '@nanostores/react';
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import * as Tabs from '@radix-ui/react-tabs'; // <-- Import Radix UI Tabs
-import { LockManagerDialog } from './LockManagerDialog';
+import * as Tabs from '@radix-ui/react-tabs';
 import {
   CodeMirrorEditor,
   type EditorDocument,
@@ -25,6 +24,7 @@ import { DEFAULT_TERMINAL_SIZE, TerminalTabs } from './terminal/TerminalTabs';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { Search } from './Search'; // <-- Ensure Search is imported
 import { classNames } from '~/utils/classNames'; // <-- Import classNames if not already present
+import { LockManager } from './LockManager'; // <-- Import LockManager
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -62,7 +62,6 @@ export const EditorPanel = memo(
 
     const theme = useStore(themeStore);
     const showTerminal = useStore(workbenchStore.showTerminal);
-    const [isLockManagerOpen, setIsLockManagerOpen] = useState(false);
 
     const activeFileSegments = useMemo(() => {
       if (!editorDocument) {
@@ -107,15 +106,15 @@ export const EditorPanel = memo(
                         >
                           Search
                         </Tabs.Trigger>
+                        <Tabs.Trigger
+                          value="locks"
+                          className={classNames(
+                            'h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary data-[state=active]:text-bolt-elements-textPrimary',
+                          )}
+                        >
+                          Locks
+                        </Tabs.Trigger>
                       </Tabs.List>
-
-                      <button
-                        onClick={() => setIsLockManagerOpen(true)}
-                        className="flex items-center h-full bg-transparent hover:bg-bolt-elements-background-depth-3 py-0.5 px-2 rounded-lg text-sm font-medium text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary"
-                      >
-                        <span className="i-ph:lock-simple-duotone mr-1" />
-                        Locks
-                      </button>
                     </div>
                   </PanelHeader>
 
@@ -135,12 +134,13 @@ export const EditorPanel = memo(
                   <Tabs.Content value="search" className="flex-grow overflow-auto focus-visible:outline-none">
                     <Search />
                   </Tabs.Content>
+
+                  <Tabs.Content value="locks" className="flex-grow overflow-auto focus-visible:outline-none">
+                    <LockManager />
+                  </Tabs.Content>
                 </Tabs.Root>
               </div>
             </Panel>
-
-            {/* Lock Manager Dialog */}
-            <LockManagerDialog isOpen={isLockManagerOpen} onClose={() => setIsLockManagerOpen(false)} />
 
             <PanelResizeHandle />
             <Panel className="flex flex-col" defaultSize={80} minSize={20}>
