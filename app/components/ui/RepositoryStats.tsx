@@ -25,7 +25,7 @@ export function RepositoryStats({ stats, className, compact = false }: Repositor
           Repository Statistics:
         </p>
       )}
-      
+
       <div className={classNames('grid gap-3', compact ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3')}>
         {totalFiles !== undefined && (
           <div className="flex items-center gap-2 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
@@ -33,7 +33,7 @@ export function RepositoryStats({ stats, className, compact = false }: Repositor
             <span className={compact ? 'text-xs' : 'text-sm'}>Total Files: {totalFiles.toLocaleString()}</span>
           </div>
         )}
-        
+
         {totalSize !== undefined && (
           <div className="flex items-center gap-2 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
             <span className="i-ph:database text-purple-500 w-4 h-4" />
@@ -53,19 +53,12 @@ export function RepositoryStats({ stats, className, compact = false }: Repositor
               .sort(([, a], [, b]) => b - a)
               .slice(0, compact ? 3 : 5)
               .map(([lang, size]) => (
-                <Badge 
-                  key={lang} 
-                  variant="subtle" 
-                  size={compact ? 'sm' : 'md'}
-                >
+                <Badge key={lang} variant="subtle" size={compact ? 'sm' : 'md'}>
                   {lang} ({formatSize(size)})
                 </Badge>
               ))}
             {Object.keys(languages).length > (compact ? 3 : 5) && (
-              <Badge 
-                variant="subtle" 
-                size={compact ? 'sm' : 'md'}
-              >
+              <Badge variant="subtle" size={compact ? 'sm' : 'md'}>
                 +{Object.keys(languages).length - (compact ? 3 : 5)} more
               </Badge>
             )}
@@ -77,20 +70,12 @@ export function RepositoryStats({ stats, className, compact = false }: Repositor
         <div className={compact ? 'pt-1' : 'pt-2'}>
           <div className="flex flex-wrap gap-2">
             {hasPackageJson && (
-              <Badge 
-                variant="primary" 
-                size={compact ? 'sm' : 'md'} 
-                icon="i-ph:package w-3.5 h-3.5"
-              >
+              <Badge variant="primary" size={compact ? 'sm' : 'md'} icon="i-ph:package w-3.5 h-3.5">
                 package.json
               </Badge>
             )}
             {hasDependencies && (
-              <Badge 
-                variant="primary" 
-                size={compact ? 'sm' : 'md'} 
-                icon="i-ph:tree-structure w-3.5 h-3.5"
-              >
+              <Badge variant="primary" size={compact ? 'sm' : 'md'} icon="i-ph:tree-structure w-3.5 h-3.5">
                 Dependencies
               </Badge>
             )}

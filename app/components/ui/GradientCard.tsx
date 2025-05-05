@@ -14,17 +14,27 @@ const GRADIENT_COLORS = [
   'from-pink-500/10 to-purple-500/5',
 ];
 
-interface GradientCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GradientCardProps {
   /** Custom gradient class (overrides seed-based gradient) */
   gradient?: string;
+
   /** Seed string to determine gradient color */
   seed?: string;
+
   /** Whether to apply hover animation effect */
   hoverEffect?: boolean;
+
   /** Whether to apply border effect */
   borderEffect?: boolean;
+
   /** Card content */
   children: React.ReactNode;
+
+  /** Additional class name */
+  className?: string;
+
+  /** Additional props */
+  [key: string]: any;
 }
 
 /**
@@ -54,7 +64,7 @@ export function GradientCard({
         },
         whileTap: { scale: 0.98 },
       }
-    : {};
+    : undefined;
 
   return (
     <motion.div
@@ -80,8 +90,11 @@ export function GradientCard({
  * Calculate a gradient color based on the seed string for visual variety
  */
 function getGradientColorFromSeed(seedString?: string): string {
-  if (!seedString) return GRADIENT_COLORS[0];
+  if (!seedString) {
+    return GRADIENT_COLORS[0];
+  }
 
   const index = seedString.length % GRADIENT_COLORS.length;
+
   return GRADIENT_COLORS[index];
 }

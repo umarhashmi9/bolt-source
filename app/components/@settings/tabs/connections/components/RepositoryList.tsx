@@ -1,5 +1,4 @@
 import React, { useContext } from 'react';
-import { motion } from 'framer-motion';
 import type { GitHubRepoInfo } from '~/types/GitHub';
 import { EmptyState, StatusIndicator } from '~/components/ui';
 import { RepositoryCard } from './RepositoryCard';

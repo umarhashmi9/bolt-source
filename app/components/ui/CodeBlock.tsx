@@ -37,11 +37,13 @@ export function CodeBlock({
   const lines = code.split('\n');
 
   return (
-    <div className={classNames(
-      'rounded-lg overflow-hidden border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark',
-      'bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3',
-      className
-    )}>
+    <div
+      className={classNames(
+        'rounded-lg overflow-hidden border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark',
+        'bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3',
+        className,
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-bolt-elements-background-depth-3 dark:bg-bolt-elements-background-depth-4 border-b border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
         <div className="flex items-center gap-2">
@@ -66,36 +68,26 @@ export function CodeBlock({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            {copied ? (
-              <span className="i-ph:check w-4 h-4 text-green-500" />
-            ) : (
-              <span className="i-ph:copy w-4 h-4" />
-            )}
+            {copied ? <span className="i-ph:check w-4 h-4 text-green-500" /> : <span className="i-ph:copy w-4 h-4" />}
           </motion.button>
         </Tooltip>
       </div>
-      
+
       {/* Code content */}
-      <div className={classNames(
-        'overflow-auto',
-        'font-mono text-sm',
-        'custom-scrollbar'
-      )} style={{ maxHeight }}>
+      <div className={classNames('overflow-auto', 'font-mono text-sm', 'custom-scrollbar')} style={{ maxHeight }}>
         <table className="min-w-full border-collapse">
           <tbody>
             {lines.map((line, index) => (
-              <tr 
+              <tr
                 key={index}
                 className={classNames(
                   highlightLines.includes(index + 1) ? 'bg-purple-500/10 dark:bg-purple-500/20' : '',
-                  'hover:bg-bolt-elements-background-depth-3 dark:hover:bg-bolt-elements-background-depth-4'
+                  'hover:bg-bolt-elements-background-depth-3 dark:hover:bg-bolt-elements-background-depth-4',
                 )}
               >
                 {showLineNumbers && (
                   <td className="py-1 pl-4 pr-2 text-right select-none text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark border-r border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
-                    <span className="inline-block min-w-[1.5rem] text-xs">
-                      {index + 1}
-                    </span>
+                    <span className="inline-block min-w-[1.5rem] text-xs">{index + 1}</span>
                   </td>
                 )}
                 <td className="py-1 pl-4 pr-4 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark whitespace-pre">

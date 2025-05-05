@@ -5,14 +5,19 @@ import { classNames } from '~/utils/classNames';
 interface FilterChipProps {
   /** The label text to display */
   label: string;
+
   /** Optional value to display after the label */
   value?: string | number;
+
   /** Function to call when the remove button is clicked */
   onRemove?: () => void;
+
   /** Whether the chip is active/selected */
   active?: boolean;
+
   /** Optional icon to display before the label */
   icon?: string;
+
   /** Additional class name */
   className?: string;
 }

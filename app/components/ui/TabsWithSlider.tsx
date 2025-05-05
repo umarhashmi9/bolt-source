@@ -5,8 +5,10 @@ import { classNames } from '~/utils/classNames';
 interface Tab {
   /** Unique identifier for the tab */
   id: string;
+
   /** Content to display in the tab */
   label: React.ReactNode;
+
   /** Optional icon to display before the label */
   icon?: string;
 }
@@ -14,16 +16,22 @@ interface Tab {
 interface TabsWithSliderProps {
   /** Array of tab objects */
   tabs: Tab[];
+
   /** ID of the currently active tab */
   activeTab: string;
+
   /** Function called when a tab is clicked */
   onChange: (tabId: string) => void;
+
   /** Additional class name for the container */
   className?: string;
+
   /** Additional class name for inactive tabs */
   tabClassName?: string;
+
   /** Additional class name for the active tab */
   activeTabClassName?: string;
+
   /** Additional class name for the slider */
   sliderClassName?: string;
 }
@@ -51,8 +59,10 @@ export function TabsWithSlider({
   // Update slider position when active tab changes
   useEffect(() => {
     const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+
     if (activeIndex !== -1 && tabsRef.current[activeIndex]) {
       const activeTabElement = tabsRef.current[activeIndex];
+
       if (activeTabElement) {
         setSliderDimensions({
           width: activeTabElement.offsetWidth,

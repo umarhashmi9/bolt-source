@@ -37,12 +37,16 @@ const TEXT_SIZE_CLASSES: Record<SizeType, string> = {
 interface StatusIndicatorProps {
   /** The status to display */
   status: StatusType;
+
   /** Size of the indicator */
   size?: SizeType;
+
   /** Whether to show a pulsing animation */
   pulse?: boolean;
+
   /** Optional label text */
   label?: string;
+
   /** Additional class name */
   className?: string;
 }

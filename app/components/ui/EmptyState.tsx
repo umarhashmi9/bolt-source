@@ -32,20 +32,28 @@ const VARIANT_STYLES = {
 interface EmptyStateProps {
   /** Icon class name */
   icon?: string;
+
   /** Title text */
   title: string;
+
   /** Optional description text */
   description?: string;
+
   /** Primary action button label */
   actionLabel?: string;
+
   /** Primary action button callback */
   onAction?: () => void;
+
   /** Secondary action button label */
   secondaryActionLabel?: string;
+
   /** Secondary action button callback */
   onSecondaryAction?: () => void;
+
   /** Additional class name */
   className?: string;
+
   /** Component size variant */
   variant?: 'default' | 'compact';
 }

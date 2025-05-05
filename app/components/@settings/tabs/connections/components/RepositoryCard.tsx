@@ -21,6 +21,7 @@ export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
       'from-pink-500/10 to-purple-500/5',
     ];
     const index = name.length % colors.length;
+
     return colors[index];
   };
 
@@ -31,10 +32,21 @@ export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 1) return 'Today';
-    if (diffDays <= 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays} days ago`;
-    if (diffDays <= 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays <= 1) {
+      return 'Today';
+    }
+
+    if (diffDays <= 2) {
+      return 'Yesterday';
+    }
+
+    if (diffDays <= 7) {
+      return `${diffDays} days ago`;
+    }
+
+    if (diffDays <= 30) {
+      return `${Math.floor(diffDays / 7)} weeks ago`;
+    }
 
     return date.toLocaleDateString(undefined, {
       year: 'numeric',

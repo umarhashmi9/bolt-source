@@ -1,5 +1,5 @@
 import type { GitHubRepoInfo, GitHubContent, RepositoryStats, GitHubUserResponse } from '~/types/GitHub';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import * as Dialog from '@radix-ui/react-dialog';
 import { classNames } from '~/utils/classNames';
@@ -8,17 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Cookies from 'js-cookie';
 
 // Import UI components
-import {
-  Input,
-  SearchInput,
-  Badge,
-  FilterChip,
-  EmptyState,
-  GradientCard,
-  TabsWithSlider,
-  StatusIndicator,
-  RepositoryStats as RepoStats,
-} from '~/components/ui';
+import { Input, SearchInput, Badge, FilterChip } from '~/components/ui';
 
 // Import the components we've extracted
 import { TabButton } from './TabButton';

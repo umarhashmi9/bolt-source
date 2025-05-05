@@ -41,7 +41,7 @@ export function SearchResultItem({
       className={classNames(
         'p-5 rounded-xl border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark hover:border-purple-500/40 transition-all duration-300 shadow-sm hover:shadow-md bg-bolt-elements-background-depth-1/50 dark:bg-bolt-elements-background-depth-3/50',
         onClick ? 'cursor-pointer' : '',
-        className
+        className,
       )}
       whileHover={{
         scale: 1.01,
@@ -57,7 +57,12 @@ export function SearchResultItem({
       <div className="flex items-start justify-between mb-3 gap-3">
         <div className="flex items-start gap-3">
           {icon && (
-            <div className={classNames('w-10 h-10 rounded-xl backdrop-blur-sm flex items-center justify-center shadow-sm', iconBackground)}>
+            <div
+              className={classNames(
+                'w-10 h-10 rounded-xl backdrop-blur-sm flex items-center justify-center shadow-sm',
+                iconBackground,
+              )}
+            >
               <span className={classNames(icon, 'w-5 h-5', iconColor)} />
             </div>
           )}
@@ -72,7 +77,7 @@ export function SearchResultItem({
             )}
           </div>
         </div>
-        
+
         {actionLabel && onAction && (
           <motion.button
             onClick={(e) => {
