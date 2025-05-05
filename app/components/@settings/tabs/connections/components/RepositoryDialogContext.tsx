@@ -6,7 +6,9 @@ export interface RepositoryDialogContextType {
 }
 
 // Default context value with a no-op function
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 export const RepositoryDialogContext = createContext<RepositoryDialogContextType>({
-  setShowAuthDialog: () => {},
+  // This is intentionally empty as it will be overridden by the provider
+  setShowAuthDialog: () => {
+    // No operation
+  },
 });

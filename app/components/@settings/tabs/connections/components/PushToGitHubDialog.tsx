@@ -13,7 +13,7 @@ import type { FileMap, File } from '~/lib/stores/files';
 import { Octokit } from '@octokit/rest';
 
 // Import UI components
-import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui';
+import { Badge, EmptyState, StatusIndicator, SearchInput, CloseButton } from '~/components/ui';
 
 interface PushToGitHubDialogProps {
   isOpen: boolean;
@@ -303,11 +303,8 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                         </p>
                       </div>
                     </div>
-                    <Dialog.Close
-                      onClick={handleClose}
-                      className="p-2 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textSecondary-dark rounded-lg hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3"
-                    >
-                      <div className="i-ph:x w-5 h-5" />
+                    <Dialog.Close asChild>
+                      <CloseButton onClick={handleClose} size="md" />
                     </Dialog.Close>
                   </div>
 
@@ -414,11 +411,8 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                 aria-describedby="connection-required-description"
               >
                 <div className="relative text-center space-y-4">
-                  <Dialog.Close
-                    className="absolute right-0 top-0 p-2 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textSecondary-dark rounded-lg hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3"
-                    onClick={handleClose}
-                  >
-                    <div className="i-ph:x w-5 h-5" />
+                  <Dialog.Close asChild>
+                    <CloseButton onClick={handleClose} className="absolute right-0 top-0" size="md" />
                   </Dialog.Close>
                   <motion.div
                     initial={{ scale: 0.8 }}
@@ -503,11 +497,8 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                       Push your code to a new or existing GitHub repository
                     </p>
                   </div>
-                  <Dialog.Close
-                    className="ml-auto p-2 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textSecondary-dark rounded-lg hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3"
-                    onClick={handleClose}
-                  >
-                    <div className="i-ph:x w-5 h-5" />
+                  <Dialog.Close asChild>
+                    <CloseButton onClick={handleClose} className="ml-auto" size="md" />
                   </Dialog.Close>
                 </div>
 

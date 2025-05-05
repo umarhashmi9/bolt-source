@@ -21,6 +21,7 @@ export * from './LoadingOverlay';
 
 // New components
 export * from './Breadcrumbs';
+export * from './CloseButton';
 export * from './CodeBlock';
 export * from './EmptyState';
 export * from './FileIcon';
