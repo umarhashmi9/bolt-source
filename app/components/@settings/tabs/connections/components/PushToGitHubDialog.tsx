@@ -413,7 +413,13 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                 className="bg-white dark:bg-bolt-elements-background-depth-1 rounded-lg p-6 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark shadow-xl"
                 aria-describedby="connection-required-description"
               >
-                <div className="text-center space-y-4">
+                <div className="relative text-center space-y-4">
+                  <Dialog.Close
+                    className="absolute right-0 top-0 p-2 text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textSecondary-dark rounded-lg hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3"
+                    onClick={handleClose}
+                  >
+                    <div className="i-ph:x w-5 h-5" />
+                  </Dialog.Close>
                   <motion.div
                     initial={{ scale: 0.8 }}
                     animate={{ scale: 1 }}
