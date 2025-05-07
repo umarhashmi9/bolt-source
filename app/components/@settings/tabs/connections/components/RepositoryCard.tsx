@@ -7,6 +7,8 @@ interface RepositoryCardProps {
   onSelect: () => void;
 }
 
+import { useMemo } from 'react';
+
 export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
   // Calculate a gradient color based on the repository name for visual variety
   const getGradientColor = (name: string) => {
@@ -55,9 +57,12 @@ export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
     });
   };
 
+  const gradient = useMemo(() => getGradientColor(repo.name), [repo.name]);
+  // const formattedDate = useMemo(() => formatDate(repo.updated_at), [repo.updated_at]);
+
   return (
     <motion.div
-      className={`p-5 rounded-xl bg-gradient-to-br ${getGradientColor(repo.name)} border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark hover:border-purple-500/40 transition-all duration-300 shadow-sm hover:shadow-md`}
+      className={`p-5 rounded-xl bg-gradient-to-br ${gradient} border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark hover:border-purple-500/40 transition-all duration-300 shadow-sm hover:shadow-md`}
       whileHover={{
         scale: 1.02,
         y: -2,

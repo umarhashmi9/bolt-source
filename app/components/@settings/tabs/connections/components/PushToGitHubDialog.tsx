@@ -1,7 +1,11 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
+import { useDebouncedCallback } from 'use-debounce';
+import { Octokit } from '@octokit/rest';
+
+// Internal imports
 import { getLocalStorage } from '~/lib/persistence';
 import { classNames } from '~/utils/classNames';
 import type { GitHubUserResponse } from '~/types/GitHub';
@@ -10,10 +14,9 @@ import { workbenchStore } from '~/lib/stores/workbench';
 import { extractRelativePath } from '~/utils/diff';
 import { formatSize } from '~/utils/formatSize';
 import type { FileMap, File } from '~/lib/stores/files';
-import { Octokit } from '@octokit/rest';
 
-// Import UI components
-import { Badge, EmptyState, StatusIndicator, SearchInput, CloseButton } from '~/components/ui';
+// UI Components
+import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui';
 
 interface PushToGitHubDialogProps {
   isOpen: boolean;
@@ -64,6 +67,8 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
   }, [isOpen]);
 
   // Filter repositories based on search query
+  // const debouncedSetRepoSearchQuery = useDebouncedCallback((value: string) => setRepoSearchQuery(value), 300);
+
   useEffect(() => {
     if (recentRepos.length === 0) {
       setFilteredRepos([]);
@@ -86,7 +91,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
     setFilteredRepos(filtered);
   }, [recentRepos, repoSearchQuery]);
 
-  const fetchRecentRepos = async (token: string) => {
+  const fetchRecentRepos = useCallback(async (token: string) => {
     if (!token) {
       logStore.logError('No GitHub token available');
       toast.error('GitHub authentication required');
@@ -98,84 +103,77 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
       setIsFetchingRepos(true);
       console.log('Fetching GitHub repositories with token:', token.substring(0, 5) + '...');
 
-      /*
-       * Log the request details for debugging
-       * According to GitHub API docs, we can't use both 'type' and 'affiliation' parameters together
-       */
-      const requestUrl =
-        'https://api.github.com/user/repos?sort=updated&per_page=10&affiliation=owner,organization_member';
-      console.log('Request URL:', requestUrl);
-      console.log('Request headers:', {
-        Accept: 'application/vnd.github.v3+json',
-        Authorization: `Bearer ${token.substring(0, 5)}...`,
-      });
+      // Fetch ALL repos by paginating through all pages
+      let allRepos: GitHubRepo[] = [];
+      let page = 1;
+      let hasMore = true;
 
-      const response = await fetch(requestUrl, {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `Bearer ${token.trim()}`,
-        },
-      });
+      while (hasMore) {
+        const requestUrl = `https://api.github.com/user/repos?sort=updated&per_page=100&page=${page}&affiliation=owner,organization_member`;
+        const response = await fetch(requestUrl, {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            Authorization: `Bearer ${token.trim()}`,
+          },
+        });
 
-      // Log response status for debugging
-      console.log('Response status:', response.status, response.statusText);
-      console.log('Response headers:', {
-        'X-RateLimit-Limit': response.headers.get('x-ratelimit-limit'),
-        'X-RateLimit-Remaining': response.headers.get('x-ratelimit-remaining'),
-        'X-RateLimit-Used': response.headers.get('x-ratelimit-used'),
-      });
+        if (!response.ok) {
+          let errorData: { message?: string } = {};
 
-      if (!response.ok) {
-        let errorData: { message?: string } = {};
+          try {
+            errorData = await response.json();
+            console.error('Error response data:', errorData);
+          } catch (e) {
+            errorData = { message: 'Could not parse error response' };
+            console.error('Could not parse error response:', e);
+          }
+
+          if (response.status === 401) {
+            toast.error('GitHub token expired. Please reconnect your account.');
+
+            // Clear invalid token
+            const connection = getLocalStorage('github_connection');
+
+            if (connection) {
+              localStorage.removeItem('github_connection');
+              setUser(null);
+            }
+          } else if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
+            // Rate limit exceeded
+            const resetTime = response.headers.get('x-ratelimit-reset');
+            const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000).toLocaleTimeString() : 'soon';
+            toast.error(`GitHub API rate limit exceeded. Limit resets at ${resetDate}`);
+          } else {
+            logStore.logError('Failed to fetch GitHub repositories', {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorData,
+            });
+            toast.error(`Failed to fetch repositories: ${errorData.message || response.statusText}`);
+          }
+
+          return;
+        }
 
         try {
-          errorData = await response.json();
-          console.error('Error response data:', errorData);
-        } catch (e) {
-          errorData = { message: 'Could not parse error response' };
-          console.error('Could not parse error response:', e);
-        }
+          const repos = (await response.json()) as GitHubRepo[];
+          allRepos = allRepos.concat(repos);
 
-        if (response.status === 401) {
-          toast.error('GitHub token expired. Please reconnect your account.');
-
-          // Clear invalid token
-          const connection = getLocalStorage('github_connection');
-
-          if (connection) {
-            localStorage.removeItem('github_connection');
-            setUser(null);
+          if (repos.length < 100) {
+            hasMore = false;
+          } else {
+            page += 1;
           }
-        } else if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0') {
-          // Rate limit exceeded
-          const resetTime = response.headers.get('x-ratelimit-reset');
-          const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000).toLocaleTimeString() : 'soon';
-          toast.error(`GitHub API rate limit exceeded. Limit resets at ${resetDate}`);
-        } else {
-          logStore.logError('Failed to fetch GitHub repositories', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-          });
-          toast.error(`Failed to fetch repositories: ${errorData.message || response.statusText}`);
+        } catch (parseError) {
+          console.error('Error parsing JSON response:', parseError);
+          logStore.logError('Failed to parse GitHub repositories response', { parseError });
+          toast.error('Failed to parse repository data');
+          setRecentRepos([]);
+
+          return;
         }
-
-        return;
       }
-
-      // Clone the response before parsing it to avoid the "body already read" error
-      const responseClone = response.clone();
-
-      try {
-        const repos = (await responseClone.json()) as GitHubRepo[];
-        console.log(`Successfully fetched ${repos.length} repositories`);
-        setRecentRepos(repos);
-      } catch (parseError) {
-        console.error('Error parsing JSON response:', parseError);
-        logStore.logError('Failed to parse GitHub repositories response', { parseError });
-        toast.error('Failed to parse repository data');
-        setRecentRepos([]);
-      }
+      setRecentRepos(allRepos);
     } catch (error) {
       console.error('Exception while fetching GitHub repositories:', error);
       logStore.logError('Failed to fetch GitHub repositories', { error });
@@ -183,9 +181,9 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
     } finally {
       setIsFetchingRepos(false);
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     const connection = getLocalStorage('github_connection');
@@ -257,7 +255,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const handleClose = () => {
     setRepoName('');
@@ -304,7 +302,13 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                       </div>
                     </div>
                     <Dialog.Close asChild>
-                      <CloseButton onClick={handleClose} size="md" />
+                      <button
+                        onClick={handleClose}
+                        className="p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3 focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark"
+                      >
+                        <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
+                        <span className="sr-only">Close dialog</span>
+                      </button>
                     </Dialog.Close>
                   </div>
 
@@ -412,7 +416,13 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
               >
                 <div className="relative text-center space-y-4">
                   <Dialog.Close asChild>
-                    <CloseButton onClick={handleClose} className="absolute right-0 top-0" size="md" />
+                    <button
+                      onClick={handleClose}
+                      className="absolute right-0 top-0 p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3 focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark"
+                    >
+                      <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
+                      <span className="sr-only">Close dialog</span>
+                    </button>
                   </Dialog.Close>
                   <motion.div
                     initial={{ scale: 0.8 }}
@@ -498,7 +508,13 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                     </p>
                   </div>
                   <Dialog.Close asChild>
-                    <CloseButton onClick={handleClose} className="ml-auto" size="md" />
+                    <button
+                      onClick={handleClose}
+                      className="ml-auto p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3 focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark"
+                    >
+                      <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
+                      <span className="sr-only">Close dialog</span>
+                    </button>
                   </Dialog.Close>
                 </div>
 
@@ -635,7 +651,6 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                       <StatusIndicator status="loading" pulse={true} label="Loading repositories..." />
                     </div>
                   )}
-
                   <div className="p-3 bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 rounded-lg border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
                     <div className="flex items-center gap-2">
                       <input

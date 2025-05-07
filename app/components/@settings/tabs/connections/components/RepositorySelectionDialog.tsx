@@ -8,10 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Cookies from 'js-cookie';
 
 // Import UI components
-import { Input, SearchInput, Badge, FilterChip } from '~/components/ui';
+import { Input, SearchInput, Badge, FilterChip, Tabs, TabsList, TabsTrigger } from '~/components/ui';
 
 // Import the components we've extracted
-import { TabButton } from './TabButton';
 import { RepositoryList } from './RepositoryList';
 import { StatsDialog } from './StatsDialog';
 import { GitHubAuthDialog } from './GitHubAuthDialog';
@@ -564,7 +563,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
               <Dialog.Close
                 onClick={handleClose}
                 className={classNames(
-                  'p-2 rounded-lg transition-all duration-200 ease-in-out',
+                  'p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent',
                   'text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary',
                   'dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark',
                   'hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3',
@@ -599,18 +598,13 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
             <div className="p-5">
               {/* Tabs */}
               <div className="flex gap-2 mb-6">
-                <TabButton active={activeTab === 'my-repos'} onClick={() => setActiveTab('my-repos')}>
-                  <span className="i-ph:book-bookmark" />
-                  My Repos
-                </TabButton>
-                <TabButton active={activeTab === 'search'} onClick={() => setActiveTab('search')}>
-                  <span className="i-ph:magnifying-glass" />
-                  Search
-                </TabButton>
-                <TabButton active={activeTab === 'url'} onClick={() => setActiveTab('url')}>
-                  <span className="i-ph:link" />
-                  URL
-                </TabButton>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'my-repos' | 'search' | 'url')}>
+                  <TabsList>
+                    <TabsTrigger value="my-repos">My Repos</TabsTrigger>
+                    <TabsTrigger value="search">Search</TabsTrigger>
+                    <TabsTrigger value="url">From URL</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
               {activeTab === 'url' ? (

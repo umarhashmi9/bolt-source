@@ -55,6 +55,7 @@ export function GitHubAuthDialog({ isOpen, onClose }: GitHubAuthDialogProps) {
         Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
 
         toast.success(`Successfully connected as ${userData.login}`);
+        setToken('');
         onClose();
       } else {
         if (response.status === 401) {
@@ -174,7 +175,7 @@ export function GitHubAuthDialog({ isOpen, onClose }: GitHubAuthDialogProps) {
                 <Dialog.Close asChild>
                   <button
                     onClick={onClose}
-                    className="px-4 py-1.5 bg-[#F5F5F5] hover:bg-[#E5E5E5] dark:bg-[#252525] dark:hover:bg-[#333333] rounded-lg text-[#111111] dark:text-white transition-colors text-sm"
+                    className="px-4 py-1.5 bg-transparent bg-[#F5F5F5] hover:bg-[#E5E5E5] dark:bg-[#252525] dark:hover:bg-[#333333] rounded-lg text-[#111111] dark:text-white transition-colors text-sm"
                   >
                     Close
                   </button>
