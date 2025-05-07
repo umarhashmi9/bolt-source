@@ -234,7 +234,6 @@ export const ChatImpl = memo(
     const { parsedMessages, parseMessages } = useMessageParser();
 
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-    console.log('files:', files);
 
     useEffect(() => {
       chatStore.setKey('started', initialMessages.length > 0);

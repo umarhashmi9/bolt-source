@@ -159,7 +159,6 @@ ${props.summary}
   if (files) {
     for (const [filePath, fileDetails] of Object.entries(files)) {
       if (fileDetails?.isLocked) {
-        console.log('File is locked: ', filePath);
         effectiveLockedFilePaths.add(filePath);
       }
     }
@@ -169,7 +168,6 @@ ${props.summary}
     const lockedFilesListString = Array.from(effectiveLockedFilePaths)
       .map((filePath) => `- ${filePath}`)
       .join('\n');
-    console.log('Effective locked files for prompt:', lockedFilesListString);
     systemPrompt = `${systemPrompt}
 
 IMPORTANT: The following files are locked and MUST NOT be modified in any way. Do not suggest or make any changes to these files. You can proceed with the request but DO NOT make any changes to these files specifically:
