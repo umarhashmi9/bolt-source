@@ -88,7 +88,7 @@ export class EditorStore {
     // Check if the file is locked by getting the file from the filesStore
     const file = this.#filesStore.getFile(filePath);
 
-    if (file?.locked && file.lockMode === 'full') {
+    if (file?.isLocked) {
       logger.warn(`Attempted to update locked file: ${filePath}`);
       return;
     }

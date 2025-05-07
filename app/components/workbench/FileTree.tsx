@@ -409,7 +409,7 @@ function FileContextMenu({
         return;
       }
 
-      const success = workbenchStore.lockFile(fullPath, 'full');
+      const success = workbenchStore.lockFile(fullPath);
 
       if (success) {
         toast.success(`File locked successfully`);
@@ -449,7 +449,7 @@ function FileContextMenu({
         return;
       }
 
-      const success = workbenchStore.lockFolder(fullPath, 'full');
+      const success = workbenchStore.lockFolder(fullPath);
 
       if (success) {
         toast.success(`Folder locked successfully`);
@@ -589,7 +589,7 @@ function FileContextMenu({
 
 function Folder({ folder, collapsed, selected = false, onCopyPath, onCopyRelativePath, onClick }: FolderProps) {
   // Check if the folder is locked
-  const { locked, lockMode } = workbenchStore.isFolderLocked(folder.fullPath);
+  const { isLocked } = workbenchStore.isFolderLocked(folder.fullPath);
 
   return (
     <FileContextMenu onCopyPath={onCopyPath} onCopyRelativePath={onCopyRelativePath} fullPath={folder.fullPath}>
@@ -608,15 +608,10 @@ function Folder({ folder, collapsed, selected = false, onCopyPath, onCopyRelativ
       >
         <div className="flex items-center w-full">
           <div className="flex-1 truncate pr-2">{folder.name}</div>
-          {locked && (
+          {isLocked && (
             <span
-              className={classNames(
-                'shrink-0',
-                lockMode === 'full'
-                  ? 'i-ph:lock-simple scale-80 text-red-500'
-                  : 'i-ph:lock-simple-open scale-80 text-yellow-500',
-              )}
-              title={lockMode === 'full' ? 'Folder is fully locked' : 'Folder has scoped locking'}
+              className={classNames('shrink-0', 'i-ph:lock-simple scale-80 text-red-500')}
+              title={'Folder is locked'}
             />
           )}
         </div>
@@ -647,7 +642,7 @@ function File({
   const { depth, name, fullPath } = file;
 
   // Check if the file is locked
-  const { locked, lockMode } = workbenchStore.isFileLocked(fullPath);
+  const { locked } = workbenchStore.isFileLocked(fullPath);
 
   const fileModifications = fileHistory[fullPath];
 
@@ -717,13 +712,8 @@ function File({
             )}
             {locked && (
               <span
-                className={classNames(
-                  'shrink-0',
-                  lockMode === 'full'
-                    ? 'i-ph:lock-simple scale-80 text-red-500'
-                    : 'i-ph:lock-simple-open scale-80 text-yellow-500',
-                )}
-                title={lockMode === 'full' ? 'File is fully locked' : 'File has scoped locking'}
+                className={classNames('shrink-0', 'i-ph:lock-simple scale-80 text-red-500')}
+                title={'File is locked'}
               />
             )}
             {unsavedChanges && <span className="i-ph:circle-fill scale-68 shrink-0 text-orange-500" />}

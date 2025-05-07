@@ -3,7 +3,6 @@ import {
   isFileLocked as isFileLockedInternal,
   isFolderLocked as isFolderLockedInternal,
   isPathInLockedFolder,
-  type LockMode,
 } from '~/lib/persistence/lockedFiles';
 import { createScopedLogger } from './logger';
 
@@ -38,10 +37,7 @@ export function getCurrentChatId(): string {
  * @param filePath The path of the file to check
  * @param chatId Optional chat ID (will be extracted from URL if not provided)
  */
-export function isFileLocked(
-  filePath: string,
-  chatId?: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+export function isFileLocked(filePath: string, chatId?: string): { locked: boolean; lockedBy?: string } {
   try {
     const currentChatId = chatId || getCurrentChatId();
 
@@ -70,10 +66,7 @@ export function isFileLocked(
  * @param folderPath The path of the folder to check
  * @param chatId Optional chat ID (will be extracted from URL if not provided)
  */
-export function isFolderLocked(
-  folderPath: string,
-  chatId?: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+export function isFolderLocked(folderPath: string, chatId?: string): { locked: boolean; lockedBy?: string } {
   try {
     const currentChatId = chatId || getCurrentChatId();
 

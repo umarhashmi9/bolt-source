@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ActionAlert } from '~/types/actions';
 import { classNames } from '~/utils/classNames';
-import LockAlert from './LockAlert';
 
 interface Props {
   alert: ActionAlert;
@@ -10,12 +9,7 @@ interface Props {
 }
 
 export default function ChatAlert({ alert, clearAlert, postMessage }: Props) {
-  const { description, content, source, isLockedFile } = alert;
-
-  /* If this is a locked file alert, use the dedicated LockAlert component */
-  if (isLockedFile) {
-    return <LockAlert alert={alert} clearAlert={clearAlert} />;
-  }
+  const { description, content, source } = alert;
 
   const isPreview = source === 'preview';
   const title = isPreview ? 'Preview Error' : 'Terminal Error';

@@ -7,7 +7,6 @@ import { toast } from '~/components/ui/use-toast';
 interface LockedItem {
   path: string;
   type: 'file' | 'folder';
-  lockMode: 'full' | 'scoped';
 }
 
 export function LockManager() {
@@ -31,17 +30,15 @@ export function LockManager() {
           return;
         }
 
-        if (item.type === 'file' && item.locked) {
+        if (item.type === 'file' && item.isLocked) {
           items.push({
             path,
             type: 'file',
-            lockMode: item.lockMode || 'full',
           });
-        } else if ((item.type === 'folder' || item.type === 'directory') && item.locked) {
+        } else if (item.type === 'folder' && item.isLocked) {
           items.push({
             path,
             type: 'folder',
-            lockMode: item.lockMode || 'full',
           });
         }
       });
@@ -230,17 +227,9 @@ export function LockManager() {
                 <span
                   className={classNames(
                     'inline-flex items-center px-1 rounded-sm text-xs',
-                    item.lockMode === 'full' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500',
+                    'bg-red-500/10 text-red-500',
                   )}
-                >
-                  <span
-                    className={classNames(
-                      'mr-0.5 text-xs',
-                      item.lockMode === 'full' ? 'i-ph:lock-key-duotone' : 'i-ph:lock-simple-open-duotone',
-                    )}
-                  />
-                  {item.lockMode === 'full' ? 'Full' : 'Scoped'}
-                </span>
+                ></span>
                 <button
                   className="flex items-center px-1 py-0.5 text-xs rounded bg-transparent hover:bg-bolt-elements-background-depth-3"
                   onClick={() => {

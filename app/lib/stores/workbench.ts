@@ -226,24 +226,6 @@ export class WorkbenchStore {
       return;
     }
 
-    // Check if the file is locked
-    const { locked, lockMode } = this.isFileLocked(filePath);
-
-    if (locked && lockMode === 'full') {
-      // File is fully locked, don't allow saving
-      console.warn(`Attempted to save locked file: ${filePath}`);
-
-      this.actionAlert.set({
-        type: 'error',
-        title: 'File Save Blocked',
-        description: `Cannot save locked file: ${filePath}`,
-        content: 'This file is locked and cannot be modified.',
-        isLockedFile: true,
-      });
-
-      return;
-    }
-
     /*
      * For scoped locks, we would need to implement diff checking here
      * to determine if the user is modifying existing code or just adding new code
@@ -306,21 +288,19 @@ export class WorkbenchStore {
   /**
    * Lock a file to prevent edits
    * @param filePath Path to the file to lock
-   * @param lockMode Type of lock to apply ("full" or "scoped")
    * @returns True if the file was successfully locked
    */
-  lockFile(filePath: string, lockMode: 'full' | 'scoped') {
-    return this.#filesStore.lockFile(filePath, lockMode);
+  lockFile(filePath: string) {
+    return this.#filesStore.lockFile(filePath);
   }
 
   /**
    * Lock a folder and all its contents to prevent edits
    * @param folderPath Path to the folder to lock
-   * @param lockMode Type of lock to apply ("full" or "scoped")
    * @returns True if the folder was successfully locked
    */
-  lockFolder(folderPath: string, lockMode: 'full' | 'scoped') {
-    return this.#filesStore.lockFolder(folderPath, lockMode);
+  lockFolder(folderPath: string) {
+    return this.#filesStore.lockFolder(folderPath);
   }
 
   /**
@@ -576,37 +556,6 @@ export class WorkbenchStore {
     if (data.action.type === 'file') {
       const wc = await webcontainer;
       const fullPath = path.join(wc.workdir, data.action.filePath);
-
-      // Check if the file is locked
-      const { locked, lockMode } = this.isFileLocked(fullPath);
-
-      if (locked && lockMode === 'full') {
-        // File is fully locked, don't allow any modifications
-        console.warn(`AI attempted to modify locked file: ${fullPath}`);
-
-        /*
-         * Instead of trying to update the action directly, we'll just add a notification
-         * and prevent the action from being executed
-         */
-        this.actionAlert.set({
-          type: 'error',
-          title: 'File Modification Blocked',
-          description: `AI attempted to modify locked file: ${data.action.filePath}`,
-          content: 'This file is locked and cannot be modified by the AI.',
-          isLockedFile: true,
-        });
-
-        // Still select the file to show the user what the AI tried to modify
-        if (this.selectedFile.value !== fullPath) {
-          this.setSelectedFile(fullPath);
-        }
-
-        if (this.currentView.value !== 'code') {
-          this.currentView.set('code');
-        }
-
-        return;
-      }
 
       /*
        * For scoped locks, we would need to implement diff checking here

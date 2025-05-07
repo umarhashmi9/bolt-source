@@ -3,7 +3,6 @@ export * from './usePromptEnhancer';
 export * from './useShortcuts';
 export * from './StickToBottom';
 export * from './useEditChatDescription';
-export * from './useLockedFilesChecker';
 export { default } from './useViewport';
 export { useUpdateCheck } from './useUpdateCheck';
 export { useFeatures } from './useFeatures';

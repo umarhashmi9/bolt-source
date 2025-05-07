@@ -5,12 +5,9 @@ const logger = createScopedLogger('LockedFiles');
 // Key for storing locked files in localStorage
 export const LOCKED_FILES_KEY = 'bolt.lockedFiles';
 
-export type LockMode = 'full' | 'scoped';
-
 export interface LockedItem {
   chatId: string; // Chat ID to scope locks to a specific project
   path: string;
-  lockMode: LockMode;
   isFolder: boolean; // Indicates if this is a folder lock
 }
 
@@ -140,15 +137,14 @@ export function getLockedItems(): LockedItem[] {
  * Add a file or folder to the locked items list
  * @param chatId The chat ID to scope the lock to
  * @param path The path of the file or folder to lock
- * @param lockMode The type of lock to apply
  * @param isFolder Whether this is a folder lock
  */
-export function addLockedItem(chatId: string, path: string, lockMode: LockMode, isFolder: boolean = false): void {
+export function addLockedItem(chatId: string, path: string, isFolder: boolean = false): void {
   // Ensure cache is initialized
   const lockedItems = getLockedItems();
 
   // Create the new item
-  const newItem = { chatId, path, lockMode, isFolder };
+  const newItem = { chatId, path, isFolder };
 
   // Update the in-memory map directly for faster access
   const chatMap = getChatMap(chatId, true)!;
@@ -161,21 +157,21 @@ export function addLockedItem(chatId: string, path: string, lockMode: LockMode, 
   // Save the updated list (this will update the cache and maps)
   saveLockedItems(filteredItems);
 
-  logger.info(`Added locked ${isFolder ? 'folder' : 'file'}: ${path} (mode: ${lockMode}) for chat: ${chatId}`);
+  logger.info(`Added locked ${isFolder ? 'folder' : 'file'}: ${path} for chat: ${chatId}`);
 }
 
 /**
  * Add a file to the locked items list (for backward compatibility)
  */
-export function addLockedFile(chatId: string, filePath: string, lockMode: LockMode): void {
-  addLockedItem(chatId, filePath, lockMode, false);
+export function addLockedFile(chatId: string, filePath: string): void {
+  addLockedItem(chatId, filePath);
 }
 
 /**
  * Add a folder to the locked items list
  */
-export function addLockedFolder(chatId: string, folderPath: string, lockMode: LockMode): void {
-  addLockedItem(chatId, folderPath, lockMode, true);
+export function addLockedFolder(chatId: string, folderPath: string): void {
+  addLockedItem(chatId, folderPath);
 }
 
 /**
@@ -223,10 +219,7 @@ export function removeLockedFolder(chatId: string, folderPath: string): void {
  * @param path The path to check
  * @returns Object with locked status, lock mode, and whether it's a folder lock
  */
-export function isPathDirectlyLocked(
-  chatId: string,
-  path: string,
-): { locked: boolean; lockMode?: LockMode; isFolder?: boolean } {
+export function isPathDirectlyLocked(chatId: string, path: string): { locked: boolean; isFolder?: boolean } {
   // Ensure cache is initialized
   getLockedItems();
 
@@ -237,7 +230,7 @@ export function isPathDirectlyLocked(
     const lockedItem = chatMap.get(path);
 
     if (lockedItem) {
-      return { locked: true, lockMode: lockedItem.lockMode, isFolder: lockedItem.isFolder };
+      return { locked: true, isFolder: lockedItem.isFolder };
     }
   }
 
@@ -250,10 +243,7 @@ export function isPathDirectlyLocked(
  * @param filePath The path of the file to check
  * @returns Object with locked status, lock mode, and the path that caused the lock
  */
-export function isFileLocked(
-  chatId: string,
-  filePath: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+export function isFileLocked(chatId: string, filePath: string): { locked: boolean; lockedBy?: string } {
   // Ensure cache is initialized
   getLockedItems();
 
@@ -265,7 +255,7 @@ export function isFileLocked(
     const directLock = chatMap.get(filePath);
 
     if (directLock && !directLock.isFolder) {
-      return { locked: true, lockMode: directLock.lockMode, lockedBy: filePath };
+      return { locked: true, lockedBy: filePath };
     }
   }
 
@@ -279,10 +269,7 @@ export function isFileLocked(
  * @param folderPath The path of the folder to check
  * @returns Object with locked status and lock mode
  */
-export function isFolderLocked(
-  chatId: string,
-  folderPath: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+export function isFolderLocked(chatId: string, folderPath: string): { locked: boolean; lockedBy?: string } {
   // Ensure cache is initialized
   getLockedItems();
 
@@ -294,7 +281,7 @@ export function isFolderLocked(
     const directLock = chatMap.get(folderPath);
 
     if (directLock && directLock.isFolder) {
-      return { locked: true, lockMode: directLock.lockMode, lockedBy: folderPath };
+      return { locked: true, lockedBy: folderPath };
     }
   }
 
@@ -308,10 +295,7 @@ export function isFolderLocked(
  * @param path The path to check
  * @returns Object with locked status, lock mode, and the folder that caused the lock
  */
-function checkParentFolderLocks(
-  chatId: string,
-  path: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+function checkParentFolderLocks(chatId: string, path: string): { locked: boolean; lockedBy?: string } {
   const chatMap = getChatMap(chatId);
 
   if (!chatMap) {
@@ -328,7 +312,7 @@ function checkParentFolderLocks(
     const folderLock = chatMap.get(currentPath);
 
     if (folderLock && folderLock.isFolder) {
-      return { locked: true, lockMode: folderLock.lockMode, lockedBy: currentPath };
+      return { locked: true, lockedBy: currentPath };
     }
   }
 
@@ -384,10 +368,7 @@ export function getLockedFoldersForChat(chatId: string): LockedItem[] {
  * @param path The path to check
  * @returns Object with locked status, lock mode, and the folder that caused the lock
  */
-export function isPathInLockedFolder(
-  chatId: string,
-  path: string,
-): { locked: boolean; lockMode?: LockMode; lockedBy?: string } {
+export function isPathInLockedFolder(chatId: string, path: string): { locked: boolean; lockedBy?: string } {
   // This is already optimized by using checkParentFolderLocks
   return checkParentFolderLocks(chatId, path);
 }
@@ -456,10 +437,7 @@ export function clearCache(): void {
  * @param chatId The chat ID to scope the locks to
  * @param items Array of items to lock with their paths, modes, and folder flags
  */
-export function batchLockItems(
-  chatId: string,
-  items: Array<{ path: string; lockMode: LockMode; isFolder: boolean }>,
-): void {
+export function batchLockItems(chatId: string, items: Array<{ path: string; isFolder: boolean }>): void {
   if (items.length === 0) {
     return;
   }
@@ -477,7 +455,6 @@ export function batchLockItems(
   const newItems = items.map((item) => ({
     chatId,
     path: item.path,
-    lockMode: item.lockMode,
     isFolder: item.isFolder,
   }));
 

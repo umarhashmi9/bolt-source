@@ -506,13 +506,10 @@ function getReadOnlyTooltip(state: EditorState) {
   // If we have a current document, check if it's locked
   if (currentDoc?.filePath) {
     const currentChatId = getCurrentChatId();
-    const { locked, lockMode } = isFileLocked(currentDoc.filePath, currentChatId);
+    const { locked } = isFileLocked(currentDoc.filePath, currentChatId);
 
     if (locked) {
-      tooltipMessage =
-        lockMode === 'full'
-          ? 'This file is locked and cannot be edited'
-          : 'This file has scoped locking - only additions are allowed';
+      tooltipMessage = 'This file is locked and cannot be edited';
     }
   }
 
