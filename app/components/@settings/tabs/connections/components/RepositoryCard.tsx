@@ -58,6 +58,7 @@ export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
   };
 
   const gradient = useMemo(() => getGradientColor(repo.name), [repo.name]);
+
   // const formattedDate = useMemo(() => formatDate(repo.updated_at), [repo.updated_at]);
 
   return (

@@ -2,7 +2,6 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
-import { useDebouncedCallback } from 'use-debounce';
 import { Octokit } from '@octokit/rest';
 
 // Internal imports
@@ -66,8 +65,10 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
     }
   }, [isOpen]);
 
-  // Filter repositories based on search query
-  // const debouncedSetRepoSearchQuery = useDebouncedCallback((value: string) => setRepoSearchQuery(value), 300);
+  /*
+   * Filter repositories based on search query
+   * const debouncedSetRepoSearchQuery = useDebouncedCallback((value: string) => setRepoSearchQuery(value), 300);
+   */
 
   useEffect(() => {
     if (recentRepos.length === 0) {
