@@ -10,21 +10,9 @@ interface RepositoryCardProps {
 import { useMemo } from 'react';
 
 export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
-  // Calculate a gradient color based on the repository name for visual variety
-  const getGradientColor = (name: string) => {
-    const colors = [
-      'from-purple-500/10 to-blue-500/5',
-      'from-blue-500/10 to-cyan-500/5',
-      'from-cyan-500/10 to-green-500/5',
-      'from-green-500/10 to-yellow-500/5',
-      'from-yellow-500/10 to-orange-500/5',
-      'from-orange-500/10 to-red-500/5',
-      'from-red-500/10 to-pink-500/5',
-      'from-pink-500/10 to-purple-500/5',
-    ];
-    const index = name.length % colors.length;
-
-    return colors[index];
+  // Use a consistent styling for all repository cards
+  const getCardStyle = () => {
+    return 'from-bolt-elements-background-depth-1 to-bolt-elements-background-depth-1 dark:from-bolt-elements-background-depth-2-dark dark:to-bolt-elements-background-depth-2-dark';
   };
 
   // Format the date in a more readable format
@@ -57,13 +45,13 @@ export function RepositoryCard({ repo, onSelect }: RepositoryCardProps) {
     });
   };
 
-  const gradient = useMemo(() => getGradientColor(repo.name), [repo.name]);
+  const cardStyle = useMemo(() => getCardStyle(), []);
 
   // const formattedDate = useMemo(() => formatDate(repo.updated_at), [repo.updated_at]);
 
   return (
     <motion.div
-      className={`p-5 rounded-xl bg-gradient-to-br ${gradient} border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark hover:border-purple-500/40 transition-all duration-300 shadow-sm hover:shadow-md`}
+      className={`p-5 rounded-xl bg-gradient-to-br ${cardStyle} border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark hover:border-purple-500/40 transition-all duration-300 shadow-sm hover:shadow-md`}
       whileHover={{
         scale: 1.02,
         y: -2,

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Cookies from 'js-cookie';
 
 // Import UI components
-import { Input, SearchInput, Badge, FilterChip, Tabs, TabsList, TabsTrigger } from '~/components/ui';
+import { Input, SearchInput, Badge, FilterChip } from '~/components/ui';
 
 // Import the components we've extracted
 import { RepositoryList } from './RepositoryList';
@@ -597,19 +597,49 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
             {/* Content */}
             <div className="p-5">
               {/* Tabs */}
-              <div className="flex gap-2 mb-6">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'my-repos' | 'search' | 'url')}>
-                  <TabsList>
-                    <TabsTrigger value="my-repos">My Repos</TabsTrigger>
-                    <TabsTrigger value="search">Search</TabsTrigger>
-                    <TabsTrigger value="url">From URL</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+              <div className="mb-6">
+                <div className="bg-[#f0f0f0] dark:bg-[#1e1e1e] rounded-lg overflow-hidden border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
+                  <div className="flex">
+                    <button
+                      onClick={() => setActiveTab('my-repos')}
+                      className={classNames(
+                        'flex-1 py-3 px-4 text-center text-sm font-medium transition-colors',
+                        activeTab === 'my-repos'
+                          ? 'bg-[#e6e6e6] dark:bg-[#2a2a2a] text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark'
+                          : 'bg-[#f0f0f0] dark:bg-[#1e1e1e] text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark hover:bg-[#e6e6e6] dark:hover:bg-[#2a2a2a]/50',
+                      )}
+                    >
+                      My Repos
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('search')}
+                      className={classNames(
+                        'flex-1 py-3 px-4 text-center text-sm font-medium transition-colors',
+                        activeTab === 'search'
+                          ? 'bg-[#e6e6e6] dark:bg-[#2a2a2a] text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark'
+                          : 'bg-[#f0f0f0] dark:bg-[#1e1e1e] text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark hover:bg-[#e6e6e6] dark:hover:bg-[#2a2a2a]/50',
+                      )}
+                    >
+                      Search
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('url')}
+                      className={classNames(
+                        'flex-1 py-3 px-4 text-center text-sm font-medium transition-colors',
+                        activeTab === 'url'
+                          ? 'bg-[#e6e6e6] dark:bg-[#2a2a2a] text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark'
+                          : 'bg-[#f0f0f0] dark:bg-[#1e1e1e] text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark hover:bg-[#e6e6e6] dark:hover:bg-[#2a2a2a]/50',
+                      )}
+                    >
+                      From URL
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {activeTab === 'url' ? (
                 <div className="space-y-5">
-                  <div className="bg-gradient-to-br from-purple-500/5 to-blue-500/5 p-5 rounded-xl border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
+                  <div className="bg-gradient-to-br from-bolt-elements-background-depth-1 to-bolt-elements-background-depth-1 dark:from-bolt-elements-background-depth-2-dark dark:to-bolt-elements-background-depth-2-dark p-5 rounded-xl border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark">
                     <h3 className="text-base font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark mb-3 flex items-center gap-2">
                       <span className="i-ph:link-simple w-4 h-4 text-purple-500" />
                       Repository URL
