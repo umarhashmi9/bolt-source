@@ -284,7 +284,7 @@ export const Workbench = memo(
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
-    const [IsPushGitlabDialogOpen, setIsPushGitlabDialogOpen] = useState(false);
+    const [isPushGitLabDialogOpen, setIsPushGitLabDialogOpen] = useState(false);
     const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
 
     // const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
@@ -457,11 +457,11 @@ export const Workbench = memo(
                             className={classNames(
                               'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
                             )}
-                            onClick={() => setIsPushGitlabDialogOpen(true)}
+                            onClick={() => setIsPushGitLabDialogOpen(true)}
                           >
                             <div className="flex items-center gap-2">
                               <div className="i-ph:gitlab-logo" />
-                              Push to Gitlab
+                              Push to GitLab
                             </div>
                           </DropdownMenu.Item>
                         </DropdownMenu.Content>
@@ -536,8 +536,8 @@ export const Workbench = memo(
             }}
           />
           <PushToGitLabDialog
-            isOpen={IsPushGitlabDialogOpen}
-            onClose={() => setIsPushGitlabDialogOpen(false)}
+            isOpen={isPushGitLabDialogOpen}
+            onClose={() => setIsPushGitLabDialogOpen(false)}
             onPush={async (repoName, username, token, isPrivate, branchName) => {
               try {
                 const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
@@ -560,7 +560,24 @@ export const Workbench = memo(
 
                 return repoUrl;
               } catch (error) {
-                toast.error('Failed to push to Gitlab');
+                // Provide more specific error messages based on the error type
+                if (error instanceof Error) {
+                  if (error.message.includes('token') || error.message.includes('username')) {
+                    toast.error('Authentication failed. Please check your GitLab credentials.');
+                  } else if (error.message.includes('create')) {
+                    toast.error('Failed to create GitLab repository. Please check your permissions.');
+                  } else if (error.message.includes('commit')) {
+                    toast.error('Failed to commit files to GitLab. Please try again.');
+                  } else {
+                    toast.error(`Failed to push to GitLab: ${error.message}`);
+                  }
+                } else {
+                  toast.error('Failed to push to GitLab due to an unknown error');
+                }
+                
+                // Log the error for debugging
+                console.error('GitLab push error:', error);
+                
                 throw error;
               }
             }}

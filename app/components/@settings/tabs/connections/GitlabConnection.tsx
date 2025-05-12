@@ -63,6 +63,7 @@ interface GitLabStats {
   snippets: number;
   groups: GitLabGroupInfo[];
   lastUpdated: string;
+  languages: { [language: string]: number };
 }
 
 interface GitLabConnection {
@@ -178,8 +179,10 @@ export default function GitLabConnection() {
 
   const fetchGitLabStats = async (token: string) => {
     setIsFetchingStats(true);
+    console.log('Fetching GitLab stats...');
 
     try {
+      // First, fetch user data to ensure token is valid
       const userResponse = await fetch(`${gitlabUrl}/api/v4/user`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -188,16 +191,18 @@ export default function GitLabConnection() {
         if (userResponse.status === 401) {
           toast.error('Your GitLab token has expired. Please reconnect your account.');
           handleDisconnect();
-
           return;
         }
-
         throw new Error(`Failed to fetch user data: ${userResponse.statusText}`);
       }
 
       const userData = (await userResponse.json()) as GitLabUserResponse;
+      
+      // Initialize language statistics object
+      let languageStats: { [language: string]: number } = {};
 
-      let allProjects: any[] = [];
+      // Fetch user's projects with improved error handling
+      let allProjects: GitLabProjectInfo[] = [];
       let page = 1;
       let hasMore = true;
 
@@ -220,6 +225,44 @@ export default function GitLabConnection() {
         page++;
       }
 
+      // Fetch language statistics for the most active projects (limit to top 5 to avoid rate limiting)
+      const topProjects = [...allProjects]
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 5);
+        
+      console.log('Fetching language statistics for top projects...');
+      
+      // Fetch language data for each project
+      for (const project of topProjects) {
+        try {
+          const languageResponse = await fetch(`${gitlabUrl}/api/v4/projects/${project.id}/languages`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (languageResponse.ok) {
+            const projectLanguages = await languageResponse.json() as Record<string, number>;
+            
+            // Add to overall language stats
+            for (const [language, percentage] of Object.entries(projectLanguages)) {
+              languageStats[language] = (languageStats[language] || 0) + percentage;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch languages for project ${project.name}:`, error);
+          // Continue with other projects even if one fails
+        }
+      }
+      
+      // Normalize language percentages
+      const totalLanguagePoints = Object.values(languageStats).reduce((sum, val) => sum + val, 0);
+      if (totalLanguagePoints > 0) {
+        for (const language in languageStats) {
+          languageStats[language] = Math.round((languageStats[language] / totalLanguagePoints) * 100);
+        }
+      }
+      
+      console.log('Language statistics:', languageStats);
+      
       const projectStats = calculateProjectStats(allProjects);
 
       const eventsResponse = await fetch(`${gitlabUrl}/api/v4/events?per_page=10`, {
@@ -276,6 +319,8 @@ export default function GitLabConnection() {
         snippets: snippetsCount,
         groups,
         lastUpdated: new Date().toISOString(),
+        // Add language statistics
+        languages: languageStats,
       };
 
       const currentConnection = JSON.parse(localStorage.getItem('gitlab_connection') || '{}');
@@ -672,7 +717,7 @@ export default function GitLabConnection() {
                 <div className="flex items-center justify-between p-4 rounded-lg bg-bolt-elements-background dark:bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive/70 dark:hover:border-bolt-elements-borderColorActive/70 transition-all duration-200">
                   <div className="flex items-center gap-2">
                     <div className="i-ph:chart-bar w-4 h-4 text-bolt-elements-item-contentAccent" />
-                    <span className="text-sm font-medium text-bolt-elements-textPrimary">GitHub Stats</span>
+                    <span className="text-sm font-medium text-bolt-elements-textPrimary">GitLab Stats</span>
                   </div>
                   <div
                     className={classNames(
@@ -684,6 +729,59 @@ export default function GitLabConnection() {
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden">
                 <div className="space-y-4 mt-4">
+                  {/* Languages Section */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-bolt-elements-textPrimary mb-3">Top Languages</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(connection.stats.languages || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([language]) => (
+                          <span
+                            key={language}
+                            className="px-3 py-1 text-xs rounded-full bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText"
+                          >
+                            {language}
+                          </span>
+                        ))}
+                      {Object.keys(connection.stats.languages || {}).length === 0 && (
+                        <span className="text-xs text-bolt-elements-textSecondary">
+                          No language data available
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional Stats */}
+                  <div className="grid grid-cols-4 gap-4 mb-6">
+                    {[
+                      {
+                        label: 'Member Since',
+                        value: new Date(connection.user.created_at).toLocaleDateString(),
+                      },
+                      {
+                        label: 'Snippets',
+                        value: connection.stats.totalSnippets || 0,
+                      },
+                      {
+                        label: 'Groups',
+                        value: connection.stats.groups ? connection.stats.groups.length : 0,
+                      },
+                      {
+                        label: 'Languages',
+                        value: Object.keys(connection.stats.languages || {}).length,
+                      },
+                    ].map((stat, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col p-3 rounded-lg bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor"
+                      >
+                        <span className="text-xs text-bolt-elements-textSecondary">{stat.label}</span>
+                        <span className="text-lg font-medium text-bolt-elements-textPrimary">{stat.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
                   {/* Repository Stats */}
                   <div className="mt-4">
                     <div className="space-y-4">

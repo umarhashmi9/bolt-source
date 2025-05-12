@@ -470,7 +470,8 @@ function GitHubAuthDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: RepositorySelectionDialogProps) {
   const [selectedRepository, setSelectedRepository] = useState<GitHubRepoInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [repositories, setRepositories] = useState<GitHubRepoInfo[]>([]);
+  const [githubRepositories, setGithubRepositories] = useState<GitHubRepoInfo[]>([]);
+  const [gitlabRepositories, setGitlabRepositories] = useState<GitHubRepoInfo[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GitHubRepoInfo[]>([]);
   const [activeTab, setActiveTab] = useState<'my-repos' | 'search' | 'url'>('my-repos');
@@ -621,7 +622,17 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
   // Fetch repositories when dialog opens or tab changes
   useEffect(() => {
     if (isOpen && activeTab === 'my-repos') {
-      fetchUserRepos('gitlab');
+      // Fetch both GitHub and GitLab repositories when the dialog opens
+      const githubConnection = getLocalStorage('github_connection');
+      const gitlabConnection = getLocalStorage('gitlab_connection');
+      
+      if (githubConnection?.token) {
+        fetchUserRepos('github');
+      }
+      
+      if (gitlabConnection?.token) {
+        fetchUserRepos('gitlab');
+      }
     }
   }, [isOpen, activeTab]);
 
@@ -657,13 +668,27 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
           Array.isArray(data) &&
           data.every((item) => typeof item === 'object' && item !== null && 'full_name' in item)
         ) {
-          setRepositories(data as GitHubRepoInfo[]);
+          // Add source property to each GitHub repository
+          const reposWithSource = data.map(repo => ({
+            ...repo,
+            source: 'github' as any
+          }));
+          setGithubRepositories(reposWithSource as GitHubRepoInfo[]);
         } else {
           throw new Error('Invalid GitHub repository data format');
         }
       } else if (category === 'gitlab') {
+        // Make sure we have a valid GitLab token
+        if (!gitlabConnection?.token) {
+          toast.error('GitLab token not found. Please connect your GitLab account first.');
+          return;
+        }
+
+        console.log('Fetching GitLab repositories...');
+        
+        // Use a more reliable API endpoint with better parameters
         response = await fetch(
-          'https://gitlab.com/api/v4/projects?membership=true&&min_access_level=20&order_by=last_activity_at&per_page=100',
+          'https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&order_by=last_activity_at&per_page=100&simple=true',
           {
             headers: {
               Accept: 'application/json',
@@ -673,10 +698,13 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         );
 
         if (!response.ok) {
-          throw new Error('Failed to fetch GitLab projects');
+          const errorText = await response.text();
+          console.error('GitLab API error:', response.status, errorText);
+          throw new Error(`Failed to fetch GitLab projects: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as any[];
+        console.log('GitLab repositories data:', data.length, 'repositories found');
 
         if (
           Array.isArray(data) &&
@@ -687,16 +715,19 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
             name: item.name,
             full_name: item.path_with_namespace,
             html_url: item.web_url,
-            description: item.description,
-            stargazers_count: item.star_count,
-            forks_count: item.forks_count,
+            description: item.description || '',
+            stargazers_count: item.star_count || 0,
+            forks_count: item.forks_count || 0,
             default_branch: item.default_branch || 'main', // fallback if missing
-            updated_at: item.last_activity_at,
+            updated_at: item.last_activity_at || new Date().toISOString(),
             language: item.language || 'Unknown',
             languages_url: `https://gitlab.com/api/v4/projects/${item.id}/languages`,
+            // Add a source property to identify this as a GitLab repository
+            source: 'gitlab' as any
           }));
 
-          setRepositories(normalizedData);
+          setGitlabRepositories(normalizedData);
+          console.log('GitLab repositories normalized and set:', normalizedData.length);
         } else {
           throw new Error('Invalid GitLab project data format');
         }
@@ -761,12 +792,12 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
     setIsLoading(true);
 
     try {
-      let isGitHub = true;
+      // Determine if this is a GitHub or GitLab repository based on the source property we added
+      const isGitHub = (repo as any).source === 'github';
+      const isGitLab = (repo as any).source === 'gitlab';
+      
       const githubConnection = getLocalStorage('github_connection');
-
-      if (typeof githubConnection?.token === 'undefined') {
-        isGitHub = false;
-      }
+      const gitlabConnection = getLocalStorage('gitlab_connection');
 
       let headers: HeadersInit = {};
       let response: Response;
@@ -799,32 +830,58 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         } else {
           throw new Error('Invalid GitHub branch data format');
         }
-      } else {
-        const connection = getLocalStorage('gitlab_connection');
-        headers = connection?.token
-          ? {
-              Accept: 'application/json',
-              Authorization: `Bearer ${connection.token}`,
-            }
-          : {};
+      } else if (isGitLab) {
+        // Make sure we have a valid GitLab token
+        if (!gitlabConnection?.token) {
+          toast.error('GitLab token not found. Please connect your GitLab account first.');
+          return;
+        }
+        
+        headers = {
+          Accept: 'application/json',
+          Authorization: `Bearer ${gitlabConnection.token}`,
+        };
 
-        response = await fetch(`https://gitlab.com/api/v4/projects/${repo.id}/repository/branches`, {
+        // Get the project ID from the repository object
+        const projectId = repo.id;
+        if (!projectId) {
+          throw new Error('GitLab project ID not found');
+        }
+
+        console.log('Fetching branches for GitLab project:', projectId);
+        
+        // Fetch branches from GitLab API
+        response = await fetch(`https://gitlab.com/api/v4/projects/${projectId}/repository/branches`, {
           headers,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch GitLab branches');
+          const errorText = await response.text();
+          console.error('GitLab API error:', response.status, errorText);
+          throw new Error(`Failed to fetch GitLab branches: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('GitLab branches data:', data);
 
-        if (Array.isArray(data) && data.every((item) => typeof item === 'object' && 'name' in item)) {
+        if (Array.isArray(data) && data.length > 0) {
+          // Get the default branch from the repository object
+          const defaultBranch = (repo as any).default_branch || 'main';
+          
           setBranches(
             data.map((branch) => ({
               name: branch.name,
-              default: branch.default,
+              default: branch.name === defaultBranch,
             })),
           );
+          
+          // Set the selected branch to the default branch
+          setSelectedBranch(defaultBranch);
+        } else if (Array.isArray(data) && data.length === 0) {
+          // Handle empty branches array (new repository)
+          toast.info('No branches found for this repository. A default branch will be created when you push.');
+          setBranches([{ name: 'main', default: true }]);
+          setSelectedBranch('main');
         } else {
           throw new Error('Invalid GitLab branch data format');
         }
@@ -1366,7 +1423,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
                       </div>
                     ) : (
                       <RepositoryList
-                        repos={activeTab === 'my-repos' ? repositories : searchResults}
+                        repos={activeTab === 'my-repos' ? [...githubRepositories, ...gitlabRepositories] : searchResults}
                         isLoading={isLoading}
                         onSelect={handleRepoSelect}
                         activeTab={activeTab}
@@ -1448,12 +1505,26 @@ function RepositoryList({
 }
 
 function RepositoryCard({ repo, onSelect }: { repo: GitHubRepoInfo; onSelect: () => void }) {
+  // Determine if this is a GitHub or GitLab repository
+  const isGitlab = (repo as any).source === 'gitlab';
+  const isGithub = (repo as any).source === 'github';
+  
   return (
     <div className="p-4 rounded-lg bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive/70 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="i-ph:git-repository text-bolt-elements-textTertiary" />
+          {isGitlab ? (
+            <span className="i-ph:gitlab-logo text-[#FC6D26]" />
+          ) : (
+            <span className="i-ph:github-logo text-bolt-elements-textTertiary" />
+          )}
           <h3 className="font-medium text-bolt-elements-textPrimary dark:text-white">{repo.name}</h3>
+          {isGitlab && (
+            <span className="px-1.5 py-0.5 text-xs bg-[#FC6D26]/10 text-[#FC6D26] rounded-full">GitLab</span>
+          )}
+          {isGithub && (
+            <span className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">GitHub</span>
+          )}
         </div>
         <button
           onClick={onSelect}
