@@ -484,15 +484,6 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
   const [pendingGitUrl, setPendingGitUrl] = useState<string>('');
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [showAuthGitlabDialog, setShowAuthGitlabDialog] = useState(false);
-  const [hasGitlabConnection, setHasGitlabConnection] = useState(false);
-
-  useEffect(() => {
-    const savedConnection = localStorage.getItem('gitlab_connection');
-
-    if (savedConnection) {
-      setHasGitlabConnection(true);
-    }
-  }, []);
 
   // Handle GitHub auth dialog close and refresh repositories
   const handleAuthDialogClose = (category: 'github' | 'gitlab') => {
@@ -625,11 +616,11 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
       // Fetch both GitHub and GitLab repositories when the dialog opens
       const githubConnection = getLocalStorage('github_connection');
       const gitlabConnection = getLocalStorage('gitlab_connection');
-      
+
       if (githubConnection?.token) {
         fetchUserRepos('github');
       }
-      
+
       if (gitlabConnection?.token) {
         fetchUserRepos('gitlab');
       }
@@ -641,7 +632,10 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
     const gitlabConnection = getLocalStorage('gitlab_connection');
 
     if (!gitlabConnection?.token && !githubConnection?.token) {
-      toast.error('Please connect your Gitlab our Github account first');
+      toast.error('Please connect your Gitlab or Github account first');
+
+      setIsLoading(false);
+
       return;
     }
 
@@ -669,23 +663,26 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
           data.every((item) => typeof item === 'object' && item !== null && 'full_name' in item)
         ) {
           // Add source property to each GitHub repository
-          const reposWithSource = data.map(repo => ({
+          const reposWithSource = data.map((repo) => ({
             ...repo,
-            source: 'github' as any
+            source: 'github' as any,
           }));
           setGithubRepositories(reposWithSource as GitHubRepoInfo[]);
         } else {
           throw new Error('Invalid GitHub repository data format');
         }
       } else if (category === 'gitlab') {
-        // Make sure we have a valid GitLab token
         if (!gitlabConnection?.token) {
           toast.error('GitLab token not found. Please connect your GitLab account first.');
+
+          setShowAuthGitlabDialog(true);
+          setIsLoading(false);
+
           return;
         }
 
         console.log('Fetching GitLab repositories...');
-        
+
         // Use a more reliable API endpoint with better parameters
         response = await fetch(
           'https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&order_by=last_activity_at&per_page=100&simple=true',
@@ -700,10 +697,15 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         if (!response.ok) {
           const errorText = await response.text();
           console.error('GitLab API error:', response.status, errorText);
-          throw new Error(`Failed to fetch GitLab projects: ${response.status} ${response.statusText}`);
+          toast.error(`Failed to fetch GitLab projects: ${response.status} ${response.statusText}`);
+
+          setShowAuthGitlabDialog(true);
+          setIsLoading(false);
+
+          return;
         }
 
-        const data = await response.json() as any[];
+        const data = (await response.json()) as any[];
         console.log('GitLab repositories data:', data.length, 'repositories found');
 
         if (
@@ -722,8 +724,9 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
             updated_at: item.last_activity_at || new Date().toISOString(),
             language: item.language || 'Unknown',
             languages_url: `https://gitlab.com/api/v4/projects/${item.id}/languages`,
+
             // Add a source property to identify this as a GitLab repository
-            source: 'gitlab' as any
+            source: 'gitlab' as any,
           }));
 
           setGitlabRepositories(normalizedData);
@@ -733,7 +736,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         }
       }
     } catch (error) {
-      console.error('Failed to fecth repositories:', error);
+      console.error('Failed to fetch repositories:', error);
       toast.error(`Failed to fetch your ${category} repositories`);
     } finally {
       setIsLoading(false);
@@ -795,7 +798,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
       // Determine if this is a GitHub or GitLab repository based on the source property we added
       const isGitHub = (repo as any).source === 'github';
       const isGitLab = (repo as any).source === 'gitlab';
-      
+
       const githubConnection = getLocalStorage('github_connection');
       const gitlabConnection = getLocalStorage('gitlab_connection');
 
@@ -836,7 +839,7 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
           toast.error('GitLab token not found. Please connect your GitLab account first.');
           return;
         }
-        
+
         headers = {
           Accept: 'application/json',
           Authorization: `Bearer ${gitlabConnection.token}`,
@@ -844,12 +847,13 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
 
         // Get the project ID from the repository object
         const projectId = repo.id;
+
         if (!projectId) {
           throw new Error('GitLab project ID not found');
         }
 
         console.log('Fetching branches for GitLab project:', projectId);
-        
+
         // Fetch branches from GitLab API
         response = await fetch(`https://gitlab.com/api/v4/projects/${projectId}/repository/branches`, {
           headers,
@@ -867,14 +871,14 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
         if (Array.isArray(data) && data.length > 0) {
           // Get the default branch from the repository object
           const defaultBranch = (repo as any).default_branch || 'main';
-          
+
           setBranches(
             data.map((branch) => ({
               name: branch.name,
               default: branch.name === defaultBranch,
             })),
           );
-          
+
           // Set the selected branch to the default branch
           setSelectedBranch(defaultBranch);
         } else if (Array.isArray(data) && data.length === 0) {
@@ -1228,27 +1232,31 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
               <Dialog.Title className="text-lg font-semibold text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
                 Import GitHub/Gitlab Repository
               </Dialog.Title>
-              <Dialog.Close
-                onClick={handleClose}
-                className={classNames(
-                  'p-2 rounded-lg transition-all duration-200 ease-in-out',
-                  'text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary',
-                  'dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark',
-                  'hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3',
-                  'focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark',
-                )}
-              >
-                <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
-                <span className="sr-only">Close dialog</span>
+              <Dialog.Close asChild>
+                <button
+                  onClick={handleClose}
+                  className={classNames(
+                    'p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent',
+                    'text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary',
+                    'dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark',
+                    'hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3',
+                    'focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark',
+                  )}
+                  aria-label="Close dialog"
+                  type="button"
+                >
+                  <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
+                  <span className="sr-only">Close dialog</span>
+                </button>
               </Dialog.Close>
             </div>
 
             <div className="p-4 border-b border-[#E5E5E5] dark:border-[#333333] flex items-center justify-between">
               <div className="ml-auto">
                 <DropdownMenu.Root>
-                  <DropdownMenu.Trigger className="text-sm flex items-center gap-1 text-bolt-elements-item-contentDefault bg-transparent enabled:hover:text-bolt-elements-item-contentActive rounded-md p-1 enabled:hover:bg-bolt-elements-item-backgroundActive disabled:cursor-not-allowed">
+                  <DropdownMenu.Trigger className="text-base font-semibold flex items-center gap-2 px-4 py-2 bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 rounded-lg shadow-sm text-bolt-elements-item-contentDefault enabled:hover:text-bolt-elements-item-contentActive enabled:hover:bg-bolt-elements-item-backgroundActive disabled:cursor-not-allowed">
                     <div className="i-ph:box-arrow-up" />
-                    Need to access private repositories?
+                    Need to access private repositories (GitHub or GitLab)?
                   </DropdownMenu.Trigger>
 
                   <DropdownMenu.Content
@@ -1268,27 +1276,24 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
                         'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary' +
                           ' hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
                       )}
-                      onClick={() => setShowAuthGitlabDialog(true)} // Corrected line
+                      onClick={() => setShowAuthDialog(true)}
                     >
                       <div className="flex items-center gap-2">
                         <span className="i-ph:key" />
                         GitHub Account
                       </div>
                     </DropdownMenu.Item>
-
-                    {!hasGitlabConnection && (
-                      <DropdownMenu.Item
-                        className={classNames(
-                          'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
-                        )}
-                        onClick={() => setShowAuthGitlabDialog(true)} // Corrected line
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="i-ph:gitlab-logo" />
-                          Gitlab Account
-                        </div>
-                      </DropdownMenu.Item>
-                    )}
+                    <DropdownMenu.Item
+                      className={classNames(
+                        'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
+                      )}
+                      onClick={() => setShowAuthGitlabDialog(true)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="i-ph:gitlab-logo" />
+                        GitLab Account
+                      </div>
+                    </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </div>
@@ -1423,7 +1428,9 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
                       </div>
                     ) : (
                       <RepositoryList
-                        repos={activeTab === 'my-repos' ? [...githubRepositories, ...gitlabRepositories] : searchResults}
+                        repos={
+                          activeTab === 'my-repos' ? [...githubRepositories, ...gitlabRepositories] : searchResults
+                        }
                         isLoading={isLoading}
                         onSelect={handleRepoSelect}
                         activeTab={activeTab}
@@ -1508,7 +1515,7 @@ function RepositoryCard({ repo, onSelect }: { repo: GitHubRepoInfo; onSelect: ()
   // Determine if this is a GitHub or GitLab repository
   const isGitlab = (repo as any).source === 'gitlab';
   const isGithub = (repo as any).source === 'github';
-  
+
   return (
     <div className="p-4 rounded-lg bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor hover:border-bolt-elements-borderColorActive/70 transition-colors">
       <div className="flex items-center justify-between mb-2">
@@ -1523,7 +1530,9 @@ function RepositoryCard({ repo, onSelect }: { repo: GitHubRepoInfo; onSelect: ()
             <span className="px-1.5 py-0.5 text-xs bg-[#FC6D26]/10 text-[#FC6D26] rounded-full">GitLab</span>
           )}
           {isGithub && (
-            <span className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">GitHub</span>
+            <span className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">
+              GitHub
+            </span>
           )}
         </div>
         <button

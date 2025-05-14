@@ -78,11 +78,11 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
       setIsFetchingProjects(true);
 
       const response = await fetch(
-        'https://gitlab.com/api/v4/projects?membership=true&order_by=updated_at&sort=desc&per_page=5',
+        'https://gitlab.com/api/v4/projects?membership=true&min_access_level=20&order_by=last_activity_at&per_page=5&simple=true',
         {
           headers: {
             Accept: 'application/json',
-            'Private-Token': token.trim(),
+            Authorization: `Bearer ${token.trim()}`,
           },
         },
       );
@@ -91,7 +91,7 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
         const errorData = await response.json().catch(() => ({}));
 
         if (response.status === 401) {
-          toast.error('GitLab token expired. Please reconnect your account.');
+          toast.error('GitLab token expired or invalid. Please reconnect your account.');
 
           // Clear invalid token
           const connection = getLocalStorage('gitlab_connection');
@@ -108,6 +108,8 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
           });
           toast.error(`Failed to fetch projects: ${response.statusText}`);
         }
+
+        setIsFetchingProjects(false);
 
         return;
       }
