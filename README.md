@@ -7,12 +7,6 @@
 > 🔗 **API Link**: [Pollinations.ai](https://pollinations.ai)  
 > You can now access a variety of models to integrate into your project.
 >
-> 📁 **Purpose of the update**:  
-> This API integration aims to improve the ability to utilize various AI-powered services within the project.
->
-> ✅ **Action Required**:  
-> Make sure to pull the latest updates from the repository to take advantage of this new addition.
->
 > 💬 *If you have any feedback or questions, feel free to reach out!*
 
 [![bolt.diy: AI-Powered Full-Stack Web Development in the Browser](./public/social_preview_index.jpg)](https://bolt.diy)
