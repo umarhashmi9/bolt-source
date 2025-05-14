@@ -20,6 +20,7 @@ interface PushToGitLabDialogProps {
     token?: string,
     isPrivate?: boolean,
     branchName?: string,
+    commitMessage?: string,
   ) => Promise<string>;
 }
 
@@ -47,6 +48,7 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdProjectUrl, setCreatedProjectUrl] = useState('');
   const [pushedFiles, setPushedFiles] = useState<{ path: string; size: number }[]>([]);
+  const [commitMessage, setCommitMessage] = useState('Initial commit');
 
   // Load GitLab connection on mount
   useEffect(() => {
@@ -157,6 +159,11 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
       return;
     }
 
+    if (!commitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -203,7 +210,14 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
         console.log('Project does not exist yet, will create a new one', error);
       }
 
-      const projectUrl = await onPush(projectName, connection.user.username, connection.token, isPrivate, branchName);
+      const projectUrl = await onPush(
+        projectName,
+        connection.user.username,
+        connection.token,
+        isPrivate,
+        branchName,
+        commitMessage,
+      );
       setCreatedProjectUrl(projectUrl);
 
       // Get list of pushed files
@@ -257,7 +271,13 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                     </div>
                     <Dialog.Close
                       onClick={handleClose}
-                      className="p-2 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+                      className={classNames(
+                        'p-2 rounded-md',
+                        'text-bolt-elements-textTertiary hover:text-bolt-elements-textSecondary',
+                        'dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark',
+                        'hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3',
+                        'focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark',
+                      )}
                     >
                       <div className="i-ph:x w-5 h-5" />
                     </Dialog.Close>
@@ -422,11 +442,20 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                       Push your code to a new or existing GitLab project
                     </p>
                   </div>
-                  <Dialog.Close
-                    className="ml-auto p-2 text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
-                    onClick={handleClose}
-                  >
-                    <div className="i-ph:x w-5 h-5" />
+                  <Dialog.Close asChild>
+                    <button
+                      onClick={handleClose}
+                      className={classNames(
+                        'p-2 rounded-lg transition-all duration-200 ease-in-out bg-transparent',
+                        'text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary',
+                        'dark:text-bolt-elements-textTertiary-dark dark:hover:text-bolt-elements-textPrimary-dark',
+                        'hover:bg-bolt-elements-background-depth-2 dark:hover:bg-bolt-elements-background-depth-3',
+                        'focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColor dark:focus:ring-bolt-elements-borderColor-dark',
+                      )}
+                    >
+                      <span className="i-ph:x block w-5 h-5" aria-hidden="true" />
+                      <span className="sr-only">Close dialog</span>
+                    </button>
                   </Dialog.Close>
                 </div>
 
@@ -540,6 +569,21 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                     <label htmlFor="private" className="text-sm text-gray-600 dark:text-gray-400">
                       Make project private
                     </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="commitMessage" className="text-sm text-gray-600 dark:text-gray-400">
+                      Commit Message
+                    </label>
+                    <input
+                      id="commitMessage"
+                      type="text"
+                      value={commitMessage}
+                      onChange={(e) => setCommitMessage(e.target.value)}
+                      placeholder="Initial commit"
+                      className="w-full px-4 py-2 rounded-lg bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 border border-[#E5E5E5] dark:border-[#1A1A1A] text-gray-900 dark:text-white placeholder-gray-400"
+                      required
+                    />
                   </div>
 
                   <div className="pt-4 flex gap-2">
