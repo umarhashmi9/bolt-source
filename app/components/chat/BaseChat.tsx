@@ -43,6 +43,7 @@ import { ExpoQrModal } from '~/components/workbench/ExpoQrModal';
 import { expoUrlAtom } from '~/lib/stores/qrCodeStore';
 import { useStore } from '@nanostores/react';
 import { StickToBottom, useStickToBottomContext } from '~/lib/hooks';
+import { WebSearch } from './WebSearch.client';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -82,6 +83,7 @@ interface BaseChatProps {
   clearDeployAlert?: () => void;
   data?: JSONValue[] | undefined;
   actionRunner?: ActionRunner;
+  onWebSearchResult?: (result: string) => void;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -120,6 +122,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       clearSupabaseAlert,
       data,
       actionRunner,
+      onWebSearchResult,
     },
     ref,
   ) => {
@@ -590,6 +593,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         <IconButton title="Upload file" className="transition-all" onClick={() => handleFileUpload()}>
                           <div className="i-ph:paperclip text-xl"></div>
                         </IconButton>
+                        <WebSearch
+                          onSearchResult={(result) => {
+                            if (onWebSearchResult) {
+                              onWebSearchResult(result);
+                            }
+                          }}
+                          disabled={isStreaming}
+                        />
                         <IconButton
                           title="Enhance prompt"
                           disabled={input.length === 0 || enhancingPrompt}
