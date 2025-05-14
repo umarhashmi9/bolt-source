@@ -303,15 +303,12 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                         <div className="i-ph:check-circle w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
+                        <Dialog.Title className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
                           Successfully pushed to GitHub
-                        </h3>
-                        <p
-                          id="success-dialog-description"
-                          className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
-                        >
+                        </Dialog.Title>
+                        <Dialog.Description className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
                           Your code is now available on GitHub
-                        </p>
+                        </Dialog.Description>
                       </div>
                     </div>
                     <Dialog.Close asChild>
@@ -513,12 +510,9 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                     <Dialog.Title className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
                       Push to GitHub
                     </Dialog.Title>
-                    <p
-                      id="push-dialog-description"
-                      className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
-                    >
+                    <Dialog.Description className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
                       Push your code to a new or existing GitHub repository
-                    </p>
+                    </Dialog.Description>
                   </div>
                   <Dialog.Close asChild>
                     <button

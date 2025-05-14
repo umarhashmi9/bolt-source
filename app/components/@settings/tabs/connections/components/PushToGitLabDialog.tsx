@@ -269,7 +269,9 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-green-500">
                       <div className="i-ph:check-circle w-5 h-5" />
-                      <h3 className="text-lg font-medium">Successfully pushed to GitLab</h3>
+                      <Dialog.Title className="text-lg font-medium text-green-700 dark:text-green-400">
+                        Successfully pushed to GitLab
+                      </Dialog.Title>
                     </div>
                     <Dialog.Close
                       onClick={handleClose}
@@ -286,9 +288,9 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                   </div>
 
                   <div className="bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 rounded-lg p-3 text-left">
-                    <p className="text-xs text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark mb-2">
+                    <Dialog.Description className="text-xs text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark mb-2">
                       Project URL
-                    </p>
+                    </Dialog.Description>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 text-sm bg-bolt-elements-background dark:bg-bolt-elements-background-dark px-3 py-2 rounded border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark font-mono">
                         {createdProjectUrl}
@@ -308,9 +310,9 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                   </div>
 
                   <div className="bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 rounded-lg p-3">
-                    <p className="text-xs text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark mb-2">
+                    <Dialog.Description className="text-xs text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark mb-2">
                       Pushed Files ({pushedFiles.length})
-                    </p>
+                    </Dialog.Description>
                     <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
                       {pushedFiles.map((file) => (
                         <div
@@ -391,10 +393,12 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                   >
                     <div className="i-ph:gitlab-logo w-6 h-6" />
                   </motion.div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">GitLab Connection Required</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
+                    GitLab Connection Required
+                  </Dialog.Title>
+                  <Dialog.Description className="text-sm text-gray-600 dark:text-gray-400">
                     Please connect your GitLab account in Settings {'>'} Connections to push your code to GitLab.
-                  </p>
+                  </Dialog.Description>
                   <motion.button
                     className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm hover:bg-orange-700 inline-flex items-center gap-2"
                     whileHover={{ scale: 1.02 }}
@@ -440,9 +444,9 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
                     <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
                       Push to GitLab
                     </Dialog.Title>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <Dialog.Description className="text-sm text-gray-600 dark:text-gray-400">
                       Push your code to a new or existing GitLab project
-                    </p>
+                    </Dialog.Description>
                   </div>
                   <Dialog.Close asChild>
                     <button
