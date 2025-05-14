@@ -424,14 +424,24 @@ export const ChatImpl = memo(
 
       if (modifiedFiles) {
         // Convert the modifiedFiles object to an array of [filePath, file] entries
-        const modifiedFilesWithContent = Object.entries(modifiedFiles).reduce<Record<string, { content: string }>>((acc, [filePath, file]) => {
-          // Ensure file is an object with the expected properties
-          const fileObj = file as any;
-          if (fileObj && typeof fileObj === 'object' && fileObj.type === 'file' && typeof fileObj.content === 'string') {
-            acc[filePath] = { content: fileObj.content };
-          }
-          return acc;
-        }, {});
+        const modifiedFilesWithContent = Object.entries(modifiedFiles).reduce<Record<string, { content: string }>>(
+          (acc, [filePath, file]) => {
+            // Ensure file is an object with the expected properties
+            const fileObj = file as any;
+
+            if (
+              fileObj &&
+              typeof fileObj === 'object' &&
+              fileObj.type === 'file' &&
+              typeof fileObj.content === 'string'
+            ) {
+              acc[filePath] = { content: fileObj.content };
+            }
+
+            return acc;
+          },
+          {},
+        );
 
         const userUpdateArtifact = filesToArtifacts(modifiedFilesWithContent, `${Date.now()}`);
         append({

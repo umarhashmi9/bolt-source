@@ -513,12 +513,17 @@ export const Workbench = memo(
           <PushToGitHubDialog
             isOpen={isPushDialogOpen}
             onClose={() => setIsPushDialogOpen(false)}
-            onPush={async (repoName, username, token, isPrivate) => {
+            onPush={async (repoName, username, token, isPrivate, commitMessage) => {
               try {
                 console.log('Dialog onPush called with isPrivate =', isPrivate);
 
-                const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
-                const repoUrl = await workbenchStore.pushToGitHub(repoName, commitMessage, username, token, isPrivate);
+                const repoUrl = await workbenchStore.pushToGitHub(
+                  repoName,
+                  commitMessage || 'Initial commit',
+                  username,
+                  token,
+                  isPrivate,
+                );
 
                 if (updateChatMestaData && !metadata?.gitUrl) {
                   updateChatMestaData({
@@ -538,13 +543,12 @@ export const Workbench = memo(
           <PushToGitLabDialog
             isOpen={isPushGitLabDialogOpen}
             onClose={() => setIsPushGitLabDialogOpen(false)}
-            onPush={async (repoName, username, token, isPrivate, branchName) => {
+            onPush={async (repoName, username, token, isPrivate, branchName, commitMessage) => {
               try {
-                const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
                 const repoUrl = await workbenchStore.pushToRepository(
                   'gitlab',
                   repoName,
-                  commitMessage,
+                  commitMessage || 'Initial commit',
                   username,
                   token,
                   isPrivate,
@@ -574,10 +578,10 @@ export const Workbench = memo(
                 } else {
                   toast.error('Failed to push to GitLab due to an unknown error');
                 }
-                
+
                 // Log the error for debugging
                 console.error('GitLab push error:', error);
-                
+
                 throw error;
               }
             }}

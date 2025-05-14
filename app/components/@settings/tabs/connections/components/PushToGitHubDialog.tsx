@@ -20,7 +20,13 @@ import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui
 interface PushToGitHubDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onPush: (repoName: string, username?: string, token?: string, isPrivate?: boolean) => Promise<string>;
+  onPush: (
+    repoName: string,
+    username?: string,
+    token?: string,
+    isPrivate?: boolean,
+    commitMessage?: string,
+  ) => Promise<string>;
 }
 
 interface GitHubRepo {
@@ -48,6 +54,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdRepoUrl, setCreatedRepoUrl] = useState('');
   const [pushedFiles, setPushedFiles] = useState<{ path: string; size: number }[]>([]);
+  const [commitMessage, setCommitMessage] = useState('Initial commit');
 
   // Load GitHub connection on mount
   useEffect(() => {
@@ -199,6 +206,11 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
       return;
     }
 
+    if (!commitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -236,7 +248,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
         }
       }
 
-      const repoUrl = await onPush(repoName, connection.user.login, connection.token, isPrivate);
+      const repoUrl = await onPush(repoName, connection.user.login, connection.token, isPrivate, commitMessage);
       setCreatedRepoUrl(repoUrl);
 
       // Get list of pushed files
@@ -671,6 +683,29 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                     <p className="text-xs text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark mt-2 ml-6">
                       Private repositories are only visible to you and people you share them with
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="commitMessage"
+                      className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
+                    >
+                      Commit Message
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark">
+                        <span className="i-ph:pencil-line w-4 h-4" />
+                      </div>
+                      <input
+                        id="commitMessage"
+                        type="text"
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        placeholder="Initial commit"
+                        className="w-full pl-10 px-4 py-2 rounded-lg bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark placeholder-bolt-elements-textTertiary dark:placeholder-bolt-elements-textTertiary-dark focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-4 flex gap-2">

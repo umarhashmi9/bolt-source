@@ -122,7 +122,8 @@ export const Preview = memo(() => {
   const findMinPortIndex = useCallback(
     (minIndex: number, preview: PreviewInfo, index: number, array: PreviewInfo[]) => {
       const currentPort = typeof preview.port === 'string' ? parseInt(preview.port, 10) : preview.port;
-      const minPort = typeof array[minIndex].port === 'string' ? parseInt(array[minIndex].port, 10) : array[minIndex].port;
+      const minPort =
+        typeof array[minIndex].port === 'string' ? parseInt(array[minIndex].port, 10) : array[minIndex].port;
 
       return currentPort < minPort ? index : minIndex;
     },

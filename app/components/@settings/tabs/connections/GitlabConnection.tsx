@@ -191,15 +191,17 @@ export default function GitLabConnection() {
         if (userResponse.status === 401) {
           toast.error('Your GitLab token has expired. Please reconnect your account.');
           handleDisconnect();
+
           return;
         }
+
         throw new Error(`Failed to fetch user data: ${userResponse.statusText}`);
       }
 
       const userData = (await userResponse.json()) as GitLabUserResponse;
-      
+
       // Initialize language statistics object
-      let languageStats: { [language: string]: number } = {};
+      const languageStats: { [language: string]: number } = {};
 
       // Fetch user's projects with improved error handling
       let allProjects: GitLabProjectInfo[] = [];
@@ -229,19 +231,19 @@ export default function GitLabConnection() {
       const topProjects = [...allProjects]
         .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
         .slice(0, 5);
-        
+
       console.log('Fetching language statistics for top projects...');
-      
+
       // Fetch language data for each project
       for (const project of topProjects) {
         try {
           const languageResponse = await fetch(`${gitlabUrl}/api/v4/projects/${project.id}/languages`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          
+
           if (languageResponse.ok) {
-            const projectLanguages = await languageResponse.json() as Record<string, number>;
-            
+            const projectLanguages = (await languageResponse.json()) as Record<string, number>;
+
             // Add to overall language stats
             for (const [language, percentage] of Object.entries(projectLanguages)) {
               languageStats[language] = (languageStats[language] || 0) + percentage;
@@ -249,20 +251,22 @@ export default function GitLabConnection() {
           }
         } catch (error) {
           console.warn(`Failed to fetch languages for project ${project.name}:`, error);
+
           // Continue with other projects even if one fails
         }
       }
-      
+
       // Normalize language percentages
       const totalLanguagePoints = Object.values(languageStats).reduce((sum, val) => sum + val, 0);
+
       if (totalLanguagePoints > 0) {
         for (const language in languageStats) {
           languageStats[language] = Math.round((languageStats[language] / totalLanguagePoints) * 100);
         }
       }
-      
+
       console.log('Language statistics:', languageStats);
-      
+
       const projectStats = calculateProjectStats(allProjects);
 
       const eventsResponse = await fetch(`${gitlabUrl}/api/v4/events?per_page=10`, {
@@ -319,6 +323,7 @@ export default function GitLabConnection() {
         snippets: snippetsCount,
         groups,
         lastUpdated: new Date().toISOString(),
+
         // Add language statistics
         languages: languageStats,
       };
@@ -745,9 +750,7 @@ export default function GitLabConnection() {
                           </span>
                         ))}
                       {Object.keys(connection.stats.languages || {}).length === 0 && (
-                        <span className="text-xs text-bolt-elements-textSecondary">
-                          No language data available
-                        </span>
+                        <span className="text-xs text-bolt-elements-textSecondary">No language data available</span>
                       )}
                     </div>
                   </div>
