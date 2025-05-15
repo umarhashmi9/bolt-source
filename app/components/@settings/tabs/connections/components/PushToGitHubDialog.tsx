@@ -13,6 +13,7 @@ import { workbenchStore } from '~/lib/stores/workbench';
 import { extractRelativePath } from '~/utils/diff';
 import { formatSize } from '~/utils/formatSize';
 import type { FileMap, File } from '~/lib/stores/files';
+import { usePreviewStore } from '~/lib/stores/previews';
 
 // UI Components
 import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui';
@@ -261,6 +262,11 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
         }));
 
       setPushedFiles(filesList);
+
+      // Force refresh of previews after push
+      const previewStore = usePreviewStore();
+      previewStore.refreshAllPreviews();
+
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error pushing to GitHub:', error);

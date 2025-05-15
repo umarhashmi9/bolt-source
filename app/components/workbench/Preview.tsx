@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { IconButton } from '~/components/ui/IconButton';
 import { workbenchStore } from '~/lib/stores/workbench';
@@ -58,29 +58,31 @@ export const Preview = memo(() => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const hasSelectedPreview = useRef(false);
 
-  const rawPreviews = useStore(workbenchStore.previews);
-
-  const previews = useMemo(() => {
-    if (rawPreviews && typeof rawPreviews === 'object' && !Array.isArray(rawPreviews)) {
-      return Object.values(rawPreviews)
-        .map((v) => v as unknown)
-        .filter(
-          (v): v is PreviewInfo =>
-            typeof v === 'object' &&
-            v !== null &&
-            typeof (v as any).port === 'number' &&
-            typeof (v as any).ready === 'boolean' &&
-            typeof (v as any).baseUrl === 'string',
-        );
-    }
-
-    return [];
-  }, [rawPreviews]);
-
+  const previews = useStore(workbenchStore.previews);
   const activePreview = previews[activePreviewIndex];
   const [displayPath, setDisplayPath] = useState('/');
   const [iframeUrl, setIframeUrl] = useState<string | undefined>();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  useEffect(() => {
+    if (!activePreview) {
+      setIframeUrl(undefined);
+      setDisplayPath('/');
+
+      return;
+    }
+
+    const { baseUrl } = activePreview;
+
+    // Set the iframe URL in the state
+    setIframeUrl(baseUrl);
+    setDisplayPath('/');
+
+    // Also directly update the iframe src for immediate effect
+    if (iframeRef.current) {
+      iframeRef.current.src = baseUrl;
+    }
+  }, [activePreview]);
 
   const [isDeviceModeOn, setIsDeviceModeOn] = useState(false);
 
@@ -105,19 +107,6 @@ export const Preview = memo(() => {
   const [showDeviceFrameInPreview, setShowDeviceFrameInPreview] = useState(false);
   const expoUrl = useStore(expoUrlAtom);
   const [isExpoQrModalOpen, setIsExpoQrModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (!activePreview) {
-      setIframeUrl(undefined);
-      setDisplayPath('/');
-
-      return;
-    }
-
-    const { baseUrl } = activePreview;
-    setIframeUrl(baseUrl);
-    setDisplayPath('/');
-  }, [activePreview]);
 
   const findMinPortIndex = useCallback(
     (minIndex: number, preview: PreviewInfo, index: number, array: PreviewInfo[]) => {
@@ -961,8 +950,8 @@ export const Preview = memo(() => {
                         display: 'block',
                       }}
                       src={iframeUrl}
-                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                      allow="cross-origin-isolated"
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-downloads"
+                      allow="cross-origin-isolated; fullscreen"
                     />
                   </div>
                 </div>
@@ -972,8 +961,8 @@ export const Preview = memo(() => {
                   title="preview"
                   className="border-none w-full h-full bg-bolt-elements-background-depth-1"
                   src={iframeUrl}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                  allow="geolocation; ch-ua-full-version-list; cross-origin-isolated; screen-wake-lock; publickey-credentials-get; shared-storage-select-url; ch-ua-arch; bluetooth; compute-pressure; ch-prefers-reduced-transparency; deferred-fetch; usb; ch-save-data; publickey-credentials-create; shared-storage; deferred-fetch-minimal; run-ad-auction; ch-ua-form-factors; ch-downlink; otp-credentials; payment; ch-ua; ch-ua-model; ch-ect; autoplay; camera; private-state-token-issuance; accelerometer; ch-ua-platform-version; idle-detection; private-aggregation; interest-cohort; ch-viewport-height; local-fonts; ch-ua-platform; midi; ch-ua-full-version; xr-spatial-tracking; clipboard-read; gamepad; display-capture; keyboard-map; join-ad-interest-group; ch-width; ch-prefers-reduced-motion; browsing-topics; encrypted-media; gyroscope; serial; ch-rtt; ch-ua-mobile; window-management; unload; ch-dpr; ch-prefers-color-scheme; ch-ua-wow64; attribution-reporting; fullscreen; identity-credentials-get; private-state-token-redemption; hid; ch-ua-bitness; storage-access; sync-xhr; ch-device-memory; ch-viewport-width; picture-in-picture; magnetometer; clipboard-write; microphone"
+                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-downloads"
+                  allow="cross-origin-isolated; fullscreen"
                 />
               )}
               <ScreenshotSelector

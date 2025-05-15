@@ -10,6 +10,7 @@ import { workbenchStore } from '~/lib/stores/workbench';
 import { extractRelativePath } from '~/utils/diff';
 import { formatSize } from '~/utils/formatSize';
 import type { FileMap, File } from '~/lib/stores/files';
+import { usePreviewStore } from '~/lib/stores/previews';
 
 interface PushToGitLabDialogProps {
   isOpen: boolean;
@@ -232,6 +233,11 @@ export function PushToGitLabDialog({ isOpen, onClose, onPush }: PushToGitLabDial
         }));
 
       setPushedFiles(filesList);
+
+      // Force refresh of previews after push
+      const previewStore = usePreviewStore();
+      previewStore.refreshAllPreviews();
+
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error pushing to GitLab:', error);
