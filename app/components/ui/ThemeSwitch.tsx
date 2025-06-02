@@ -15,11 +15,20 @@ export const ThemeSwitch = memo(({ className }: ThemeSwitchProps) => {
     setDomLoaded(true);
   }, []);
 
+  let iconClass = '';
+  if (theme === 'dark') {
+    iconClass = 'i-ph-sun-dim-duotone';
+  } else if (theme === 'light') {
+    iconClass = 'i-ph-moon-stars-duotone';
+  } else {
+    // purple theme
+    iconClass = 'i-ph:palette-duotone';
+  }
   return (
     domLoaded && (
       <IconButton
         className={className}
-        icon={theme === 'dark' ? 'i-ph-sun-dim-duotone' : 'i-ph-moon-stars-duotone'}
+        icon={iconClass}
         size="xl"
         title="Toggle Theme"
         onClick={toggleTheme}

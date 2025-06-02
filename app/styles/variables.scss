@@ -214,6 +214,113 @@
   --modern-scrollbar-thumb-backgroundHover: rgba(10, 10, 10, 0.8);
 }
 
+/* Color Tokens Purple Theme */
+:root[data-theme='purple'] {
+  --bolt-elements-borderColor: #B39DDB; /* Light purple for borders */
+  --bolt-elements-borderColorActive: #673AB7; /* Primary purple for active borders */
+
+  --bolt-elements-bg-depth-1: #F8F7FC; /* Very light purple/off-white */
+  --bolt-elements-bg-depth-2: #EDE7F6; /* Light lavender */
+  --bolt-elements-bg-depth-3: #D1C4E9; /* Lavender */
+  --bolt-elements-bg-depth-4: #F8F7FC; /* Very light purple/off-white */
+
+  --bolt-elements-textPrimary: #311B92; /* Deep purple */
+  --bolt-elements-textSecondary: #5E35B1; /* Medium purple */
+  --bolt-elements-textTertiary: #7E57C2; /* Lighter purple */
+
+  --bolt-elements-code-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-code-text: #311B92; /* Deep purple */
+
+  --bolt-elements-button-primary-background: #673AB7; /* Primary purple */
+  --bolt-elements-button-primary-backgroundHover: #512DA8; /* Darker purple for hover */
+  --bolt-elements-button-primary-text: #FFFFFF; /* White text */
+
+  --bolt-elements-button-secondary-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-button-secondary-backgroundHover: #D1C4E9; /* Lavender for hover */
+  --bolt-elements-button-secondary-text: #4527A0; /* Dark purple text */
+
+  --bolt-elements-button-danger-background: #E91E63; /* Pink for danger */
+  --bolt-elements-button-danger-backgroundHover: #C2185B; /* Darker pink for hover */
+  --bolt-elements-button-danger-text: #FFFFFF; /* White text */
+
+  --bolt-elements-item-contentDefault: #5E35B1; /* Medium purple */
+  --bolt-elements-item-contentActive: #311B92; /* Deep purple */
+  --bolt-elements-item-contentAccent: #673AB7; /* Primary purple for accents */
+  --bolt-elements-item-contentDanger: #E91E63; /* Pink for danger */
+  --bolt-elements-item-backgroundDefault: rgba(0, 0, 0, 0);
+  --bolt-elements-item-backgroundActive: rgba(103, 58, 183, 0.05); /* Very light purple transparent */
+  --bolt-elements-item-backgroundAccent: rgba(103, 58, 183, 0.1); /* Light purple transparent */
+  --bolt-elements-item-backgroundDanger: rgba(233, 30, 99, 0.1); /* Light pink transparent */
+
+  --bolt-elements-loader-background: #D1C4E9; /* Lavender */
+  --bolt-elements-loader-progress: #673AB7; /* Primary purple */
+
+  --bolt-elements-artifacts-background: #FFFFFF; /* White */
+  --bolt-elements-artifacts-backgroundHover: #F8F7FC; /* Very light purple/off-white */
+  --bolt-elements-artifacts-borderColor: var(--bolt-elements-borderColor);
+  --bolt-elements-artifacts-inlineCode-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-artifacts-inlineCode-text: var(--bolt-elements-textPrimary);
+
+  --bolt-elements-actions-background: #FFFFFF; /* White */
+  --bolt-elements-actions-code-background: #4A148C; /* Darker purple for code bg */
+
+  --bolt-elements-messages-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-messages-linkColor: #673AB7; /* Primary purple */
+  --bolt-elements-messages-code-background: #4A148C; /* Darker purple for code bg */
+  --bolt-elements-messages-inlineCode-background: #D1C4E9; /* Lavender */
+  --bolt-elements-messages-inlineCode-text: #311B92; /* Deep purple */
+
+  --bolt-elements-icon-success: #4CAF50; /* Green for success */
+  --bolt-elements-icon-error: #F44336; /* Red for error */
+  --bolt-elements-icon-primary: #311B92; /* Deep purple */
+  --bolt-elements-icon-secondary: #5E35B1; /* Medium purple */
+  --bolt-elements-icon-tertiary: #7E57C2; /* Lighter purple */
+
+  --bolt-elements-dividerColor: #D1C4E9; /* Lavender */
+
+  --bolt-elements-prompt-background: rgba(248, 247, 252, 0.8); /* Translucent light bg */
+
+  --bolt-elements-sidebar-dropdownShadow: rgba(103, 58, 183, 0.2); /* Purple shadow */
+  --bolt-elements-sidebar-buttonBackgroundDefault: rgba(103, 58, 183, 0.1); /* Light purple transparent */
+  --bolt-elements-sidebar-buttonBackgroundHover: rgba(103, 58, 183, 0.2); /* Slightly darker purple transparent */
+  --bolt-elements-sidebar-buttonText: #673AB7; /* Primary purple */
+
+  --bolt-elements-preview-addressBar-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-preview-addressBar-backgroundHover: #D1C4E9; /* Lavender */
+  --bolt-elements-preview-addressBar-backgroundActive: #F8F7FC; /* Very light purple/off-white */
+  --bolt-elements-preview-addressBar-text: var(--bolt-elements-textSecondary);
+  --bolt-elements-preview-addressBar-textActive: var(--bolt-elements-textPrimary);
+
+  --bolt-elements-terminals-background: #F8F7FC; /* Very light purple/off-white */
+  --bolt-elements-terminals-buttonBackground: #D1C4E9; /* Lavender */
+
+  --bolt-elements-cta-background: #EDE7F6; /* Light lavender */
+  --bolt-elements-cta-text: #311B92; /* Deep purple */
+
+  /* Terminal Colors */
+  --bolt-terminal-background: var(--bolt-elements-terminals-background);
+  --bolt-terminal-foreground: #311B92; /* Deep purple */
+  --bolt-terminal-selection-background: rgba(103, 58, 183, 0.25); /* Purple selection */
+  --bolt-terminal-black: #311B92; /* Deep purple (adjusted for readability) */
+  --bolt-terminal-red: #C51162; /* Dark Pink */
+  --bolt-terminal-green: #673AB7; /* Primary purple */
+  --bolt-terminal-yellow: #7E57C2; /* Lighter purple */
+  --bolt-terminal-blue: #5E35B1; /* Medium purple */
+  --bolt-terminal-magenta: #9C27B0; /* Another shade of purple */
+  --bolt-terminal-cyan: #7E57C2; /* Lighter purple */
+  --bolt-terminal-white: #EDE7F6; /* Light lavender (for contrast) */
+  --bolt-terminal-brightBlack: #5E35B1; /* Medium purple */
+  --bolt-terminal-brightRed: #E91E63; /* Pink */
+  --bolt-terminal-brightGreen: #7E57C2; /* Lighter purple */
+  --bolt-terminal-brightYellow: #B39DDB; /* Light purple */
+  --bolt-terminal-brightBlue: #673AB7; /* Primary purple */
+  --bolt-terminal-brightMagenta: #AB47BC; /* Lighter Magenta */
+  --bolt-terminal-brightCyan: #B39DDB; /* Light purple */
+  --bolt-terminal-brightWhite: #F8F7FC; /* Very light purple/off-white */
+  --modern-scrollbar-thumb-background: rgba(103, 58, 183, 0.3);
+  --modern-scrollbar-thumb-backgroundHover: rgba(103, 58, 183, 0.5);
+}
+
 /*
  * Element Tokens
  *
