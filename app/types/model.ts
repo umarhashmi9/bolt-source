@@ -16,7 +16,10 @@ export type ProviderInfo = {
 
 export interface IProviderSetting {
   enabled?: boolean;
-  baseUrl?: string;
+  baseUrl?: string; // Will store Azure Endpoint for Azure OpenAI
+  apiKey?: string;  // Standard, will be used for Azure API Key
+  azureDeploymentId?: string; // For Azure's deployment ID (can be a default)
+  azureApiVersion?: string;   // Optional, e.g., "2023-07-01-preview"
 }
 
 export type IProviderConfig = ProviderInfo & {
