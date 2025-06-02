@@ -557,31 +557,49 @@ export class FilesStore {
         throw new Error(`EINVAL: invalid file path, write '${relativePath}'`);
       }
 
-      const oldContent = this.getFile(filePath)?.content;
+      const oldFile = this.getFile(filePath);
+      const oldContent = oldFile?.content;
 
-      if (!oldContent && oldContent !== '') {
-        unreachable('Expected content to be defined');
+      // If the file is not binary and content is identical, skip writing
+      if (oldFile && !oldFile.isBinary && oldContent === content) {
+        logger.info(`Content for ${filePath} is identical. Skipping write operation.`);
+        // Ensure modifiedFiles reflects that no change was made if the file was already tracked as modified
+        // If oldContent was already the current content, and it was tracked as modified,
+        // it means it was modified from a previous state. If we skip writing now because current content = new content,
+        // it should remain in modifiedFiles with its original pre-modified state.
+        // The current logic for modifiedFiles seems to handle this:
+        // it's added only if not already present and oldContent was defined.
+        // If it *is* present, its original old content is preserved.
+        return;
       }
 
       await webcontainer.fs.writeFile(relativePath, content);
 
-      if (!this.#modifiedFiles.has(filePath)) {
+      // Manage #modifiedFiles
+      // If the file wasn't tracked in #modifiedFiles before, and it had an oldContent, track it.
+      if (!this.#modifiedFiles.has(filePath) && oldContent !== undefined) {
         this.#modifiedFiles.set(filePath, oldContent);
       }
+      // If the file *was* tracked, #modifiedFiles already holds the original content before this save operation.
+      // If it's a new file (oldContent === undefined), it will be added to #modifiedFiles
+      // if its content changes from this initial 'content'. (This part is implicitly handled
+      // by the watcher and subsequent saves, but good to be mindful of).
 
-      // Get the current lock state before updating
-      const currentFile = this.files.get()[filePath];
-      const isLocked = currentFile?.type === 'file' ? currentFile.isLocked : false;
+      // Preserve lock state and other properties from the current file state
+      const currentFileState = this.files.get()[filePath];
+      const isLocked = currentFileState?.type === 'file' ? currentFileState.isLocked : false;
+      const lockedByFolder = currentFileState?.type === 'file' ? currentFileState.lockedByFolder : undefined;
+      const isBinary = currentFileState?.type === 'file' ? currentFileState.isBinary : false; // Assuming content is string for now
 
-      // we immediately update the file and don't rely on the `change` event coming from the watcher
       this.files.setKey(filePath, {
         type: 'file',
         content,
-        isBinary: false,
+        isBinary, // if we support binary content through this path, this needs adjustment
         isLocked,
+        lockedByFolder,
       });
 
-      logger.info('File updated');
+      logger.info(`File updated: ${filePath}`);
     } catch (error) {
       logger.error('Failed to update file content\n\n', error);
 
