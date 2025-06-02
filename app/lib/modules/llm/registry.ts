@@ -15,6 +15,7 @@ import TogetherProvider from './providers/together';
 import XAIProvider from './providers/xai';
 import HyperbolicProvider from './providers/hyperbolic';
 import AmazonBedrockProvider from './providers/amazon-bedrock';
+import AzureOpenAIProvider from './providers/azure-openai-provider';
 import GithubProvider from './providers/github';
 
 export {
@@ -36,4 +37,5 @@ export {
   LMStudioProvider,
   AmazonBedrockProvider,
   GithubProvider,
+  AzureOpenAIProvider,
 };

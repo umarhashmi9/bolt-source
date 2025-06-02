@@ -86,6 +86,44 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           messageSliceId = messages.length - 3;
         }
 
+        // Project planning instruction injection
+        const isBuildMode = chatMode === 'build';
+        // Consider it a planning phase if it's build mode and it's early in the conversation.
+        // messages.length < 3 is a heuristic for "early conversation".
+        // The `messages` array typically includes system prompts, user prompts, and previous assistant responses.
+        // A fresh build request might have 1 user message + 1 system prompt initially.
+        const requiresPlanning = isBuildMode && messages.length < 3;
+
+        if (requiresPlanning) {
+            const planningInstructionContent = `Before generating any code for the main task, please first create a comprehensive project plan in Markdown format.
+This plan should be saved to a file named \`PROJECT_PLAN.md\` using a file artifact.
+The plan should clearly outline:
+- **Project Goals:** What the project aims to achieve.
+- **Key Features:** Main functionalities to be implemented.
+- **Proposed File Structure:** A brief outline of important files and folders (e.g., \`src/components/\`, \`src/utils/\`).
+- **Implementation Steps:** A sequence of actions to build the project.
+- **Technologies/Libraries (if applicable):** Key technologies or libraries you plan to use.
+
+After outputting the \`PROJECT_PLAN.md\` artifact, you can then proceed with the first one or two implementation steps from your plan in subsequent artifacts, or await further user input.
+Your subsequent code generation should align with this plan.
+`;
+            // Find the index of the last user message, or default to inserting before the very last message.
+            let userMessageIndex = messages.length - 1;
+            for (let i = messages.length - 1; i >= 0; i--) {
+                if (messages[i].role === 'user') {
+                    userMessageIndex = i;
+                    break;
+                }
+            }
+            
+            messages.splice(userMessageIndex, 0, { 
+                role: 'system', 
+                content: planningInstructionContent, 
+                id: generateId() 
+            });
+            logger.info('Project planning instruction injected for build mode.');
+        }
+
         if (filePaths.length > 0 && contextOptimization) {
           logger.debug('Generating Chat Summary');
           dataStream.writeData({

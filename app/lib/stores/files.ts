@@ -2,10 +2,11 @@ import type { PathWatcherEvent, WebContainer } from '@webcontainer/api';
 import { getEncoding } from 'istextorbinary';
 import { map, type MapStore } from 'nanostores';
 import { Buffer } from 'node:buffer';
+import { applyPatch } from 'diff';
 import { path } from '~/utils/path';
 import { bufferWatchEvents } from '~/utils/buffer';
 import { WORK_DIR } from '~/utils/constants';
-import { computeFileModifications } from '~/utils/diff';
+import { computeFileModifications, diffFiles } from '~/utils/diff'; // Ensure diffFiles is imported
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
 import {
@@ -549,44 +550,86 @@ export class FilesStore {
 
   async saveFile(filePath: string, content: string) {
     const webcontainer = await this.#webcontainer;
+    const relativePath = path.relative(webcontainer.workdir, filePath);
 
-    try {
-      const relativePath = path.relative(webcontainer.workdir, filePath);
-
-      if (!relativePath) {
+    if (!relativePath) {
         throw new Error(`EINVAL: invalid file path, write '${relativePath}'`);
-      }
-
-      const oldContent = this.getFile(filePath)?.content;
-
-      if (!oldContent && oldContent !== '') {
-        unreachable('Expected content to be defined');
-      }
-
-      await webcontainer.fs.writeFile(relativePath, content);
-
-      if (!this.#modifiedFiles.has(filePath)) {
-        this.#modifiedFiles.set(filePath, oldContent);
-      }
-
-      // Get the current lock state before updating
-      const currentFile = this.files.get()[filePath];
-      const isLocked = currentFile?.type === 'file' ? currentFile.isLocked : false;
-
-      // we immediately update the file and don't rely on the `change` event coming from the watcher
-      this.files.setKey(filePath, {
-        type: 'file',
-        content,
-        isBinary: false,
-        isLocked,
-      });
-
-      logger.info('File updated');
-    } catch (error) {
-      logger.error('Failed to update file content\n\n', error);
-
-      throw error;
     }
+
+    let oldContentOnDisk: string | undefined;
+    try {
+        // Read current content from disk to diff against
+        oldContentOnDisk = await webcontainer.fs.readFile(relativePath, 'utf8');
+    } catch (e) {
+        // File doesn't exist, oldContentOnDisk will be undefined
+        logger.info(`File ${filePath} does not exist on disk, will create new file.`);
+    }
+
+    // Determine if the file is new or content has changed
+    if (oldContentOnDisk === undefined) {
+        // File is new, write full content
+        await webcontainer.fs.writeFile(relativePath, content);
+        logger.info(`New file created: ${filePath}`);
+        if (!this.#modifiedFiles.has(filePath)) {
+            // For a brand new file, "original" content before this modification was effectively empty.
+            this.#modifiedFiles.set(filePath, '');
+        }
+    } else if (oldContentOnDisk === content) {
+        // Contents are identical, no need to write
+        logger.info(`File content for ${filePath} is identical, skipping write.`);
+        // Ensure #modifiedFiles still tracks the original state if this is the first 'save' in a sequence
+        // that results in no change from what's on disk.
+        if (!this.#modifiedFiles.has(filePath)) {
+            this.#modifiedFiles.set(filePath, oldContentOnDisk);
+        }
+    } else {
+        // File exists and content has changed, try to apply a patch
+        const patch = diffFiles(filePath, oldContentOnDisk, content); // diffFiles is from ~/utils/diff
+
+        if (patch === undefined) {
+            // This case should ideally be caught by 'oldContentOnDisk === content',
+            // but as a safeguard if diffFiles has nuanced behavior.
+            logger.info(`File content for ${filePath} resulted in no diff, skipping write.`);
+            if (!this.#modifiedFiles.has(filePath)) {
+                this.#modifiedFiles.set(filePath, oldContentOnDisk);
+            }
+        } else {
+            // Attempt to apply the patch
+            try {
+                const patchedContent = applyPatch(oldContentOnDisk, patch);
+                if (patchedContent === false) {
+                    // Patch application failed (e.g., hunk mismatch), fallback to full write
+                    logger.warn(`Patch application failed for ${filePath} (returned false), falling back to full write.`);
+                    await webcontainer.fs.writeFile(relativePath, content);
+                } else {
+                    await webcontainer.fs.writeFile(relativePath, patchedContent);
+                    logger.info(`File updated with patch: ${filePath}`);
+                }
+            } catch (error) {
+                // Catch any other errors during patch application
+                logger.error(`Error applying patch for ${filePath}, falling back to full write. Error: ${error}`);
+                await webcontainer.fs.writeFile(relativePath, content);
+            }
+        }
+        // If this is the first modification in a sequence, store the original disk content
+        if (!this.#modifiedFiles.has(filePath)) {
+            this.#modifiedFiles.set(filePath, oldContentOnDisk);
+        }
+    }
+
+    // Update the in-memory store (this.files) with the new content
+    const currentFileEntry = this.files.get()[filePath];
+    const isLocked = currentFileEntry?.type === 'file' ? currentFileEntry.isLocked : false;
+    // Assuming content is string and not binary based on current saveFile signature
+    this.files.setKey(filePath, {
+        type: 'file',
+        content, // The content in the store should be the final, new content
+        isBinary: false, 
+        isLocked,
+        lockedByFolder: currentFileEntry?.type === 'file' ? currentFileEntry.lockedByFolder : undefined,
+    });
+
+    // No: logger.info('File updated'); // This log is too generic now, specific logs are above.
   }
 
   async #init() {
