@@ -4,6 +4,7 @@ import { atom, map, type MapStore } from 'nanostores';
 import type { ActionAlert, BoltAction, DeployAlert, FileHistory, SupabaseAction, SupabaseAlert } from '~/types/actions';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
+import type { FilesStore } from '~/lib/stores/files';
 import type { ActionCallbackData } from './message-parser';
 import type { BoltShell } from '~/utils/shell';
 
@@ -73,16 +74,19 @@ export class ActionRunner {
   onSupabaseAlert?: (alert: SupabaseAlert) => void;
   onDeployAlert?: (alert: DeployAlert) => void;
   buildOutput?: { path: string; exitCode: number; output: string };
+  #filesStore: FilesStore;
 
   constructor(
     webcontainerPromise: Promise<WebContainer>,
     getShellTerminal: () => BoltShell,
+    filesStore: FilesStore,
     onAlert?: (alert: ActionAlert) => void,
     onSupabaseAlert?: (alert: SupabaseAlert) => void,
     onDeployAlert?: (alert: DeployAlert) => void,
   ) {
     this.#webcontainer = webcontainerPromise;
     this.#shellTerminal = getShellTerminal;
+    this.#filesStore = filesStore;
     this.onAlert = onAlert;
     this.onSupabaseAlert = onSupabaseAlert;
     this.onDeployAlert = onDeployAlert;
@@ -305,7 +309,20 @@ export class ActionRunner {
     }
 
     const webcontainer = await this.#webcontainer;
-    const relativePath = nodePath.relative(webcontainer.workdir, action.filePath);
+    const filePath = action.filePath; // Use action.filePath directly
+    const relativePath = nodePath.relative(webcontainer.workdir, filePath);
+
+    // Check if the file is locked
+    if (this.#filesStore.isFileLocked(filePath).locked) {
+      const fileName = nodePath.basename(filePath);
+      logger.warn(`File ${filePath} is locked. Skipping write operation.`);
+      this.onAlert?.({
+        type: 'warning',
+        title: 'File Locked',
+        description: `The file ${fileName} is currently locked and cannot be modified by the AI.`,
+      });
+      return;
+    }
 
     let folder = nodePath.dirname(relativePath);
 
@@ -316,16 +333,21 @@ export class ActionRunner {
       try {
         await webcontainer.fs.mkdir(folder, { recursive: true });
         logger.debug('Created folder', folder);
-      } catch (error) {
-        logger.error('Failed to create folder\n\n', error);
+      } catch (error: any) {
+        // EEXIST is expected if the folder already exists, ignore it
+        if (error.code !== 'EEXIST') {
+          logger.error('Failed to create folder\n\n', error);
+          // Optionally re-throw or handle more gracefully
+        }
       }
     }
 
     try {
-      await webcontainer.fs.writeFile(relativePath, action.content);
-      logger.debug(`File written ${relativePath}`);
+      // Delegate file writing to FilesStore
+      await this.#filesStore.saveFile(filePath, action.content);
+      logger.debug(`File operation handled by FilesStore for ${filePath}`);
     } catch (error) {
-      logger.error('Failed to write file\n\n', error);
+      logger.error('Failed to save file via FilesStore\n\n', error);
     }
   }
 
