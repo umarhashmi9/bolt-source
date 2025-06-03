@@ -1,0 +1,113 @@
+/* Handwritten Font Enhancements for Indie Flower */
+/* Diese Datei enthält zusätzliche Styles für die Indie Flower Schriftart */
+
+/* Subtile Animations für handschriftliche Elemente */
+@keyframes handwritten-wiggle {
+  0%, 100% { transform: rotate(-0.5deg); }
+  50% { transform: rotate(0.5deg); }
+}
+
+@keyframes handwritten-float {
+  0%, 100% { transform: translateY(0px) rotate(-0.5deg); }
+  50% { transform: translateY(-2px) rotate(0.5deg); }
+}
+
+@keyframes handwritten-bounce {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.05) rotate(1deg); }
+}
+
+/* Hover-Effekte für handschriftliche Elemente */
+.handwritten-hover:hover {
+  animation: handwritten-wiggle 0.5s ease-in-out;
+}
+
+.handwritten-float {
+  animation: handwritten-float 3s ease-in-out infinite;
+}
+
+.handwritten-interactive:hover {
+  animation: handwritten-bounce 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+/* Verbesserte Lesbarkeit für handschriftliche Texte */
+.font-handwritten,
+.font-indie {
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+/* Spezielle Stile für verschiedene Schriftgrößen */
+.text-handwritten {
+  line-height: 1.5;
+}
+
+.title-handwritten {
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.heading-handwritten {
+  line-height: 1.3;
+  letter-spacing: 0.015em;
+}
+
+.subtitle-handwritten {
+  line-height: 1.4;
+}
+
+.label-handwritten {
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+}
+
+/* Dekorative Elemente */
+.decorative-text {
+  position: relative;
+}
+
+.decorative-text::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.3;
+  transform: scaleX(0.8) skew(-12deg);
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 640px) {
+  .title-handwritten {
+    font-size: 1.875rem; /* text-3xl statt text-5xl */
+  }
+  
+  .heading-handwritten {
+    font-size: 1.5rem; /* text-xl statt text-2xl */
+  }
+}
+
+/* Dark Mode Anpassungen */
+[data-theme="dark"] .decorative-text::after {
+  opacity: 0.5;
+}
+
+/* Accessibility Verbesserungen */
+@media (prefers-reduced-motion: reduce) {
+  .handwritten-hover:hover,
+  .handwritten-float,
+  .handwritten-interactive:hover {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .font-handwritten,
+  .font-indie {
+    font-family: 'Georgia', serif !important;
+  }
+}

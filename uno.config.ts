@@ -104,6 +104,18 @@ export default defineConfig({
     'transition-theme': 'transition-[background-color,border-color,color] duration-150 bolt-ease-cubic-bezier',
     kdb: 'bg-bolt-elements-code-background text-bolt-elements-code-text py-1 px-1.5 rounded-md',
     'max-w-chat': 'max-w-[var(--chat-max-width)]',
+    // Handwritten typography utilities
+    'font-handwritten': 'font-["Indie_Flower",cursive]',
+    'handwritten-sm': 'font-["Indie_Flower",cursive] text-sm',
+    'handwritten-base': 'font-["Indie_Flower",cursive] text-base',
+    'handwritten-lg': 'font-["Indie_Flower",cursive] text-lg',
+    'handwritten-xl': 'font-["Indie_Flower",cursive] text-xl',
+    'handwritten-2xl': 'font-["Indie_Flower",cursive] text-2xl',
+    'handwritten-3xl': 'font-["Indie_Flower",cursive] text-3xl',
+    'handwritten-accent': 'font-["Indie_Flower",cursive] text-accent-500',
+    'handwritten-header': 'font-["Indie_Flower",cursive] text-2xl font-medium text-bolt-elements-textPrimary',
+    'handwritten-welcome': 'font-["Indie_Flower",cursive] text-3xl font-medium text-accent-600 dark:text-accent-400',
+    'handwritten-note': 'font-["Indie_Flower",cursive] text-base text-bolt-elements-textSecondary italic',
   },
   rules: [
     /**
@@ -113,6 +125,10 @@ export default defineConfig({
     ['b', {}],
   ],
   theme: {
+    fontFamily: {
+      'handwritten': ['Indie Flower', 'cursive'],
+      'sans': ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+    },
     colors: {
       ...COLOR_PRIMITIVES,
       bolt: {
