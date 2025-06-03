@@ -29,7 +29,7 @@ export interface Shortcuts {
   toggleTerminal: Shortcut;
 }
 
-export const URL_CONFIGURABLE_PROVIDERS = ['Ollama', 'LMStudio', 'OpenAILike'];
+export const URL_CONFIGURABLE_PROVIDERS = ['Ollama', 'LMStudio', 'OpenAILike', 'AzureOpenAI', 'GraniteAI'];
 export const LOCAL_PROVIDERS = ['OpenAILike', 'LMStudio', 'Ollama'];
 
 export type ProviderSetting = Record<string, IProviderConfig>;
@@ -76,6 +76,87 @@ const getInitialProviderSettings = (): ProviderSetting => {
       },
     };
   });
+
+  // Add new providers if not already present from PROVIDER_LIST
+  // This is a workaround as LLMManager modification is out of scope for this subtask
+  if (!initialSettings.AzureOpenAI) {
+    initialSettings.AzureOpenAI = {
+      name: 'AzureOpenAI',
+      icon: 'AzureOpenAIIcon', // Placeholder icon
+      config: {
+        apiTokenKey: 'AZURE_OPENAI_API_KEY',
+        baseUrlKey: 'AZURE_OPENAI_ENDPOINT',
+        // Azure specific fields
+        deploymentNameKey: 'AZURE_OPENAI_DEPLOYMENT_NAME',
+      },
+      settings: {
+        enabled: false,
+        apiKey: '',
+        baseUrl: '',
+        deploymentName: '',
+        apiVersion: '2023-05-15', // Added apiVersion with a default
+        projectId: '', // Not used by Azure, but part of a common structure
+        region: '', // Not used by Azure, but part of a common structure
+      },
+      getApiKeyLink: 'https://azure.microsoft.com/en-us/services/cognitive-services/openai-service/',
+      labelForGetApiKey: 'Get Azure OpenAI API Key',
+      staticModels: [],
+      getDynamicModels: false,
+      provider: 'azure', // Assuming a provider identifier
+      isLocal: false, // Assuming it's a cloud provider
+    };
+  }
+  if (!initialSettings.VertexAI) {
+    initialSettings.VertexAI = {
+      name: 'VertexAI',
+      icon: 'VertexAIIcon', // Placeholder icon
+      config: {
+        // Vertex AI uses ADC or service account keys, not a direct API key env variable for the token
+        // apiTokenKey: 'GOOGLE_APPLICATION_CREDENTIALS', // Or handle differently
+        // No single base URL for Vertex AI in the same way as others
+        projectIdKey: 'VERTEX_AI_PROJECT_ID',
+        regionKey: 'VERTEX_AI_REGION',
+      },
+      settings: {
+        enabled: false,
+        apiKey: '', // Might represent service account key path or be handled differently
+        baseUrl: '', // Not applicable in the same way
+        projectId: '',
+        region: '',
+        deploymentName: '', // Not typically used by Vertex
+      },
+      getApiKeyLink: 'https://cloud.google.com/vertex-ai/docs/start/authentication',
+      labelForGetApiKey: 'Configure Vertex AI Authentication',
+      staticModels: [],
+      getDynamicModels: false,
+      provider: 'google', // Assuming a provider identifier
+      isLocal: false, // Assuming it's a cloud provider
+    };
+  }
+  if (!initialSettings.GraniteAI) {
+    initialSettings.GraniteAI = {
+      name: 'GraniteAI',
+      icon: 'GraniteAIIcon', // Placeholder icon
+      config: {
+        apiTokenKey: 'GRANITE_AI_API_KEY',
+        baseUrlKey: 'GRANITE_AI_BASE_URL',
+      },
+      settings: {
+        enabled: false,
+        apiKey: '',
+        baseUrl: '',
+        projectId: '', // Not used by Granite, but part of a common structure
+        region: '', // Not used by Granite, but part of a common structure
+        deploymentName: '', // Not used by Granite
+      },
+      getApiKeyLink: 'https://www.granite.com/ai/api-keys', // Placeholder URL
+      labelForGetApiKey: 'Get Granite AI API Key',
+      staticModels: [],
+      getDynamicModels: false,
+      provider: 'granite', // Assuming a provider identifier
+      isLocal: false, // Assuming it's a cloud provider
+    };
+  }
 
   // Only try to load from localStorage in the browser
   if (isBrowser) {

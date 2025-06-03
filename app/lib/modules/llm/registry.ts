@@ -15,25 +15,31 @@ import TogetherProvider from './providers/together';
 import XAIProvider from './providers/xai';
 import HyperbolicProvider from './providers/hyperbolic';
 import AmazonBedrockProvider from './providers/amazon-bedrock';
+import AzureOpenAIProvider from './providers/azure-openai';
 import GithubProvider from './providers/github';
+import GraniteAIProvider from './providers/granite-ai'; // Added GraniteAIProvider
+import VertexAIProvider from './providers/vertex-ai';
 
 export {
+  AmazonBedrockProvider,
   AnthropicProvider,
+  AzureOpenAIProvider,
   CohereProvider,
   DeepseekProvider,
   GoogleProvider,
+  GraniteAIProvider, // Added GraniteAIProvider here for alphabetical order
   GroqProvider,
   HuggingFaceProvider,
   HyperbolicProvider,
+  LMStudioProvider,
   MistralProvider,
   OllamaProvider,
   OpenAIProvider,
   OpenRouterProvider,
   OpenAILikeProvider,
   PerplexityProvider,
-  XAIProvider,
   TogetherProvider,
-  LMStudioProvider,
-  AmazonBedrockProvider,
+  VertexAIProvider,
+  XAIProvider,
   GithubProvider,
 };

@@ -22,6 +22,22 @@ PROVIDER_LIST.forEach((provider) => {
   };
 });
 
+// Manually add AzureOpenAI and GraniteAI if not already present
+// This is a workaround as LLMManager modification is out of scope for this subtask
+if (!providerBaseUrlEnvKeys.AzureOpenAI) {
+  providerBaseUrlEnvKeys.AzureOpenAI = {
+    baseUrlKey: 'AZURE_OPENAI_ENDPOINT',
+    apiTokenKey: 'AZURE_OPENAI_API_KEY', // Assuming this is the API token key for Azure
+  };
+}
+if (!providerBaseUrlEnvKeys.GraniteAI) {
+  providerBaseUrlEnvKeys.GraniteAI = {
+    baseUrlKey: 'GRANITE_AI_BASE_URL',
+    apiTokenKey: 'GRANITE_AI_API_KEY', // Assuming this is the API token key for Granite
+  };
+}
+// VertexAI does not have a base URL key in the same way, so it's omitted here as per instructions.
+
 // starter Templates
 
 export const STARTER_TEMPLATES: Template[] = [
