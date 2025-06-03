@@ -113,9 +113,11 @@ export async function streamText(props: {
     }
   }
 
-  const dynamicMaxTokens = modelDetails && modelDetails.maxTokenAllowed ? modelDetails.maxTokenAllowed : MAX_TOKENS;
+  const dynamicMaxTokens =
+    modelDetails.maxCompletionTokens ||
+    (modelDetails.maxTokenAllowed ? Math.min(modelDetails.maxTokenAllowed, MAX_TOKENS) : MAX_TOKENS);
   logger.info(
-    `Max tokens for model ${modelDetails.name} is ${dynamicMaxTokens} based on ${modelDetails.maxTokenAllowed} or ${MAX_TOKENS}`,
+    `Max tokens for model ${modelDetails.name} is ${dynamicMaxTokens} based on ${modelDetails.maxCompletionTokens || 'fallback logic'}`,
   );
 
   let systemPrompt =

@@ -14,13 +14,55 @@ export default class GithubProvider extends BaseProvider {
 
   // find more in https://github.com/marketplace?type=models
   staticModels: ModelInfo[] = [
-    { name: 'gpt-4o', label: 'GPT-4o', provider: 'Github', maxTokenAllowed: 8000 },
-    { name: 'o1', label: 'o1-preview', provider: 'Github', maxTokenAllowed: 100000 },
-    { name: 'o1-mini', label: 'o1-mini', provider: 'Github', maxTokenAllowed: 8000 },
-    { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'Github', maxTokenAllowed: 8000 },
-    { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'Github', maxTokenAllowed: 8000 },
-    { name: 'gpt-4', label: 'GPT-4', provider: 'Github', maxTokenAllowed: 8000 },
-    { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'Github', maxTokenAllowed: 8000 },
+    {
+      name: 'gpt-4o',
+      label: 'GPT-4o',
+      provider: 'Github',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 4096,
+    },
+    {
+      name: 'o1',
+      label: 'o1-preview',
+      provider: 'Github',
+      maxTokenAllowed: 200000,
+      maxCompletionTokens: 32768,
+    },
+    {
+      name: 'o1-mini',
+      label: 'o1-mini',
+      provider: 'Github',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 65536,
+    },
+    {
+      name: 'gpt-4o-mini',
+      label: 'GPT-4o Mini',
+      provider: 'Github',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 4096,
+    },
+    {
+      name: 'gpt-4-turbo',
+      label: 'GPT-4 Turbo',
+      provider: 'Github',
+      maxTokenAllowed: 128000,
+      maxCompletionTokens: 4096,
+    },
+    {
+      name: 'gpt-4',
+      label: 'GPT-4',
+      provider: 'Github',
+      maxTokenAllowed: 8192,
+      maxCompletionTokens: 4096,
+    },
+    {
+      name: 'gpt-3.5-turbo',
+      label: 'GPT-3.5 Turbo',
+      provider: 'Github',
+      maxTokenAllowed: 16385,
+      maxCompletionTokens: 4096,
+    },
   ];
 
   getModelInstance(options: {
