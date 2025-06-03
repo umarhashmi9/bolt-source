@@ -8,6 +8,7 @@ import { WORK_DIR } from '~/utils/constants';
 import { computeFileModifications } from '~/utils/diff';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
+import { diffFiles } from '~/utils/diff'; // Moved import to the top
 import {
   addLockedFile,
   removeLockedFile,
@@ -548,6 +549,27 @@ export class FilesStore {
   }
 
   async saveFile(filePath: string, content: string) {
+    // Add Lock Check
+    const lockStatus = this.isFileLocked(filePath);
+    if (lockStatus.locked) {
+      logger.warn(`Attempted to save locked file: ${filePath} (locked by: ${lockStatus.lockedBy}). Save operation aborted.`);
+      // TODO: Implement user-facing notification for skipped writes (locked / no change).
+      return;
+    }
+
+    // Add Diff Check
+    const oldContent = this.getFile(filePath)?.content;
+    if (oldContent !== undefined) { // File exists
+      const diffResult = diffFiles(filePath, oldContent, content);
+      if (diffResult === undefined) { // No changes
+        logger.info(`Content for ${filePath} has not changed. Skipping save.`);
+        // TODO: Implement user-facing notification for skipped writes (locked / no change).
+        return;
+      }
+    }
+    // If oldContent is undefined, it's a new file being "saved" or an existing file whose content was not loaded.
+    // In such cases, we proceed to write. The #modifiedFiles logic will handle it as a new modification.
+
     const webcontainer = await this.#webcontainer;
 
     try {
@@ -557,19 +579,18 @@ export class FilesStore {
         throw new Error(`EINVAL: invalid file path, write '${relativePath}'`);
       }
 
-      const oldContent = this.getFile(filePath)?.content;
-
-      if (!oldContent && oldContent !== '') {
-        unreachable('Expected content to be defined');
-      }
+      // Ensure oldContent for #modifiedFiles is fetched before writeFile if it wasn't fetched for diff check
+      // (e.g. if it was a new file, oldContent for diff check would be undefined)
+      const originalContentForModifiedMap = this.getFile(filePath)?.content ?? '';
 
       await webcontainer.fs.writeFile(relativePath, content);
 
       if (!this.#modifiedFiles.has(filePath)) {
-        this.#modifiedFiles.set(filePath, oldContent);
+        // Set the original content before the write, or empty if it was new.
+        this.#modifiedFiles.set(filePath, originalContentForModifiedMap);
       }
 
-      // Get the current lock state before updating
+      // Get the current lock state before updating (this part seems fine)
       const currentFile = this.files.get()[filePath];
       const isLocked = currentFile?.type === 'file' ? currentFile.isLocked : false;
 
@@ -764,6 +785,16 @@ export class FilesStore {
   }
 
   async createFile(filePath: string, content: string | Uint8Array = '') {
+    // Add Lock Check using isPathInLockedFolder
+    const currentChatId = getCurrentChatId(); // Assuming getCurrentChatId is accessible here
+    const folderLockStatus = isPathInLockedFolder(currentChatId, filePath);
+
+    if (folderLockStatus.locked) {
+      logger.warn(`Attempted to create file in a locked path: ${filePath} (locked by folder: ${folderLockStatus.lockedBy}). Create operation aborted.`);
+      // TODO: Implement user-facing notification for skipped writes (locked / no change).
+      return false; // Indicate failure
+    }
+
     const webcontainer = await this.#webcontainer;
 
     try {

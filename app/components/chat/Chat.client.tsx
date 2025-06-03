@@ -131,7 +131,8 @@ export const ChatImpl = memo(
       (project) => project.id === supabaseConn.selectedProjectId,
     );
     const supabaseAlert = useStore(workbenchStore.supabaseAlert);
-    const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled } = useSettings();
+    const settings = useSettings(); // Get the whole settings object
+    const { activeProviders, promptId: userSelectedPromptId, autoSelectTemplate, contextOptimizationEnabled } = settings;
 
     const [model, setModel] = useState(() => {
       const savedModel = Cookies.get('selectedModel');
@@ -167,7 +168,20 @@ export const ChatImpl = memo(
       body: {
         apiKeys,
         files,
-        promptId,
+        // Determine effectivePromptId based on model size
+        promptId: (() => {
+          // Placeholder logic for identifying smaller LLMs
+          // TODO: Replace with a more robust way to identify smaller models (e.g., a flag in model metadata)
+          const smallModelKeywords = ['haiku', 'flash', 'mini', 'small', 'lite', 'core']; // Add more as needed
+          const isSmallLLM = smallModelKeywords.some(keyword => model.toLowerCase().includes(keyword));
+
+          if (isSmallLLM) {
+            logger.info(`Using "optimized" prompt for small LLM: ${model}`);
+            return "optimized";
+          }
+          logger.info(`Using user selected prompt: "${userSelectedPromptId}" for LLM: ${model}`);
+          return userSelectedPromptId;
+        })(),
         contextOptimization: contextOptimizationEnabled,
         chatMode,
         supabase: {

@@ -72,7 +72,8 @@ export const Markdown = memo(
 
             return <CodeBlock code={firstChild.children[0].value} language={language as BundledLanguage} {...rest} />;
           }
-
+          // Add logging for pre tags not matching the expected structure
+          logger.debug('Markdown.tsx: Encountered <pre> tag that does not conform to expected CodeBlock structure. Node:', node, 'Children:', children);
           return <pre {...rest}>{children}</pre>;
         },
         button: ({ node, children, ...props }) => {
