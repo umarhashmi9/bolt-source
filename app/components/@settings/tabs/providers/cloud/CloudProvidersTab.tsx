@@ -14,6 +14,29 @@ import { TbBrain, TbCloudComputing } from 'react-icons/tb';
 import { BiCodeBlock, BiChip } from 'react-icons/bi';
 import { FaCloud, FaBrain } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
+import { VscKey } from 'react-icons/vsc'; // For API Key icon
+import { TbBoxModel2 } from 'react-icons/tb'; // For Deployment Name icon
+import { GrLocation } from 'react-icons/gr'; // For Region icon
+import { AiOutlineProject } from 'react-icons/ai'; // For Project ID icon
+
+
+// Placeholder SVG components (ideally these would be actual SVGs or from a library)
+const AzureOpenAIIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#0072C6">
+    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial" fontSize="40" fill="white">AZ</text>
+  </svg>
+);
+const VertexAIIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#4285F4">
+    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial" fontSize="40" fill="white">VX</text>
+  </svg>
+);
+const GraniteAIIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#696969">
+    <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial" fontSize="40" fill="white">GR</text>
+  </svg>
+);
+
 
 // Add type for provider names to ensure type safety
 type ProviderName =
@@ -30,7 +53,10 @@ type ProviderName =
   | 'OpenRouter'
   | 'Perplexity'
   | 'Together'
-  | 'XAI';
+  | 'XAI'
+  | 'AzureOpenAI'
+  | 'VertexAI'
+  | 'GraniteAI';
 
 // Update the PROVIDER_ICONS type to use the ProviderName type
 const PROVIDER_ICONS: Record<ProviderName, IconType> = {
@@ -48,17 +74,32 @@ const PROVIDER_ICONS: Record<ProviderName, IconType> = {
   Perplexity: SiPerplexity,
   Together: BsCloud,
   XAI: BsRobot,
+  AzureOpenAI: AzureOpenAIIcon,
+  VertexAI: VertexAIIcon,
+  GraniteAI: GraniteAIIcon,
 };
 
 // Update PROVIDER_DESCRIPTIONS to use the same type
 const PROVIDER_DESCRIPTIONS: Partial<Record<ProviderName, string>> = {
   Anthropic: 'Access Claude and other Anthropic models',
   OpenAI: 'Use GPT-4, GPT-3.5, and other OpenAI models',
+  AzureOpenAI: 'Microsoft Azure\'s OpenAI service for powerful AI models.',
+  VertexAI: 'Google Cloud\'s Vertex AI for custom machine learning models.',
+  GraniteAI: 'IBM Granite large language models.',
 };
+
+interface EditableFieldProps {
+  provider: IProviderConfig;
+  fieldKey: keyof IProviderConfig['settings'];
+  placeholder: string;
+  IconComponent?: IconType; // Optional icon for the field
+  isSecret?: boolean; // For fields like API keys
+}
 
 const CloudProvidersTab = () => {
   const settings = useSettings();
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null); // To track which specific field is being edited
   const [filteredProviders, setFilteredProviders] = useState<IProviderConfig[]>([]);
   const [categoryEnabled, setCategoryEnabled] = useState<boolean>(false);
 
@@ -116,19 +157,94 @@ const CloudProvidersTab = () => {
   const handleUpdateBaseUrl = useCallback(
     (provider: IProviderConfig, baseUrl: string) => {
       const newBaseUrl: string | undefined = baseUrl.trim() || undefined;
-
-      // Update the provider settings in the store
       settings.updateProviderSettings(provider.name, { ...provider.settings, baseUrl: newBaseUrl });
-
-      logStore.logProvider(`Base URL updated for ${provider.name}`, {
-        provider: provider.name,
-        baseUrl: newBaseUrl,
-      });
+      logStore.logProvider(`Base URL updated for ${provider.name}`, { provider: provider.name, baseUrl: newBaseUrl });
       toast.success(`${provider.name} base URL updated`);
-      setEditingProvider(null);
+      setEditingProvider(null); // Keep this for baseUrl specific editing state
+      setEditingField(null);
     },
     [settings],
   );
+
+  const handleUpdateProviderSetting = useCallback(
+    (provider: IProviderConfig, field: keyof IProviderConfig['settings'], value: string) => {
+      const trimmedValue = value.trim();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newSettings: any = { ...provider.settings };
+      newSettings[field] = trimmedValue;
+
+      settings.updateProviderSettings(provider.name, newSettings);
+
+      logStore.logProvider(`${field.toString()} updated for ${provider.name}`, {
+        provider: provider.name,
+        [field]: trimmedValue,
+      });
+      toast.success(`${provider.name} ${field.toString()} updated`);
+      setEditingField(null); // Reset specific field editing state
+      setEditingProvider(null); // Also reset provider-level editing state if any
+    },
+    [settings],
+  );
+
+
+  // Component for rendering individual editable fields
+  const EditableInput: React.FC<EditableFieldProps & { currentEditingField: string | null; onEditClick: (fieldKey: string) => void; }> = ({
+    provider,
+    fieldKey,
+    placeholder,
+    IconComponent,
+    isSecret = false,
+    currentEditingField,
+    onEditClick,
+  }) => {
+    const value = provider.settings[fieldKey] as string || '';
+    const displayValue = isSecret && value ? '••••••••' : value;
+
+    return (
+      <div className="flex items-center gap-2 mt-2">
+        {currentEditingField === `${provider.name}-${fieldKey}` ? (
+          <input
+            type={isSecret ? 'password' : 'text'}
+            defaultValue={value}
+            placeholder={placeholder}
+            className={classNames(
+              'flex-1 px-3 py-1.5 rounded-lg text-sm',
+              'bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor',
+              'text-bolt-elements-textPrimary placeholder-bolt-elements-textTertiary',
+              'focus:outline-none focus:ring-2 focus:ring-purple-500/30',
+              'transition-all duration-200',
+            )}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleUpdateProviderSetting(provider, fieldKey, e.currentTarget.value);
+              } else if (e.key === 'Escape') {
+                setEditingField(null);
+                setEditingProvider(null);
+              }
+            }}
+            onBlur={(e) => handleUpdateProviderSetting(provider, fieldKey, e.target.value)}
+            autoFocus
+          />
+        ) : (
+          <div
+            className="flex-1 px-3 py-1.5 rounded-lg text-sm cursor-pointer group/url"
+            onClick={() => {
+              setEditingProvider(provider.name); // Keep track of provider being edited for general purposes
+              setEditingField(`${provider.name}-${fieldKey}`); // Set the specific field being edited
+              onEditClick(fieldKey); // Propagate edit click if needed
+            }}
+          >
+            <div className="flex items-center gap-2 text-bolt-elements-textSecondary">
+              {IconComponent && <IconComponent className="text-sm" />}
+              <span className="group-hover/url:text-purple-500 transition-colors">
+                {displayValue || placeholder}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -234,9 +350,12 @@ const CloudProvidersTab = () => {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
+                      className="space-y-2" // Add space between inputs if multiple appear
                     >
+                      {/* Base URL input - existing logic */}
+                      {URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && (
                       <div className="flex items-center gap-2 mt-4">
-                        {editingProvider === provider.name ? (
+                        {editingProvider === provider.name && editingField === `${provider.name}-baseUrl` ? (
                           <input
                             type="text"
                             defaultValue={provider.settings.baseUrl}
@@ -253,6 +372,7 @@ const CloudProvidersTab = () => {
                                 handleUpdateBaseUrl(provider, e.currentTarget.value);
                               } else if (e.key === 'Escape') {
                                 setEditingProvider(null);
+                                setEditingField(null);
                               }
                             }}
                             onBlur={(e) => handleUpdateBaseUrl(provider, e.target.value)}
@@ -261,23 +381,97 @@ const CloudProvidersTab = () => {
                         ) : (
                           <div
                             className="flex-1 px-3 py-1.5 rounded-lg text-sm cursor-pointer group/url"
-                            onClick={() => setEditingProvider(provider.name)}
+                            onClick={() => {
+                              setEditingProvider(provider.name);
+                              setEditingField(`${provider.name}-baseUrl`);
+                            }}
                           >
                             <div className="flex items-center gap-2 text-bolt-elements-textSecondary">
                               <div className="i-ph:link text-sm" />
                               <span className="group-hover/url:text-purple-500 transition-colors">
-                                {provider.settings.baseUrl || 'Click to set base URL'}
+                                {provider.settings.baseUrl || `Click to set ${provider.name} base URL`}
                               </span>
                             </div>
                           </div>
                         )}
                       </div>
+                      )}
 
-                      {providerBaseUrlEnvKeys[provider.name]?.baseUrlKey && (
+                      {/* Provider-specific fields */}
+                      {provider.name === 'AzureOpenAI' && (
+                        <>
+                          <EditableInput
+                            provider={provider}
+                            fieldKey="apiKey"
+                            placeholder="Enter API Key"
+                            IconComponent={VscKey}
+                            isSecret
+                            currentEditingField={editingField}
+                            onEditClick={() => setEditingField(`${provider.name}-apiKey`)}
+                          />
+                          <EditableInput
+                            provider={provider}
+                            fieldKey="deploymentName"
+                            placeholder="Enter Deployment Name"
+                            IconComponent={TbBoxModel2}
+                            currentEditingField={editingField}
+                            onEditClick={() => setEditingField(`${provider.name}-deploymentName`)}
+                          />
+                        </>
+                      )}
+
+                      {provider.name === 'VertexAI' && (
+                        <>
+                          <EditableInput
+                            provider={provider}
+                            fieldKey="projectId"
+                            placeholder="Enter Project ID"
+                            IconComponent={AiOutlineProject}
+                            currentEditingField={editingField}
+                            onEditClick={() => setEditingField(`${provider.name}-projectId`)}
+                          />
+                          <EditableInput
+                            provider={provider}
+                            fieldKey="region"
+                            placeholder="Enter Region (e.g., us-central1)"
+                            IconComponent={GrLocation}
+                            currentEditingField={editingField}
+                            onEditClick={() => setEditingField(`${provider.name}-region`)}
+                          />
+                          <p className="text-xs text-bolt-elements-textTertiary mt-1 px-3">
+                            Vertex AI typically uses Application Default Credentials (ADC). API key field may be used for service account JSON.
+                          </p>
+                        </>
+                      )}
+
+                      {provider.name === 'GraniteAI' && (
+                        <EditableInput
+                          provider={provider}
+                          fieldKey="apiKey"
+                          placeholder="Enter API Key"
+                          IconComponent={VscKey}
+                          isSecret
+                          currentEditingField={editingField}
+                          onEditClick={() => setEditingField(`${provider.name}-apiKey`)}
+                        />
+                      )}
+
+                      {/* Display .env message if applicable for baseUrl */}
+                      {URL_CONFIGURABLE_PROVIDERS.includes(provider.name) && providerBaseUrlEnvKeys[provider.name]?.baseUrlKey && (
                         <div className="mt-2 text-xs text-green-500">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 px-3"> {/* Added px-3 for alignment */}
                             <div className="i-ph:info" />
-                            <span>Environment URL set in .env file</span>
+                            <span>Base URL can be set via .env: {providerBaseUrlEnvKeys[provider.name]?.baseUrlKey}</span>
+                          </div>
+                        </div>
+                      )}
+                      {/* Display .env message for API keys if applicable */}
+                      {providerBaseUrlEnvKeys[provider.name]?.apiTokenKey &&
+                        (provider.name !== 'VertexAI') && /* Vertex AI handles auth differently */ (
+                        <div className="mt-1 text-xs text-green-500">
+                          <div className="flex items-center gap-1 px-3"> {/* Added px-3 for alignment */}
+                            <div className="i-ph:info" />
+                            <span>API Key can be set via .env: {providerBaseUrlEnvKeys[provider.name]?.apiTokenKey}</span>
                           </div>
                         </div>
                       )}

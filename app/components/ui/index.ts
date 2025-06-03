@@ -25,6 +25,7 @@ export * from './CloseButton';
 export * from './CodeBlock';
 export * from './EmptyState';
 export * from './FileIcon';
+export * from './FileUpload'; // Added FileUpload export
 export * from './FilterChip';
 export * from './GradientCard';
 export * from './RepositoryStats';
