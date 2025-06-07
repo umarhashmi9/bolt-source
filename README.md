@@ -345,6 +345,75 @@ Remember to always commit your local changes or stash them before pulling update
 
 ---
 
+## Internationalization (i18n)
+
+This project uses `remix-i18next` (which builds on `i18next` and `react-i18next`) to support multiple languages.
+
+### Current Supported Languages
+
+*   English (en) - Fallback language
+*   Turkish (tr)
+
+### Adding or Modifying Translations
+
+1.  **Locate Locale Files**: Translation files are located in the `app/locales/` directory. Each language has its own file (e.g., `en.ts` for English, `tr.ts` for Turkish).
+
+2.  **Structure of Locale Files**: These are TypeScript files exporting a default object where keys are strings (often nested for organization, though currently flat) and values are the translated strings.
+    ```typescript
+    // app/locales/en.ts
+    export default {
+      greeting: "Hello",
+      pageTitle: "Welcome to our App",
+      // ... more keys
+    };
+    ```
+
+3.  **Using Translations in Components**:
+    *   Import the `useTranslation` hook from `react-i18next`.
+    *   Get the translation function `t` and the `i18n` instance: `const { t, i18n } = useTranslation();`
+    *   Use the `t` function with the desired key: `<h1>{t('pageTitle')}</h1>`.
+
+4.  **Interpolation**: For dynamic values in translations:
+    *   In the locale file: `userWelcome: "Welcome, {{name}}!"`
+    *   In the component: `t('userWelcome', { name: userName })`
+
+5.  **Plurals**: `i18next` supports pluralization. Refer to the `i18next` documentation for detailed usage (e.g., `key_zero`, `key_one`, `key_many`).
+
+### Adding a New Language
+
+1.  **Create Locale File**: Duplicate an existing locale file (e.g., `app/locales/en.ts`) and rename it for the new language (e.g., `app/locales/fr.ts` for French). Translate all the string values in this new file. Ensure the `satisfies typeof en;` type assertion (if used) is updated or handled correctly if the new language file is also TypeScript.
+
+2.  **Update Middleware**:
+    *   Open `app/middleware/i18next.ts`.
+    *   Import the new locale file: `import fr from "~/locales/fr";`
+    *   Add the new language code to `supportedLanguages` array in the `detection` options.
+    *   Add the new language resources to the `resources` object in the `i18next` options:
+        ```typescript
+        resources: {
+          en: { translation: en },
+          tr: { translation: tr },
+          fr: { translation: fr }, // Add new language here
+        },
+        ```
+    *   Also add the new language code to `supportedLngs` array in `i18next` options.
+
+3.  **Update Language Switcher**:
+    *   Open `app/components/header/Header.tsx` (or wherever the language switcher component is located).
+    *   Add an `<option>` for the new language in the language selection dropdown.
+        ```html
+        <option value="fr">Français</option>
+        ```
+
+4.  **Testing**: Thoroughly test the application with the new language selected to ensure all translations appear correctly and the layout is not broken.
+
+### Key Libraries
+
+*   [remix-i18next](https://github.com/sergiodxa/remix-i18next): Integrates i18next with Remix.
+*   [react-i18next](https://react.i18next.com/): React bindings for i18next.
+*   [i18next](https://www.i18next.com/): The core internationalization framework.
+
+---
+
 ## Contributing
 
 We welcome contributions! Check out our [Contributing Guide](CONTRIBUTING.md) to get started.

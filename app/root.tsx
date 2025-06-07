@@ -1,6 +1,10 @@
 import { useStore } from '@nanostores/react';
 import type { LinksFunction } from '@remix-run/cloudflare';
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
+import { json, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from '@remix-run/react';
+import { unstable_LoaderFunctionArgs as LoaderFunctionArgs } from "@remix-run/node"; // or cloudflare
+import { useChangeLanguage } from "remix-i18next/react";
+import { i18nextMiddleware, getLocale, localeCookie } from "~/middleware/i18next"; // Adjust path if necessary
+import { useTranslation } from "react-i18next";
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import { themeStore } from './lib/stores/theme';
 import { stripIndents } from './utils/stripIndent';
@@ -15,6 +19,19 @@ import globalStyles from './styles/index.scss?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
+
+export const unstable_middleware = [i18nextMiddleware];
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  // Note: getLocale now takes context if using the latest remix-i18next middleware style
+  // For older versions or direct RemixI18Next class, it might take request directly.
+  // Assuming context is passed correctly by the middleware setup.
+  let locale = await getLocale(context); // Or simply getLocale(request) with older remix-i18next
+  return json(
+    { locale },
+    { headers: { "Set-Cookie": await localeCookie.serialize(locale) } }
+  );
+}
 
 export const links: LinksFunction = () => [
   {
@@ -67,24 +84,32 @@ export const Head = createHead(() => (
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const theme = useStore(themeStore);
+  let { i18n } = useTranslation();
+  let { locale } = useLoaderData<typeof loader>();
+
+  useChangeLanguage(locale);
 
   useEffect(() => {
-    document.querySelector('html')?.setAttribute('data-theme', theme);
+    // Theme setting logic remains, but now it's inside the html tag rendered by this Layout
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   return (
-    <>
-      <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>
-      <ScrollRestoration />
-      <Scripts />
-    </>
+    <html lang={i18n.language} dir={i18n.dir(i18n.language)} data-theme={theme}>
+      <Head />
+      <body>
+        <ClientOnly>{() => <DndProvider backend={HTML5Backend}>{children}</DndProvider>}</ClientOnly>
+        <ScrollRestoration />
+        <Scripts />
+      </body>
+    </html>
   );
 }
 
 import { logStore } from './lib/stores/logs';
 
 export default function App() {
-  const theme = useStore(themeStore);
+  const theme = useStore(themeStore); // This theme is for the log, Layout handles the html attribute
 
   useEffect(() => {
     logStore.logSystem('Application initialized', {
@@ -93,11 +118,11 @@ export default function App() {
       userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(),
     });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Keep theme dependency if log needs to re-run on theme change, otherwise remove. For init, empty array is fine.
 
-  return (
-    <Layout>
-      <Outlet />
-    </Layout>
-  );
+
+  // useChangeLanguage was moved to Layout as it needs loaderData.
+  // The main Outlet is rendered within the Layout defined above.
+  return <Outlet />;
 }

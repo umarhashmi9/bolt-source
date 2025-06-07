@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { ClientOnly } from 'remix-utils/client-only';
+import { useTranslation } from 'react-i18next';
 import { chatStore } from '~/lib/stores/chat';
 import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
@@ -7,6 +8,11 @@ import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
 export function Header() {
   const chat = useStore(chatStore);
+  const { i18n, t } = useTranslation();
+
+  const handleChangeLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+  };
 
   return (
     <header
@@ -19,23 +25,40 @@ export function Header() {
         <div className="i-ph:sidebar-simple-duotone text-xl" />
         <a href="/" className="text-2xl font-semibold text-accent flex items-center">
           {/* <span className="i-bolt:logo-text?mask w-[46px] inline-block" /> */}
-          <img src="/logo-light-styled.png" alt="logo" className="w-[90px] inline-block dark:hidden" />
-          <img src="/logo-dark-styled.png" alt="logo" className="w-[90px] inline-block hidden dark:block" />
+          <img src="/logo-light-styled.png" alt={t('logoAlt')} className="w-[90px] inline-block dark:hidden" />
+          <img src="/logo-dark-styled.png" alt={t('logoAlt')} className="w-[90px] inline-block hidden dark:block" />
         </a>
       </div>
-      {chat.started && ( // Display ChatDescription and HeaderActionButtons only when the chat has started.
-        <>
-          <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
-            <ClientOnly>{() => <ChatDescription />}</ClientOnly>
-          </span>
-          <ClientOnly>
-            {() => (
-              <div className="mr-1">
-                <HeaderActionButtons />
-              </div>
-            )}
-          </ClientOnly>
-        </>
+
+      {/* Spacer when chat has not started to push language switcher to the right */}
+      {!chat.started && <div className="flex-grow"></div>}
+
+      {chat.started && (
+        <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
+          <ClientOnly>{() => <ChatDescription />}</ClientOnly>
+        </span>
+      )}
+
+      <div className={classNames("flex items-center", { "ml-auto": !chat.started, "ml-2": chat.started })}>
+        <select
+          value={i18n.language.split('-')[0]} // Use base language (e.g., 'en' from 'en-US')
+          onChange={(e) => handleChangeLanguage(e.target.value)}
+          className="bg-bolt-elements-backgroundDefault text-bolt-elements-textPrimary border border-bolt-elements-borderColor rounded-md p-1 text-sm focus:ring-accent focus:border-accent"
+          aria-label={t('languageSelectorLabel')}
+        >
+          <option value="en">English</option>
+          <option value="tr">Türkçe</option>
+        </select>
+      </div>
+
+      {chat.started && (
+        <ClientOnly>
+          {() => (
+            <div className="ml-2"> {/* Adjusted margin for spacing */}
+              <HeaderActionButtons />
+            </div>
+          )}
+        </ClientOnly>
       )}
     </header>
   );
