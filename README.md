@@ -106,6 +106,20 @@ project, please check the [project management guide](./PROJECT.md) to get starte
 - **Integration-ready Docker support** for a hassle-free setup.
 - **Deploy** directly to **Netlify**
 
+### AI Coding Assistant (Experimental)
+
+Bolt.diy includes experimental AI-powered coding assistance:
+
+*   **AI Code Completion:** Suggestions appear automatically as you type or can be explicitly invoked (often Ctrl+Space or Alt+`). AI completions are integrated into the standard completion list.
+*   **AI Code Suggestions/Refactoring:**
+    *   Trigger: `Cmd-Alt-r` (macOS) / `Ctrl-Alt-r` (Windows/Linux)
+    *   Select a block of code or place your cursor to have the AI analyze it for potential improvements or refactorings.
+*   **AI Bug Fixing:**
+    *   Trigger: `Cmd-Alt-f` (macOS) / `Ctrl-Alt-f` (Windows/Linux)
+    *   Select code or use on the whole file to ask the AI to find and suggest fixes for bugs.
+
+Suggestions and bug fixes from the AI assistant will appear as editor diagnostics (inline highlights, gutter icons). You can view them in detail and apply actions from the **Lint Panel** (toggle with `Cmd-Shift-m` / `Ctrl-Shift-m`).
+
 ## Setup
 
 If you're new to installing software from GitHub, don't worry! If you encounter any issues, feel free to submit an "issue" using the provided links or improve this documentation by forking the repository, editing the instructions, and submitting a pull request. The following instruction will help you get the stable branch up and running on your local machine in no time.

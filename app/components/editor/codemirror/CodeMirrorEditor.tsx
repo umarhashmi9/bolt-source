@@ -1,6 +1,9 @@
 import { acceptCompletion, autocompletion, closeBrackets } from '@codemirror/autocomplete';
+import { aiCompletionSource } from './aiCompletions';
+import { triggerAIRefactorCommand, triggerAIBugFixCommand } from './aiLintSource';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from '@codemirror/language';
+import { linter, lintGutter, lintKeymap } from '@codemirror/lint';
 import { searchKeymap } from '@codemirror/search';
 import { Compartment, EditorSelection, EditorState, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
@@ -361,7 +364,10 @@ function newEditorState(
         ...defaultKeymap,
         ...historyKeymap,
         ...searchKeymap,
+        ...lintKeymap,
         { key: 'Tab', run: acceptCompletion },
+        { key: 'Mod-Alt-r', run: triggerAIRefactorCommand },
+        { key: 'Mod-Alt-f', run: triggerAIBugFixCommand },
         {
           key: 'Mod-s',
           preventDefault: true,
@@ -374,7 +380,11 @@ function newEditorState(
       ]),
       indentUnit.of('\t'),
       autocompletion({
-        closeOnBlur: false,
+        closeOnBlur: false, // Existing option
+        override: [aiCompletionSource], // Add our AI source
+        activateOnTyping: true, // Explicitly set or ensure this is the desired behavior
+                                // for AI suggestions to trigger during typing.
+                                // Our aiCompletionSource also has internal logic to decide when to fire.
       }),
       tooltips({
         position: 'absolute',
@@ -412,6 +422,10 @@ function newEditorState(
           return icon;
         },
       }),
+      linter(() => [], {
+        delay: 750,
+      }),
+      lintGutter(),
       ...extensions,
     ],
   });
