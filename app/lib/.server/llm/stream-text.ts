@@ -25,6 +25,13 @@ export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0]
 
 const logger = createScopedLogger('stream-text');
 
+function isSmallModel(modelName: string): boolean {
+  if (!modelName) return false;
+  const lowerModelName = modelName.toLowerCase();
+  const smallModelKeywords = ['phi', 'tiny', 'small', 'haiku', 'mini', '3.5-turbo'];
+  return smallModelKeywords.some(keyword => lowerModelName.includes(keyword));
+}
+
 export async function streamText(props: {
   messages: Omit<Message, 'id'>[];
   env?: Env;
@@ -115,8 +122,20 @@ export async function streamText(props: {
     `Max tokens for model ${modelDetails.name} is ${dynamicMaxTokens} based on ${modelDetails.maxTokenAllowed} or ${MAX_TOKENS}`,
   );
 
+  let chosenPromptId = promptId || 'default';
+
+  // New logic to potentially override for small models in build mode
+  if (chatMode === 'build' && modelDetails && isSmallModel(modelDetails.name)) {
+    chosenPromptId = 'small-llm-default';
+    logger.info(`Using 'small-llm-default' prompt for small model: ${modelDetails.name}`);
+  } else if (chosenPromptId === 'small-llm-default' && chatMode !== 'build') {
+    // Fallback if 'small-llm-default' was somehow chosen for non-build mode and isn't appropriate
+    chosenPromptId = 'default';
+    logger.info(`'small-llm-default' is for build mode. Falling back to 'default' prompt for chatMode: ${chatMode}`);
+  }
+
   let systemPrompt =
-    PromptLibrary.getPropmtFromLibrary(promptId || 'default', {
+    PromptLibrary.getPropmtFromLibrary(chosenPromptId, {
       cwd: WORK_DIR,
       allowedHtmlElements: allowedHTMLElements,
       modificationTagName: MODIFICATIONS_TAG_NAME,

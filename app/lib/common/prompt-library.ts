@@ -1,6 +1,7 @@
 import { getSystemPrompt } from './prompts/prompts';
 import optimized from './prompts/optimized';
 import { getFineTunedPrompt } from './prompts/new-prompt';
+import { getSmallLLMPrompt } from './prompts/small-llm-prompt';
 
 export interface PromptOptions {
   cwd: string;
@@ -39,6 +40,11 @@ export class PromptLibrary {
       label: 'Optimized Prompt (experimental)',
       description: 'an Experimental version of the prompt for lower token usage',
       get: (options) => optimized(options),
+    },
+    'small-llm-default': {
+      label: 'Small LLM Default',
+      description: 'A highly optimized and concise prompt for smaller language models, reducing token usage.',
+      get: getSmallLLMPrompt,
     },
   };
   static getList() {

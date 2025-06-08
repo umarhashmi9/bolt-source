@@ -1,6 +1,7 @@
 import type { WebContainer } from '@webcontainer/api';
 import { path as nodePath } from '~/utils/path';
 import { atom, map, type MapStore } from 'nanostores';
+import { isFileLocked, getCurrentChatId } from '~/utils/fileLocks';
 import type { ActionAlert, BoltAction, DeployAlert, FileHistory, SupabaseAction, SupabaseAlert } from '~/types/actions';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -306,6 +307,25 @@ export class ActionRunner {
 
     const webcontainer = await this.#webcontainer;
     const relativePath = nodePath.relative(webcontainer.workdir, action.filePath);
+
+    const chatId = getCurrentChatId();
+    if (isFileLocked(relativePath, chatId)) {
+      logger.debug(`File ${relativePath} is locked, skipping write.`);
+      return;
+    }
+
+    let existingContent: string | undefined;
+    try {
+      existingContent = await webcontainer.fs.readFile(relativePath, 'utf-8');
+    } catch (error) {
+      // File might not exist, proceed to write it
+      logger.debug(`File ${relativePath} not found, creating new file.`);
+    }
+
+    if (existingContent && existingContent === action.content) {
+      logger.debug(`File ${relativePath} content unchanged, skipping write.`);
+      return;
+    }
 
     let folder = nodePath.dirname(relativePath);
 
