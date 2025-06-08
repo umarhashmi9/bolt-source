@@ -128,9 +128,32 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
       <FilePreview
         files={props.uploadedFiles}
         imageDataList={props.imageDataList}
-        onRemove={(index) => {
-          props.setUploadedFiles?.(props.uploadedFiles.filter((_, i) => i !== index));
-          props.setImageDataList?.(props.imageDataList.filter((_, i) => i !== index));
+        onRemove={(fileToRemove: File) => {
+          const newUploadedFiles = props.uploadedFiles.filter(f => f !== fileToRemove);
+          props.setUploadedFiles?.(newUploadedFiles);
+
+          if (fileToRemove.type.startsWith('image/')) {
+            // Attempt to find the corresponding image data URL to remove.
+            // This is complex because imageDataList is just an array of strings.
+            // We need to determine which index in imageDataList corresponded to fileToRemove.
+            let imageIndexToRemove = -1;
+            let currentImageIdx = 0;
+            for (let i = 0; i < props.uploadedFiles.length; i++) {
+              const currentFile = props.uploadedFiles[i];
+              if (currentFile.type.startsWith('image/')) {
+                if (currentFile === fileToRemove) {
+                  imageIndexToRemove = currentImageIdx;
+                  break;
+                }
+                currentImageIdx++;
+              }
+            }
+
+            if (imageIndexToRemove !== -1 && props.imageDataList) {
+              const newImageDataList = props.imageDataList.filter((_, idx) => idx !== imageIndexToRemove);
+              props.setImageDataList?.(newImageDataList);
+            }
+          }
         }}
       />
       <ClientOnly>
@@ -170,18 +193,38 @@ export const ChatBox: React.FC<ChatBoxProps> = (props) => {
             e.currentTarget.style.border = '1px solid var(--bolt-elements-borderColor)';
 
             const files = Array.from(e.dataTransfer.files);
+            const files = Array.from(e.dataTransfer.files);
+            const currentUploadedFiles = props.uploadedFiles || [];
+            const currentImageDataList = props.imageDataList || [];
+            let newImageDataList = [...currentImageDataList];
+            let newUploadedFiles = [...currentUploadedFiles];
+
             files.forEach((file) => {
+              // Add all dropped files to uploadedFiles
+              newUploadedFiles.push(file);
+
               if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
-
-                reader.onload = (e) => {
-                  const base64Image = e.target?.result as string;
-                  props.setUploadedFiles?.([...props.uploadedFiles, file]);
-                  props.setImageDataList?.([...props.imageDataList, base64Image]);
+                reader.onload = (readEvent) => {
+                  const base64Image = readEvent.target?.result as string;
+                  // This update needs to be careful about async state updates in loops.
+                  // It's better to collect all new image data URLs and update state once.
+                  // For simplicity here, we'll call setImageDataList, but this might need refinement
+                  // if multiple images are dropped at once.
+                  props.setImageDataList?.([...newImageDataList, base64Image]);
+                  newImageDataList.push(base64Image); // keep track for single update if possible
                 };
                 reader.readAsDataURL(file);
               }
+              // Non-image files are already added to newUploadedFiles
             });
+
+            props.setUploadedFiles?.(newUploadedFiles);
+            // If newImageDataList was populated, call props.setImageDataList here once
+            // instead of inside the loop for better performance with multiple image drops.
+            // However, the current structure of props.setImageDataList?.([...imageDataList, base64Image])
+            // in BaseChat.tsx's handleFileUpload suggests individual additions are expected.
+            // For now, the above logic inside the loop for images is consistent with handleFileUpload.
           }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {

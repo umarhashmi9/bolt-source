@@ -141,6 +141,8 @@ export const ChatImpl = memo(
       const savedProvider = Cookies.get('selectedProvider');
       return (PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER) as ProviderInfo;
     });
+    // State to hold the path/ID of the most recently uploaded document for the next message
+    const [uploadedFileContext, setUploadedFileContext] = useState<string | null>(null);
 
     const { showChat } = useStore(chatStore);
 
@@ -166,10 +168,11 @@ export const ChatImpl = memo(
       api: '/api/chat',
       body: {
         apiKeys,
-        files,
+        files, // This is workbenchStore.files
         promptId,
         contextOptimization: contextOptimizationEnabled,
         chatMode,
+        uploadedFileContext, // Pass the uploaded file path/ID here
         supabase: {
           isConnected: supabaseConn.isConnected,
           hasSelectedProject: !!selectedProject,
@@ -301,9 +304,10 @@ export const ChatImpl = memo(
     };
 
     const sendMessage = async (_event: React.UIEvent, messageInput?: string) => {
-      const messageContent = messageInput || input;
+      let messageContent = messageInput || input;
 
-      if (!messageContent?.trim()) {
+      // Early exit if no text content and no files to process by message sending
+      if (!messageContent?.trim() && uploadedFiles.length === 0) {
         return;
       }
 
@@ -312,8 +316,66 @@ export const ChatImpl = memo(
         return;
       }
 
-      // If no locked items, proceed normally with the original message
-      const finalMessageContent = messageContent;
+      let uploadedDocumentInfo: string | null = null;
+
+      // Handle document upload before sending the message
+      if (uploadedFiles.length > 0) {
+        const documentsToUpload = uploadedFiles.filter(f => !f.type.startsWith('image/'));
+        if (documentsToUpload.length > 0) {
+          const docToUpload = documentsToUpload[0]; // Uploading the first document for now
+          // Clear previous uploaded file context before attempting a new upload
+          setUploadedFileContext(null);
+          const formData = new FormData();
+          formData.append("document", docToUpload);
+
+          try {
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            });
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && result.file) {
+                uploadedDocumentInfo = `\n[Uploaded Document: ${result.file.name}, Type: ${result.file.type}, Size: ${result.file.size} bytes.]`;
+                // Store the path/ID for the useChat body
+                setUploadedFileContext(result.file.path);
+              } else {
+                toast.error(result.error || "Document upload failed.");
+              }
+            } else {
+              const errorResult = await response.json();
+              toast.error(errorResult.error || `Document upload failed: ${response.statusText}`);
+            }
+          } catch (e: any) {
+            toast.error("Document upload error: " + e.message);
+          }
+        }
+      }
+
+      // If no text input but a document was uploaded, set a default message.
+      if (!messageContent?.trim() && uploadedDocumentInfo) {
+        messageContent = "Uploaded a document.";
+      } else if (!messageContent?.trim() && uploadedFiles.length > 0 && !uploadedDocumentInfo && imageDataList.length > 0) {
+        // Case where there are only images (doc upload didn't happen or failed)
+        messageContent = "Attached image(s).";
+      } else if (!messageContent?.trim() && uploadedFiles.length > 0 && !uploadedDocumentInfo && imageDataList.length === 0) {
+        // Case where there was a non-image file, but upload failed, and no text.
+        // We might not want to send a message here, or indicate failure. For now, set a generic message.
+        messageContent = "Attempted to attach a file.";
+      }
+
+
+      // If no message content even after potential document upload message, and no images, exit.
+      // This means if a document upload fails AND there was no text, we don't send an empty message.
+      if (!messageContent?.trim() && imageDataList.length === 0 && !uploadedDocumentInfo) {
+        // User might want to retry upload or add text.
+        // Do not clear uploadedFiles here to allow retry if nothing is sent.
+        return;
+      }
+
+      const finalMessageContent = uploadedDocumentInfo
+        ? (messageContent || "") + uploadedDocumentInfo // Ensure messageContent is not null
+        : messageContent;
 
       runAnimation();
 
@@ -431,7 +493,8 @@ export const ChatImpl = memo(
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userUpdateArtifact}${finalMessageContent}`,
+              // Ensure finalMessageContent is not null if userUpdateArtifact exists
+              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userUpdateArtifact}${finalMessageContent || ''}`,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
@@ -441,13 +504,14 @@ export const ChatImpl = memo(
         });
 
         workbenchStore.resetAllFileModifications();
-      } else {
+      } else if (finalMessageContent?.trim() || imageDataList.length > 0 || uploadedDocumentInfo) {
+        // Ensure there's content to send (text, image, or a successfully uploaded doc that generated info)
         append({
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`,
+              text: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent || ''}`,
             },
             ...imageDataList.map((imageData) => ({
               type: 'image',
@@ -455,9 +519,23 @@ export const ChatImpl = memo(
             })),
           ] as any,
         });
+      } else {
+        // This case should ideally not be reached if the check above for message content is correct.
+        // If it is reached, it means no actual content (text, image, or successful doc info) was formed.
+        logger.warn("sendMessage was called but no content was appended. This might happen if a document upload failed and there was no other content.");
+        // Do not clear files if nothing was sent, allowing user to retry.
+        return;
       }
 
-      setInput('');
+      // Clear input and files only if a message was actually appended or attempted
+      // (even if finalMessageContent was empty but there were images).
+      // The condition `finalMessageContent?.trim() || imageDataList.length > 0` above handles this.
+      // If `append` was called, then clear.
+      if (finalMessageContent?.trim() || imageDataList.length > 0 || uploadedDocumentInfo) {
+        setInput('');
+        // Clear uploaded file context after it's been presumably sent with the message
+        setUploadedFileContext(null);
+      }
       Cookies.remove(PROMPT_COOKIE_KEY);
 
       setUploadedFiles([]);

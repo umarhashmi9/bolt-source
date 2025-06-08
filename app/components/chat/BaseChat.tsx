@@ -273,20 +273,27 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const handleFileUpload = () => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/*';
+      // Allow various document types and images
+      input.accept = 'image/*,application/pdf,.txt,.md,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
       input.onchange = async (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
 
         if (file) {
-          const reader = new FileReader();
+          // Add to the general uploaded files list
+          setUploadedFiles?.([...uploadedFiles, file]);
 
-          reader.onload = (e) => {
-            const base64Image = e.target?.result as string;
-            setUploadedFiles?.([...uploadedFiles, file]);
-            setImageDataList?.([...imageDataList, base64Image]);
-          };
-          reader.readAsDataURL(file);
+          // If it's an image, also create a data URL for preview
+          if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64Image = event.target?.result as string;
+              setImageDataList?.([...imageDataList, base64Image]);
+            };
+            reader.readAsDataURL(file);
+          }
+          // For non-image files, no specific data URL is generated for imageDataList here.
+          // FilePreview component will need to handle them based on `uploadedFiles`.
         }
       };
 

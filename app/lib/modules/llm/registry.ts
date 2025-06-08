@@ -15,25 +15,31 @@ import TogetherProvider from './providers/together';
 import XAIProvider from './providers/xai';
 import HyperbolicProvider from './providers/hyperbolic';
 import AmazonBedrockProvider from './providers/amazon-bedrock';
+import AzureOpenAIProvider from './providers/azure_openai';
 import GithubProvider from './providers/github';
+import GraniteProvider from './providers/granite'; // Add this line
+import VertexAIProvider from './providers/vertex_ai';
 
 export {
+  AmazonBedrockProvider,
   AnthropicProvider,
+  AzureOpenAIProvider,
   CohereProvider,
   DeepseekProvider,
+  GithubProvider, // Alphabetical
   GoogleProvider,
+  GraniteProvider, // Alphabetical
   GroqProvider,
   HuggingFaceProvider,
-  HyperbolicProvider,
+  HyperbolicProvider, // Alphabetical
+  LMStudioProvider, // Alphabetical
   MistralProvider,
   OllamaProvider,
+  OpenAILikeProvider, // Alphabetical
   OpenAIProvider,
   OpenRouterProvider,
-  OpenAILikeProvider,
   PerplexityProvider,
+  TogetherProvider, // Alphabetical
+  VertexAIProvider, // Alphabetical
   XAIProvider,
-  TogetherProvider,
-  LMStudioProvider,
-  AmazonBedrockProvider,
-  GithubProvider,
 };
