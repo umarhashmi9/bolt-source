@@ -214,6 +214,7 @@ export const ChatImpl = memo(
     });
     useEffect(() => {
       const prompt = searchParams.get('prompt');
+      const templateUrl = searchParams.get('template');
 
       // console.log(prompt, searchParams, model, provider);
 
@@ -229,8 +230,46 @@ export const ChatImpl = memo(
             },
           ] as any, // Type assertion to bypass compiler check
         });
+      } else if (templateUrl) {
+        setSearchParams({});
+        runAnimation();
+
+        // Process template URL
+        processTemplateUrl(templateUrl);
       }
     }, [model, provider, searchParams]);
+
+    const processTemplateUrl = async (templateUrl: string) => {
+      try {
+        setFakeLoading(true);
+
+        const { getTemplateFromUrl } = await import('~/utils/selectStarterTemplate');
+        const result = await getTemplateFromUrl(templateUrl);
+
+        if (result) {
+          const { assistantMessage, userMessage } = result;
+          setMessages([
+            {
+              id: `1-${new Date().getTime()}`,
+              role: 'assistant',
+              content: assistantMessage,
+            },
+            {
+              id: `2-${new Date().getTime()}`,
+              role: 'user',
+              content: `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userMessage}`,
+              annotations: ['hidden'],
+            },
+          ]);
+          reload();
+        }
+      } catch (error) {
+        console.error('Error processing template URL:', error);
+        toast.error('Failed to load template from URL: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      } finally {
+        setFakeLoading(false);
+      }
+    };
 
     const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
     const { parsedMessages, parseMessages } = useMessageParser();

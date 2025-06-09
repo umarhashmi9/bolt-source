@@ -4,7 +4,6 @@
     "lib": ["ESNext"],
     "jsx": "preserve",
     "target": "ESNext",
-    "noEmit": true,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
 

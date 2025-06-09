@@ -52,10 +52,11 @@ Response:
 
 Instructions:
 1. For trivial tasks and simple scripts, always recommend the blank template
-2. For more complex projects, recommend templates from the provided list
-3. Follow the exact XML format
-4. Consider both technical requirements and tags
-5. If no perfect match exists, recommend the closest option
+2. For AI-related projects, chatbots, or advanced applications, prefer the Prometheus AI template
+3. For more complex projects, recommend templates from the provided list
+4. Follow the exact XML format
+5. Consider both technical requirements and tags
+6. If no perfect match exists, recommend the closest option
 
 Important: Provide only the selection tags in your response, no additional text.
 MOST IMPORTANT: YOU DONT HAVE TIME TO THINK JUST START RESPONDING BASED ON HUNCH 
@@ -101,11 +102,11 @@ export const selectStarterTemplate = async (options: { message: string; model: s
   if (selectedTemplate) {
     return selectedTemplate;
   } else {
-    console.log('No template selected, using blank template');
+    console.log('No template selected, using Prometheus AI template as default');
 
     return {
-      template: 'blank',
-      title: '',
+      template: 'Prometheus AI',
+      title: 'AI-Powered Application',
     };
   }
 };
@@ -250,4 +251,150 @@ IMPORTANT: Dont Forget to install the dependencies before running the app by usi
     assistantMessage,
     userMessage,
   };
+}
+
+/**
+ * Parse GitHub URL from template parameter and extract repo information
+ */
+const parseGitHubUrl = (templateUrl: string): string | null => {
+  try {
+    // Remove .git suffix if present
+    const cleanUrl = templateUrl.replace(/\.git$/, '');
+    
+    // Handle different GitHub URL formats
+    const githubRegex = /(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+\/[^\/]+)/;
+    const match = cleanUrl.match(githubRegex);
+    
+    if (match && match[1]) {
+      return match[1]; // Returns "user/repo"
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing GitHub URL:', error);
+    return null;
+  }
+};
+
+/**
+ * Get template from URL and process it similar to existing template processing
+ */
+export async function getTemplateFromUrl(templateUrl: string, title?: string) {
+  try {
+    // Parse the GitHub URL to get repo name
+    const repoName = parseGitHubUrl(templateUrl);
+    
+    if (!repoName) {
+      throw new Error('Invalid GitHub URL format. Please provide a valid GitHub repository URL.');
+    }
+
+    // Fetch repository content using existing function
+    const files = await getGitHubRepoContent(repoName);
+
+    let filteredFiles = files;
+
+    // Apply same filtering logic as existing template processing
+    // Exclude .git files
+    filteredFiles = filteredFiles.filter((x) => x.path.startsWith('.git') == false);
+
+    // Exclude .bolt files from main content
+    filteredFiles = filteredFiles.filter((x) => x.path.startsWith('.bolt') == false);
+
+    // Check for ignore file in .bolt folder
+    const templateIgnoreFile = files.find((x) => x.path.startsWith('.bolt') && x.name == 'ignore');
+
+    const filesToImport = {
+      files: filteredFiles,
+      ignoreFile: [] as typeof filteredFiles,
+    };
+
+    if (templateIgnoreFile) {
+      // Process files specified in ignore file
+      const ignorepatterns = templateIgnoreFile.content.split('\n').map((x) => x.trim());
+      const ig = ignore().add(ignorepatterns);
+
+      const ignoredFiles = filteredFiles.filter((x) => ig.ignores(x.path));
+
+      filesToImport.files = filteredFiles;
+      filesToImport.ignoreFile = ignoredFiles;
+    }
+
+    // Generate assistant message with template files
+    const assistantMessage = `
+Bolt is importing your template from ${templateUrl}.
+<boltArtifact id="imported-template-files" title="${title || 'Import template files'}" type="bundled">
+${filesToImport.files
+  .map(
+    (file) =>
+      `<boltAction type="file" filePath="${file.path}">
+${file.content}
+</boltAction>`,
+  )
+  .join('\n')}
+</boltArtifact>
+`;
+
+    let userMessage = ``;
+    
+    // Check for template prompt file
+    const templatePromptFile = files.filter((x) => x.path.startsWith('.bolt')).find((x) => x.name == 'prompt');
+
+    if (templatePromptFile) {
+      userMessage = `
+TEMPLATE INSTRUCTIONS:
+${templatePromptFile.content}
+
+---
+`;
+    }
+
+    // Add ignore file instructions if present
+    if (filesToImport.ignoreFile.length > 0) {
+      userMessage =
+        userMessage +
+        `
+STRICT FILE ACCESS RULES - READ CAREFULLY:
+
+The following files are READ-ONLY and must never be modified:
+${filesToImport.ignoreFile.map((file) => `- ${file.path}`).join('\n')}
+
+Permitted actions:
+✓ Import these files as dependencies
+✓ Read from these files
+✓ Reference these files
+
+Strictly forbidden actions:
+❌ Modify any content within these files
+❌ Delete these files
+❌ Rename these files
+❌ Move these files
+❌ Create new versions of these files
+❌ Suggest changes to these files
+
+Any attempt to modify these protected files will result in immediate termination of the operation.
+
+If you need to make changes to functionality, create new files instead of modifying the protected ones listed above.
+---
+`;
+    }
+
+    userMessage += `
+---
+Template import from ${templateUrl} is complete. You can now use the imported files.
+Edit only the files that need to be changed, and you can create new files as needed.
+DO NOT EDIT/WRITE ANY FILES THAT ALREADY EXIST IN THE PROJECT AND DO NOT NEED TO BE MODIFIED
+---
+The template has been successfully imported. You can now work with the imported files.
+
+IMPORTANT: Don't forget to install the dependencies before running the app by using \`npm install && npm run dev\`
+`;
+
+    return {
+      assistantMessage,
+      userMessage,
+    };
+  } catch (error) {
+    console.error('Error processing template URL:', error);
+    throw error;
+  }
 }

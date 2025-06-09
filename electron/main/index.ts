@@ -4,6 +4,7 @@ import electron, { app, BrowserWindow, ipcMain, protocol, session } from 'electr
 import log from 'electron-log';
 import path from 'node:path';
 import * as pkg from '../../package.json';
+import dotenv from 'dotenv';
 import { setupAutoUpdater } from './utils/auto-update';
 import { isDev, DEFAULT_PORT } from './utils/constants';
 import { initViteServer, viteServer } from './utils/vite-server';
@@ -15,7 +16,42 @@ import { reloadOnChange } from './utils/reload';
 
 Object.assign(console, log.functions);
 
-console.debug('main: import.meta.env:', import.meta.env);
+// Load environment variables from .env file
+let envPath = '';
+
+try {
+  // In development mode
+
+  /* eslint-disable-next-line */
+  if (isDev) {
+    envPath = path.join(app.getAppPath(), '.env');
+
+    const result = dotenv.config({ path: envPath });
+
+    if (result.error) {
+      console.log('Error loading .env file in development:', result.error.message);
+    } else {
+      console.log('Loaded environment variables from:', envPath);
+    }
+  } else {
+    /*
+     * In production/packaged mode, environment variables should be baked into the build
+     * or handled differently as .env files aren't typically accessible in packaged apps
+     */
+    console.log('Running in production mode, using bundled environment variables');
+
+    /*
+     * For critical environment variables that must be available in production,
+     * you can set them directly here or read from a config file included in the package
+     */
+    // process.env.CRITICAL_VARIABLE = 'some-value';
+  }
+} catch (error) {
+  console.error('Error setting up environment variables:', error);
+}
+
+// Safely access import.meta.env if available
+console.debug('main: import.meta.env:', typeof import.meta !== 'undefined' ? import.meta.env : 'Not available');
 console.log('main: isDev:', isDev);
 console.log('NODE_ENV:', global.process.env.NODE_ENV);
 console.log('isPackaged:', app.isPackaged);
@@ -30,7 +66,9 @@ process.on('unhandledRejection', async (error) => {
 });
 
 (() => {
-  const root = global.process.env.APP_PATH_ROOT ?? import.meta.env.VITE_APP_PATH_ROOT;
+  /* eslint-disable-next-line */
+  const root = global.process.env.APP_PATH_ROOT ?? 
+    (typeof import.meta !== 'undefined' ? import.meta.env.VITE_APP_PATH_ROOT : undefined);
 
   if (root === undefined) {
     console.log('no given APP_PATH_ROOT or VITE_APP_PATH_ROOT. default path is used.');
@@ -82,7 +120,20 @@ declare global {
 
     if (isDev) {
       console.log('Dev mode: forwarding to vite server');
-      return await fetch(req);
+
+      try {
+        const response = await fetch(req);
+        return response;
+      } catch (err) {
+        console.error('Error forwarding to vite server:', err);
+        return new Response(
+          `Error forwarding request to vite server: ${err instanceof Error ? err.message : String(err)}`,
+          {
+            status: 500,
+            headers: { 'content-type': 'text/plain' },
+          },
+        );
+      }
     }
 
     req.headers.append('Referer', req.referrer);
@@ -189,7 +240,32 @@ declare global {
 
     return win;
   })
-  .then((win) => setupMenu(win));
+  .then((win) => {
+    /* eslint-disable-next-line */
+    // Add navigationHistory to Electron's WebContents prototype if it doesn't exist
+    const webContentsProto = Object.getPrototypeOf(win.webContents);
+
+    if (!('navigationHistory' in webContentsProto)) {
+      Object.defineProperty(webContentsProto, 'navigationHistory', {
+        get() {
+          return {
+            goBack: () => {
+              if (this.canGoBack()) {
+                this.goBack();
+              }
+            },
+            goForward: () => {
+              if (this.canGoForward()) {
+                this.goForward();
+              }
+            },
+          };
+        },
+      });
+    }
+
+    return setupMenu(win);
+  });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

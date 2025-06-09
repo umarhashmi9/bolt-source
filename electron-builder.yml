@@ -1,5 +1,5 @@
-appId: com.stackblitz.bolt.diy
-productName: Bolt Local
+appId: ai.prometheusags.bolt
+productName: Prometheus Bolt
 directories:
   buildResources: build
   output: dist
@@ -9,6 +9,7 @@ files:
   - node_modules/**/*
   - icons/**
   - electron-update.yml
+  - .env
 extraMetadata:
   main: build/electron/main/index.mjs
 asarUnpack:
