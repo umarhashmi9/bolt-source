@@ -19,6 +19,21 @@ const customIconCollection = iconPaths.reduce(
   {} as Record<string, Record<string, () => Promise<string>>>,
 );
 
+const PROMETHEUS_COLORS = {
+  navy: '#0A192D',
+  yellow: '#FFDD00',
+  orange: '#FF5500',
+  red: '#FF4D4D',
+  turquoise: '#00A3A3',
+  lightBlue: '#4D9FFF',
+  lavender: '#9D8DF1',
+  ultraLightGray: '#F8F8F8',
+  lightGray: '#F5F5F5',
+  mediumGray: '#CCCCCC',
+  darkGray: '#333333',
+  lightNavy: '#0F2440',
+};
+
 const BASE_COLORS = {
   white: '#FFFFFF',
   gray: {
@@ -47,6 +62,7 @@ const BASE_COLORS = {
     900: '#502D93',
     950: '#2D1959',
   },
+  prometheus: PROMETHEUS_COLORS,
   green: {
     50: '#F0FDF4',
     100: '#DCFCE7',
@@ -104,6 +120,11 @@ export default defineConfig({
     'transition-theme': 'transition-[background-color,border-color,color] duration-150 bolt-ease-cubic-bezier',
     kdb: 'bg-bolt-elements-code-background text-bolt-elements-code-text py-1 px-1.5 rounded-md',
     'max-w-chat': 'max-w-[var(--chat-max-width)]',
+    'prometheus-flame-gradient':
+      'bg-gradient-to-b from-prometheus-yellow via-prometheus-orange via-prometheus-red to-prometheus-navy',
+    'prometheus-text-gradient':
+      'bg-gradient-to-b from-prometheus-yellow via-prometheus-orange via-prometheus-red to-prometheus-navy bg-clip-text text-transparent',
+    'prometheus-flame-shape': 'rounded-[25%_25%_25%_25%_/_35%_35%_25%_25%]',
   },
   rules: [
     /**

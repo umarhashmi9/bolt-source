@@ -15,13 +15,110 @@ body {
 }
 
 :root {
-  --gradient-opacity: 0.8;
-  --primary-color: rgba(158, 117, 240, var(--gradient-opacity));
-  --secondary-color: rgba(138, 43, 226, var(--gradient-opacity));
-  --accent-color: rgba(128, 59, 239, var(--gradient-opacity));
-  // --primary-color: rgba(147, 112, 219, var(--gradient-opacity));
-  // --secondary-color: rgba(138, 43, 226, var(--gradient-opacity));
-  // --accent-color: rgba(180, 170, 220, var(--gradient-opacity));
+  --gradient-opacity: 0.15;
+  --primary-color: rgba(255, 221, 0, var(--gradient-opacity));
+  --secondary-color: rgba(0, 163, 163, var(--gradient-opacity));
+  --accent-color: rgba(77, 159, 255, var(--gradient-opacity));
+  
+  /* Prometheus Typography */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Roboto', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Fira Code', Menlo, Monaco, Consolas, monospace;
+}
+
+/* Prometheus Typography Hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--bolt-elements-textPrimary);
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.25rem; /* text-4xl */
+  line-height: 1.1; /* leading-tight */
+}
+
+h2 {
+  font-size: 1.875rem; /* text-3xl */
+  line-height: 1.1; /* leading-tight */
+}
+
+h3 {
+  font-size: 1.5rem; /* text-2xl */
+  line-height: 1.25; /* leading-snug */
+}
+
+h4 {
+  font-size: 1.25rem; /* text-xl */
+  line-height: 1.25; /* leading-snug */
+}
+
+h5 {
+  font-size: 1.125rem; /* text-lg */
+  line-height: 1.5; /* leading-normal */
+}
+
+h6 {
+  font-size: 1rem; /* text-base */
+  line-height: 1.5; /* leading-normal */
+}
+
+/* Body Text */
+body, p, span, div {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--bolt-elements-textPrimary);
+  line-height: 1.625; /* leading-relaxed */
+}
+
+/* Code and Terminal Elements - Must use monospace fonts */
+code, pre, kbd, samp, tt, var,
+.font-mono,
+.xterm,
+.xterm *,
+.xterm-screen,
+.xterm-viewport,
+.shiki,
+.shiki *,
+.shiki code,
+.shiki pre,
+.monaco-editor,
+.monaco-editor *,
+[class*="terminal"],
+[class*="Terminal"],
+[class*="code"],
+[class*="command"],
+textarea[class*="terminal"],
+.terminal-output,
+.command-output,
+.bg-bolt-elements-actions-code-background,
+.bg-bolt-elements-messages-code-background {
+  font-family: var(--font-mono) !important;
+  font-variant-ligatures: none;
+}
+
+/* Ensure XTerm terminal uses monospace */
+.xterm .xterm-rows {
+  font-family: var(--font-mono) !important;
+}
+
+/* Ensure Shiki code blocks use monospace */
+.shiki, .shiki span, .shiki code {
+  font-family: var(--font-mono) !important;
+}
+
+/* Prometheus Flame Gradient Utilities */
+.prometheus-flame {
+  background: linear-gradient(to bottom, #FFDD00, #FF5500, #FF4D4D, #0A192D);
+  border-radius: 25% 25% 25% 25% / 35% 35% 25% 25%;
+}
+
+.prometheus-text-gradient {
+  background: linear-gradient(to bottom, #FFDD00, #FF5500, #FF4D4D, #0A192D);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .modern-scrollbar {

@@ -350,6 +350,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 <p className="text-md lg:text-xl mb-8 text-bolt-elements-textSecondary animate-fade-in animation-delay-200">
                   Bring ideas to life in seconds or get help on existing projects.
                 </p>
+                <div className="w-24 h-24 mx-auto mb-8 animate-fade-in animation-delay-400">
+                  <img src="/logo.png" alt="Prometheus Logo" className="w-full h-full object-contain" />
+                </div>
               </div>
             )}
             <StickToBottom
