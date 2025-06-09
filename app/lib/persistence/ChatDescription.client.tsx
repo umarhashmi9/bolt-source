@@ -30,11 +30,11 @@ export function ChatDescription() {
             onChange={handleChange}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            style={{ 
+            style={{
               width: `${Math.min(Math.max(currentTitle.length * 8, 100), 400)}px`,
               maxWidth: '400px',
               overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              textOverflow: 'ellipsis',
             }}
           />
           <TooltipProvider>
@@ -51,9 +51,7 @@ export function ChatDescription() {
         </form>
       ) : (
         <>
-          <div className="max-w-[400px] truncate">
-            {currentTitle}
-          </div>
+          <div className="max-w-[400px] truncate">{currentTitle}</div>
           <TooltipProvider>
             <WithTooltip tooltip="Rename chat">
               <div className="flex justify-between items-center p-2 rounded-md bg-bolt-elements-item-backgroundAccent ml-2">
@@ -72,4 +70,4 @@ export function ChatDescription() {
       )}
     </div>
   );
-};
+}
