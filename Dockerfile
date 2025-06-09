@@ -15,7 +15,9 @@ RUN npm install -g pnpm && pnpm install
 COPY . .
 
 # Expose the port the app runs on
-EXPOSE 5173
+# EXPOSE 5173
+# Updating to expose the following port that remix-serve uses
+  EXPOSE 4173
 
 # Production image
 FROM base AS bolt-ai-production
@@ -93,3 +95,7 @@ ENV GROQ_API_KEY=${GROQ_API_KEY} \
 
 RUN mkdir -p ${WORKDIR}/run
 CMD pnpm run dev --host
+
+# —————————————————————————————
+# “Bolt-AI Production” becomes the final, default image
+FROM bolt-ai-production
