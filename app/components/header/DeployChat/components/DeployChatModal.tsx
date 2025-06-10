@@ -35,16 +35,21 @@ const DeployChatModal = ({
           className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex items-center justify-center"
           onClick={handleOverlayClick}
         >
-          <div className="bg-bolt-elements-background-depth-1 rounded-lg p-8 max-w-2xl w-full z-50 border border-bolt-elements-borderColor overflow-y-auto max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="bg-bolt-elements-background-depth-1 rounded-lg p-8 max-w-2xl w-full z-50 border border-bolt-elements-borderColor overflow-y-auto max-h-[95vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             {status === DeployStatus.Succeeded ? (
-                <DeploymentSuccessful deploySettings={deploySettings} setIsModalOpen={setIsModalOpen} />
-              ) : (
+              <DeploymentSuccessful deploySettings={deploySettings} setIsModalOpen={setIsModalOpen} />
+            ) : (
               <>
                 <h2 className="text-2xl font-bold mb-6 text-bolt-elements-textPrimary text-center">
                   Deploy Your Application
                 </h2>
                 <div className="text-center mb-6 text-bolt-elements-textSecondary">
-                  <p className="mb-2">Deploy your chat application to production using Netlify{databaseFound ? ' and Supabase' : ''}.</p>
+                  <p className="mb-2">
+                    Deploy your chat application to production using Netlify{databaseFound ? ' and Supabase' : ''}.
+                  </p>
                   <p className="mb-2">This process will:</p>
                   <div className="flex justify-center">
                     <ul className="text-left list-disc list-inside mb-4 inline-block">
@@ -59,25 +64,28 @@ const DeployChatModal = ({
                 <div className="mb-8 p-4 bg-bolt-elements-background-depth-2 rounded-lg border border-bolt-elements-borderColor">
                   <h3 className="text-sm font-medium text-bolt-elements-textPrimary mb-2">Before you begin:</h3>
                   <p className="text-xs text-bolt-elements-textSecondary mb-3 whitespace-pre-wrap">
-                    You'll need accounts with both Netlify and {databaseFound ? 'Supabase ' : ''}to deploy your application. If you haven't already, please sign up using the links below:
+                    You'll need accounts with both Netlify and {databaseFound ? 'Supabase ' : ''}to deploy your
+                    application. If you haven't already, please sign up using the links below:
                   </p>
                   <div className="flex flex-col gap-2">
-                    <a 
-                      href="https://app.netlify.com/signup" 
-                      target="_blank" 
+                    <a
+                      href="https://app.netlify.com/signup"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-green-500 hover:text-green-600 transition-colors"
                     >
                       → Sign up for Netlify
                     </a>
-                    {databaseFound && <a 
-                    href="https://supabase.com/dashboard/sign-up" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-green-500 hover:text-green-600 transition-colors"
-                    >
-                    → Sign up for Supabase
-                    </a>}
+                    {databaseFound && (
+                      <a
+                        href="https://supabase.com/dashboard/sign-up"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-green-500 hover:text-green-600 transition-colors"
+                      >
+                        → Sign up for Supabase
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -215,121 +223,121 @@ const DeployChatModal = ({
 
                   {databaseFound && (
                     <>
-                        <div>
-                            <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
-                            Supabase Database URL
-                            </label>
-                            <div className="w-full mb-2">
-                            <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
-                                The URL of your Supabase project, used to connect to your database.
-                            </p>
-                            </div>
-                            <input
-                            name="supabaseDatabaseURL"
-                            className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            value={deploySettings?.supabase?.databaseURL}
-                            placeholder="https://abc...def.supabase.co"
-                            onChange={(e) => {
-                                const supabase = {
-                                databaseURL: e.target.value,
-                                anonKey: deploySettings?.supabase?.anonKey || '',
-                                serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
-                                postgresURL: deploySettings?.supabase?.postgresURL || '',
-                                };
-                                setDeploySettings({
-                                ...deploySettings,
-                                supabase,
-                                });
-                            }}
-                            />
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
+                          Supabase Database URL
+                        </label>
+                        <div className="w-full mb-2">
+                          <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
+                            The URL of your Supabase project, used to connect to your database.
+                          </p>
                         </div>
+                        <input
+                          name="supabaseDatabaseURL"
+                          className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          value={deploySettings?.supabase?.databaseURL}
+                          placeholder="https://abc...def.supabase.co"
+                          onChange={(e) => {
+                            const supabase = {
+                              databaseURL: e.target.value,
+                              anonKey: deploySettings?.supabase?.anonKey || '',
+                              serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
+                              postgresURL: deploySettings?.supabase?.postgresURL || '',
+                            };
+                            setDeploySettings({
+                              ...deploySettings,
+                              supabase,
+                            });
+                          }}
+                        />
+                      </div>
 
-                        <div>
-                            <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
-                            Supabase Anonymous Key
-                            </label>
-                            <div className="w-full mb-2">
-                            <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
-                                Public API key for client-side database access with restricted permissions.
-                            </p>
-                            </div>
-                            <input
-                            name="supabaseAnonKey"
-                            className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            value={deploySettings?.supabase?.anonKey}
-                            placeholder="ey..."
-                            onChange={(e) => {
-                                const supabase = {
-                                databaseURL: deploySettings?.supabase?.databaseURL || '',
-                                anonKey: e.target.value,
-                                serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
-                                postgresURL: deploySettings?.supabase?.postgresURL || '',
-                                };
-                                setDeploySettings({
-                                ...deploySettings,
-                                supabase,
-                                });
-                            }}
-                            />
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
+                          Supabase Anonymous Key
+                        </label>
+                        <div className="w-full mb-2">
+                          <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
+                            Public API key for client-side database access with restricted permissions.
+                          </p>
                         </div>
+                        <input
+                          name="supabaseAnonKey"
+                          className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          value={deploySettings?.supabase?.anonKey}
+                          placeholder="ey..."
+                          onChange={(e) => {
+                            const supabase = {
+                              databaseURL: deploySettings?.supabase?.databaseURL || '',
+                              anonKey: e.target.value,
+                              serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
+                              postgresURL: deploySettings?.supabase?.postgresURL || '',
+                            };
+                            setDeploySettings({
+                              ...deploySettings,
+                              supabase,
+                            });
+                          }}
+                        />
+                      </div>
 
-                        <div>
-                            <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
-                            Supabase Service Role Key
-                            </label>
-                            <div className="w-full mb-2">
-                            <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
-                                Admin API key for server-side operations with full database access.
-                            </p>
-                            </div>
-                            <input
-                            name="supabaseServiceRoleKey"
-                            className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            value={deploySettings?.supabase?.serviceRoleKey}
-                            placeholder="ey..."
-                            onChange={(e) => {
-                                const supabase = {
-                                databaseURL: deploySettings?.supabase?.databaseURL || '',
-                                anonKey: deploySettings?.supabase?.anonKey || '',
-                                serviceRoleKey: e.target.value,
-                                postgresURL: deploySettings?.supabase?.postgresURL || '',
-                                };
-                                setDeploySettings({
-                                ...deploySettings,
-                                supabase,
-                                });
-                            }}
-                            />
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
+                          Supabase Service Role Key
+                        </label>
+                        <div className="w-full mb-2">
+                          <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
+                            Admin API key for server-side operations with full database access.
+                          </p>
                         </div>
+                        <input
+                          name="supabaseServiceRoleKey"
+                          className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          value={deploySettings?.supabase?.serviceRoleKey}
+                          placeholder="ey..."
+                          onChange={(e) => {
+                            const supabase = {
+                              databaseURL: deploySettings?.supabase?.databaseURL || '',
+                              anonKey: deploySettings?.supabase?.anonKey || '',
+                              serviceRoleKey: e.target.value,
+                              postgresURL: deploySettings?.supabase?.postgresURL || '',
+                            };
+                            setDeploySettings({
+                              ...deploySettings,
+                              supabase,
+                            });
+                          }}
+                        />
+                      </div>
 
-                        <div>
-                            <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
-                            Supabase Postgres URL
-                            </label>
-                            <div className="w-full mb-2">
-                            <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
-                                Direct connection URL to your Postgres database for advanced operations.
-                            </p>
-                            </div>
-                            <input
-                            name="supabasePostgresURL"
-                            className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                            value={deploySettings?.supabase?.postgresURL}
-                            placeholder="postgresql://postgres:<password>@db.abc...def.supabase.co:5432/postgres"
-                            onChange={(e) => {
-                                const supabase = {
-                                databaseURL: deploySettings?.supabase?.databaseURL || '',
-                                anonKey: deploySettings?.supabase?.anonKey || '',
-                                serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
-                                postgresURL: e.target.value,
-                                };
-                                setDeploySettings({
-                                ...deploySettings,
-                                supabase,
-                                });
-                            }}
-                            />
+                      <div>
+                        <label className="block mb-2 text-sm font-medium text-bolt-elements-textPrimary">
+                          Supabase Postgres URL
+                        </label>
+                        <div className="w-full mb-2">
+                          <p className="text-xs text-bolt-elements-textSecondary whitespace-pre-wrap">
+                            Direct connection URL to your Postgres database for advanced operations.
+                          </p>
                         </div>
+                        <input
+                          name="supabasePostgresURL"
+                          className="w-full p-3 border rounded-lg bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary border-bolt-elements-borderColor focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          value={deploySettings?.supabase?.postgresURL}
+                          placeholder="postgresql://postgres:<password>@db.abc...def.supabase.co:5432/postgres"
+                          onChange={(e) => {
+                            const supabase = {
+                              databaseURL: deploySettings?.supabase?.databaseURL || '',
+                              anonKey: deploySettings?.supabase?.anonKey || '',
+                              serviceRoleKey: deploySettings?.supabase?.serviceRoleKey || '',
+                              postgresURL: e.target.value,
+                            };
+                            setDeploySettings({
+                              ...deploySettings,
+                              supabase,
+                            });
+                          }}
+                        />
+                      </div>
                     </>
                   )}
                 </div>

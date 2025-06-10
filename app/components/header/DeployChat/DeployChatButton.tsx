@@ -53,7 +53,7 @@ export function DeployChatButton() {
 
         const zipContents = event.target.result as string;
         const directoryToFind = 'supabase';
-        
+
         if (zipContents.includes(directoryToFind)) {
           setDatabaseFound(true);
         } else {
