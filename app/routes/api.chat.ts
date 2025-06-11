@@ -62,6 +62,28 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   );
 
   const stream = new SwitchableStream();
+  const abortController = new AbortController();
+  const activeOperations = new Set<Promise<any>>();
+
+  // Cleanup function
+  const cleanup = () => {
+    try {
+      // Abort any ongoing operations
+      abortController.abort();
+
+      // Close streams
+      if (stream && typeof stream.close === 'function') {
+        stream.close();
+      }
+
+      // Cancel active operations
+      activeOperations.clear();
+
+      logger.debug('Chat action cleanup completed');
+    } catch (error) {
+      logger.error('Error during cleanup:', error);
+    }
+  };
 
   const cumulativeUsage = {
     completionTokens: 0,
@@ -298,6 +320,30 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           messageSliceId,
         });
 
+        // Track async operations for cleanup
+        const summaryOperation = summary
+          ? createSummary({
+              messages: [...messages],
+              env: context.cloudflare?.env,
+              apiKeys,
+              providerSettings,
+              promptId,
+              contextOptimization,
+              onFinish(resp) {
+                if (resp.usage) {
+                  logger.debug('createSummary token usage', JSON.stringify(resp.usage));
+                  cumulativeUsage.completionTokens += resp.usage.completionTokens || 0;
+                  cumulativeUsage.promptTokens += resp.usage.promptTokens || 0;
+                  cumulativeUsage.totalTokens += resp.usage.totalTokens || 0;
+                }
+              },
+            })
+          : Promise.resolve();
+
+        if (summaryOperation) {
+          activeOperations.add(summaryOperation);
+        }
+
         (async () => {
           for await (const part of result.fullStream) {
             if (part.type === 'error') {
@@ -310,7 +356,10 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         })();
         result.mergeIntoDataStream(dataStream);
       },
-      onError: (error: any) => `Custom error: ${error.message}`,
+      onError: (error: any) => {
+        cleanup();
+        return `Custom error: ${error.message}`;
+      },
     }).pipeThrough(
       new TransformStream({
         transform: (chunk, controller) => {
@@ -359,6 +408,9 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       },
     });
   } catch (error: any) {
+    // Ensure cleanup on error
+    cleanup();
+
     logger.error(error);
 
     if (error.message?.includes('API key')) {
