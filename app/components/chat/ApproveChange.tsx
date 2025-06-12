@@ -75,10 +75,13 @@ const ApproveChange: React.FC<ApproveChangeProps> = ({ rejectFormOpen, setReject
           </label>
         </div>
         <div className="flex flex-col items-center gap-2 w-full mb-2">
-          <h2 className="text-sm text-bolt-elements-textPrimary">
-            Or
-          </h2>
-          <a className="text-sm text-green-500 hover:text-green-600 transition-colors" href="https://cal.com/filip" target="_blank" rel="noopener noreferrer">
+          <h2 className="text-sm text-bolt-elements-textPrimary">Or</h2>
+          <a
+            className="text-sm text-green-500 hover:text-green-600 transition-colors"
+            href="https://cal.com/filip"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Schedule a call with the Nut Team.
           </a>
         </div>
