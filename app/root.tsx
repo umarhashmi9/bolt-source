@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { logStore } from './lib/stores/logs';
 import { initializeAuth, userStore, isLoadingStore } from './lib/stores/auth';
 import { initializeUserStores } from './lib/stores/user';
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer, toast, cssTransition } from 'react-toastify';
 import { Analytics } from '@vercel/analytics/remix';
 import { AuthModal } from './components/auth/AuthModal';
 
@@ -64,6 +64,11 @@ export const loader: LoaderFunction = async () => {
     },
   });
 };
+
+const toastAnimation = cssTransition({
+  enter: 'animated fadeInRight',
+  exit: 'animated fadeOutRight',
+});
 
 const inlineThemeCode = stripIndents`
   setTutorialKitTheme();
@@ -172,7 +177,31 @@ export default function App() {
         <ThemeProvider />
         <AuthProvider data={data} />
         <main className="h-full min-h-screen">{isLoading ? <div></div> : <Outlet />}</main>
-        <ToastContainer position="bottom-right" theme={theme} />
+        <ToastContainer
+          closeButton={({ closeToast }) => {
+            return (
+              <button className="Toastify__close-button" onClick={closeToast}>
+                <div className="i-ph:x text-lg" />
+              </button>
+            );
+          }}
+          icon={({ type }) => {
+            switch (type) {
+              case 'success': {
+                return <div className="i-ph:check-bold text-bolt-elements-icon-success text-2xl" />;
+              }
+              case 'error': {
+                return <div className="i-ph:warning-circle-bold text-bolt-elements-icon-error text-2xl" />;
+              }
+            }
+
+            return undefined;
+          }}
+          position="bottom-right"
+          theme={theme}
+          pauseOnFocusLoss
+          transition={toastAnimation}
+        />
         <AuthModal />
       </ClientOnly>
       <ScrollRestoration />
