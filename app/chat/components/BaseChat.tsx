@@ -25,7 +25,6 @@ import ChatAlert from './alerts/ChatAlert';
 import type { ModelInfo } from '~/shared/lib/providers/types';
 import ProgressCompilation from './ProgressCompilation';
 import type { ProgressAnnotation } from '~/shared/types/context';
-import type { ActionRunner } from '~/shared/lib/runtime/action-runner';
 import { SupabaseChatAlert } from '~/chat/components/alerts/SupabaseAlert';
 import { expoUrlAtom } from '~/shared/workbench/stores/qrCodeStore';
 import { useStore } from '@nanostores/react';
@@ -71,7 +70,6 @@ interface BaseChatProps {
   deployAlert?: DeployAlert;
   clearDeployAlert?: () => void;
   data?: JSONValue[] | undefined;
-  actionRunner?: ActionRunner;
   chatMode?: 'discuss' | 'build';
   setChatMode?: (mode: 'discuss' | 'build') => void;
   append?: (message: Message) => void;
@@ -116,7 +114,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       supabaseAlert,
       clearSupabaseAlert,
       data,
-      actionRunner,
       chatMode,
       setChatMode,
       append,
@@ -483,12 +480,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
           </div>
           <ClientOnly>
             {() => (
-              <Workbench
-                actionRunner={actionRunner ?? ({} as ActionRunner)}
-                chatStarted={chatStarted}
-                isStreaming={isStreaming}
-                setSelectedElement={setSelectedElement}
-              />
+              <Workbench chatStarted={chatStarted} isStreaming={isStreaming} setSelectedElement={setSelectedElement} />
             )}
           </ClientOnly>
         </div>

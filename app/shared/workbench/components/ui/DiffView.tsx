@@ -7,7 +7,6 @@ import { diffLines, type Change } from 'diff';
 import { getHighlighter } from 'shiki';
 import '~/styles/diff-view.css';
 import { diffFiles, extractRelativePath } from '~/shared/utils/diff';
-import { ActionRunner } from '~/shared/lib/runtime/action-runner';
 import type { FileHistory } from '~/shared/types/actions';
 import { getLanguageFromExtension } from '~/shared/utils/getLanguageFromExtension';
 import { themeStore } from '~/shared/stores/theme';
@@ -664,7 +663,6 @@ const InlineDiffComparison = memo(({ beforeCode, afterCode, filename, language }
 interface DiffViewProps {
   fileHistory: Record<string, FileHistory>;
   setFileHistory: React.Dispatch<React.SetStateAction<Record<string, FileHistory>>>;
-  actionRunner: ActionRunner;
 }
 
 export const DiffView = memo(({ fileHistory, setFileHistory }: DiffViewProps) => {
