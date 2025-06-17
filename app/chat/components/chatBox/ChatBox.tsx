@@ -13,7 +13,7 @@ import { toast } from 'react-toastify';
 import { SpeechRecognitionButton } from '~/chat/components/chatBox/SpeechRecognition';
 import { SupabaseConnection } from './SupabaseConnection';
 import { ExpoQrModal } from '~/shared/workbench/components/ui/ExpoQrModal';
-import styles from '~/chat/BaseChat.module.scss';
+import styles from '~/chat/components/BaseChat.module.scss';
 import type { ProviderInfo } from '~/shared/types/model';
 import { ColorSchemeDialog } from '~/shared/components/ui/ColorSchemeDialog';
 import type { DesignScheme } from '~/shared/types/design-scheme';
