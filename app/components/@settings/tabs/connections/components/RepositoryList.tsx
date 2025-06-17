@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import type { GitHubRepoInfo } from '~/types/GitHub';
 import { EmptyState, StatusIndicator } from '~/components/ui';
+import { useI18n } from '~/hooks/useI18n';
 import { RepositoryCard } from './RepositoryCard';
 import { RepositoryDialogContext } from './RepositoryDialogContext';
 
@@ -12,15 +13,16 @@ interface RepositoryListProps {
 }
 
 export function RepositoryList({ repos, isLoading, onSelect, activeTab }: RepositoryListProps) {
+  const { t } = useI18n();
   // Access the parent component's setShowAuthDialog function
   const { setShowAuthDialog } = useContext(RepositoryDialogContext);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
-        <StatusIndicator status="loading" pulse={true} size="lg" label="Loading repositories..." className="mb-2" />
+        <StatusIndicator status="loading" pulse={true} size="lg" label={t('Loading repositories...')} className="mb-2" />
         <p className="text-xs text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark">
-          This may take a moment
+          {t('This may take a moment')}
         </p>
       </div>
     );
@@ -31,9 +33,9 @@ export function RepositoryList({ repos, isLoading, onSelect, activeTab }: Reposi
       return (
         <EmptyState
           icon="i-ph:folder-simple-dashed"
-          title="No repositories found"
-          description="Connect your GitHub account or create a new repository to get started"
-          actionLabel="Connect GitHub Account"
+          title={t('No repositories found')}
+          description={t('Connect your GitHub account or create a new repository to get started')}
+          actionLabel={t('Connect GitHub Account')}
           onAction={() => setShowAuthDialog(true)}
         />
       );
@@ -41,8 +43,8 @@ export function RepositoryList({ repos, isLoading, onSelect, activeTab }: Reposi
       return (
         <EmptyState
           icon="i-ph:magnifying-glass"
-          title="No repositories found"
-          description="Try searching with different keywords or filters"
+          title={t('No repositories found')}
+          description={t('Try searching with different keywords or filters')}
         />
       );
     }
