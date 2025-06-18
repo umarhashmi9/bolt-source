@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { classNames } from '~/shared/utils/classNames';
@@ -122,32 +121,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
       .sort((a, b) => a.order - b.order);
   }, [tabConfiguration, profile?.preferences?.notifications, baseTabConfig]);
 
-  // Optimize animation performance with layout animations
-  const gridLayoutVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-        delayChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        type: 'spring',
-        stiffness: 200,
-        damping: 20,
-        mass: 0.6,
-      },
-    },
-  };
-
   // Reset to default view when modal opens/closes
   useEffect(() => {
     if (!open) {
@@ -226,23 +199,15 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
         break;
     }
 
-    // Clear loading state after a delay
-    setTimeout(() => setLoadingTab(null), 500);
+    // Clear loading state immediately for better responsiveness
+    setTimeout(() => setLoadingTab(null), 100);
   };
 
   return (
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
         <div className="fixed inset-0 flex items-center justify-center z-[100] modern-scrollbar">
-          <RadixDialog.Overlay asChild>
-            <motion.div
-              className="absolute inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            />
-          </RadixDialog.Overlay>
+          <RadixDialog.Overlay className="absolute inset-0 bg-black/70 dark:bg-black/50 backdrop-blur-sm transition-opacity duration-200" />
 
           <RadixDialog.Content
             aria-describedby={undefined}
@@ -250,19 +215,17 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
             onPointerDownOutside={handleClose}
             className="relative z-[101]"
           >
-            <motion.div
+            <div
               className={classNames(
                 'w-[1200px] h-[90vh]',
-                'bg-[#FAFAFA] dark:bg-[#0A0A0A]',
+                'bg-bolt-elements-background-depth-1',
                 'rounded-2xl shadow-2xl',
-                'border border-[#E5E5E5] dark:border-[#1A1A1A]',
+                'border border-bolt-elements-borderColor',
                 'flex flex-col overflow-hidden',
                 'relative',
+                'transform transition-all duration-200 ease-out',
+                open ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4',
               )}
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
             >
               <div className="absolute inset-0 overflow-hidden rounded-2xl">
                 <BackgroundRays />
@@ -274,7 +237,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                     {(activeTab || showTabManagement) && (
                       <button
                         onClick={handleBack}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-colors duration-150"
                       >
                         <div className="i-ph:arrow-left w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
                       </button>
@@ -293,7 +256,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                     {/* Close Button */}
                     <button
                       onClick={handleClose}
-                      className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-colors duration-150"
                     >
                       <div className="i-ph:x w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
                     </button>
@@ -314,49 +277,50 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                     'touch-auto',
                   )}
                 >
-                  <motion.div
-                    key={activeTab || 'home'}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-6"
+                  <div
+                    className={classNames(
+                      'p-6 transition-opacity duration-150',
+                      activeTab || showTabManagement ? 'opacity-100' : 'opacity-100',
+                    )}
                   >
                     {showTabManagement ? (
                       <TabManagement />
                     ) : activeTab ? (
                       renderTabContent(activeTab)
                     ) : (
-                      <motion.div
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative"
-                        variants={gridLayoutVariants}
-                        initial="hidden"
-                        animate="visible"
-                      >
-                        <AnimatePresence mode="popLayout">
-                          {visibleTabs.map((tab) => (
-                            <motion.div key={tab.id} layout variants={itemVariants} className="aspect-[1.5/1]">
-                              <TabTile
-                                tab={tab}
-                                onClick={() => handleTabClick(tab.id as TabType)}
-                                isActive={activeTab === tab.id}
-                                hasUpdate={getTabUpdateStatus(tab.id)}
-                                statusMessage={getStatusMessage(tab.id)}
-                                description={TAB_DESCRIPTIONS[tab.id]}
-                                isLoading={loadingTab === tab.id}
-                                className="h-full relative"
-                              >
-                                {BETA_TABS.has(tab.id) && <BetaLabel />}
-                              </TabTile>
-                            </motion.div>
-                          ))}
-                        </AnimatePresence>
-                      </motion.div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+                        {visibleTabs.map((tab, index) => (
+                          <div
+                            key={tab.id}
+                            className={classNames(
+                              'aspect-[1.5/1] transition-transform duration-100 ease-out',
+                              'hover:scale-[1.01]',
+                            )}
+                            style={{
+                              animationDelay: `${index * 30}ms`,
+                              animation: open ? 'fadeInUp 200ms ease-out forwards' : 'none',
+                            }}
+                          >
+                            <TabTile
+                              tab={tab}
+                              onClick={() => handleTabClick(tab.id as TabType)}
+                              isActive={activeTab === tab.id}
+                              hasUpdate={getTabUpdateStatus(tab.id)}
+                              statusMessage={getStatusMessage(tab.id)}
+                              description={TAB_DESCRIPTIONS[tab.id]}
+                              isLoading={loadingTab === tab.id}
+                              className="h-full relative"
+                            >
+                              {BETA_TABS.has(tab.id) && <BetaLabel />}
+                            </TabTile>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  </motion.div>
+                  </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </RadixDialog.Content>
         </div>
       </RadixDialog.Portal>
