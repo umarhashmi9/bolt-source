@@ -10,19 +10,25 @@ import { useNotifications } from '~/shared/hooks/useNotifications';
 import { useConnectionStatus } from '~/shared/hooks/useConnectionStatus';
 import { tabConfigurationStore, resetTabConfiguration } from '~/settings/stores/settings';
 import { profileStore } from '~/shared/stores/profile';
-import type { TabType, TabVisibilityConfig, Profile } from './types';
+import type { TabType, Profile } from './types';
 import { TAB_LABELS, DEFAULT_TAB_CONFIG } from './constants';
 import { DialogTitle } from '~/shared/components/ui/Dialog';
 import { AvatarDropdown } from './AvatarDropdown';
 import BackgroundRays from '~/shared/components/ui/BackgroundRays';
 
+// Import tab content components
+import ProfileTab from '~/settings/tabs/profile/ProfileTab';
+import SettingsTab from '~/settings/tabs/settings/SettingsTab';
+import NotificationsTab from '~/settings/tabs/notifications/NotificationsTab';
+import FeaturesTab from '~/settings/tabs/features/FeaturesTab';
+import { DataTab } from '~/settings/tabs/data/DataTab';
+import ConnectionsTab from '~/settings/tabs/connections/ConnectionsTab';
+import LocalProvidersTab from '~/settings/tabs/providers/local/LocalProvidersTab';
+import CloudProvidersTab from '~/settings/tabs/providers/cloud/CloudProvidersTab';
+
 interface ControlPanelProps {
   open: boolean;
   onClose: () => void;
-}
-
-interface TabWithDevType extends TabVisibilityConfig {
-  isExtraDevTab?: boolean;
 }
 
 const TAB_DESCRIPTIONS: Record<TabType, string> = {
@@ -44,6 +50,30 @@ const BetaLabel = () => (
     <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">BETA</span>
   </div>
 );
+
+// Add this function to render tab content
+const renderTabContent = (activeTab: TabType) => {
+  switch (activeTab) {
+    case 'profile':
+      return <ProfileTab />;
+    case 'settings':
+      return <SettingsTab />;
+    case 'notifications':
+      return <NotificationsTab />;
+    case 'features':
+      return <FeaturesTab />;
+    case 'data':
+      return <DataTab />;
+    case 'connection':
+      return <ConnectionsTab />;
+    case 'cloud-providers':
+      return <CloudProvidersTab />;
+    case 'local-providers':
+      return <LocalProvidersTab />;
+    default:
+      return null;
+  }
+};
 
 export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   // State
@@ -294,6 +324,8 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   >
                     {showTabManagement ? (
                       <TabManagement />
+                    ) : activeTab ? (
+                      renderTabContent(activeTab)
                     ) : (
                       <motion.div
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative"
@@ -302,7 +334,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                         animate="visible"
                       >
                         <AnimatePresence mode="popLayout">
-                          {(visibleTabs as TabWithDevType[]).map((tab: TabWithDevType) => (
+                          {visibleTabs.map((tab) => (
                             <motion.div key={tab.id} layout variants={itemVariants} className="aspect-[1.5/1]">
                               <TabTile
                                 tab={tab}
