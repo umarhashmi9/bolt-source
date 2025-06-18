@@ -1,43 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@nanostores/react';
-import { Switch } from '@radix-ui/react-switch';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { classNames } from '~/shared/utils/classNames';
 import { TabManagement } from '~/settings/shared/components/TabManagement';
 import { TabTile } from '~/settings/shared/components/TabTile';
-import { useUpdateCheck } from '~/shared/hooks/useUpdateCheck';
 import { useFeatures } from '~/shared/hooks/useFeatures';
 import { useNotifications } from '~/shared/hooks/useNotifications';
 import { useConnectionStatus } from '~/shared/hooks/useConnectionStatus';
-import { useDebugStatus } from '~/shared/hooks/useDebugStatus';
-import {
-  tabConfigurationStore,
-  developerModeStore,
-  setDeveloperMode,
-  resetTabConfiguration,
-} from '~/settings/stores/settings';
+import { tabConfigurationStore, resetTabConfiguration } from '~/settings/stores/settings';
 import { profileStore } from '~/shared/stores/profile';
 import type { TabType, TabVisibilityConfig, Profile } from './types';
 import { TAB_LABELS, DEFAULT_TAB_CONFIG } from './constants';
 import { DialogTitle } from '~/shared/components/ui/Dialog';
 import { AvatarDropdown } from './AvatarDropdown';
 import BackgroundRays from '~/shared/components/ui/BackgroundRays';
-
-// Import all tab components
-import ProfileTab from '~/settings/tabs/profile/ProfileTab';
-import SettingsTab from '~/settings/tabs/settings/SettingsTab';
-import NotificationsTab from '~/settings/tabs/notifications/NotificationsTab';
-import FeaturesTab from '~/settings/tabs/features/FeaturesTab';
-import { DataTab } from '~/settings/tabs/data/DataTab';
-import DebugTab from '~/settings/tabs/debug/DebugTab';
-import { EventLogsTab } from '~/settings/tabs/event-logs/EventLogsTab';
-import UpdateTab from '~/settings/tabs/update/UpdateTab';
-import ConnectionsTab from '~/settings/tabs/connections/ConnectionsTab';
-import CloudProvidersTab from '~/settings/tabs/providers/cloud/CloudProvidersTab';
-import ServiceStatusTab from '~/settings/tabs/providers/status/ServiceStatusTab';
-import LocalProvidersTab from '~/settings/tabs/providers/local/LocalProvidersTab';
-import TaskManagerTab from '~/settings/tabs/task-manager/TaskManagerTab';
 
 interface ControlPanelProps {
   open: boolean;
@@ -48,24 +25,6 @@ interface TabWithDevType extends TabVisibilityConfig {
   isExtraDevTab?: boolean;
 }
 
-interface ExtendedTabConfig extends TabVisibilityConfig {
-  isExtraDevTab?: boolean;
-}
-
-interface BaseTabConfig {
-  id: TabType;
-  visible: boolean;
-  window: 'user' | 'developer';
-  order: number;
-}
-
-interface AnimatedSwitchProps {
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  id: string;
-  label: string;
-}
-
 const TAB_DESCRIPTIONS: Record<TabType, string> = {
   profile: 'Manage your profile and account settings',
   settings: 'Configure application preferences',
@@ -74,83 +33,17 @@ const TAB_DESCRIPTIONS: Record<TabType, string> = {
   data: 'Manage your data and storage',
   'cloud-providers': 'Configure cloud AI providers and models',
   'local-providers': 'Configure local AI providers and models',
-  'service-status': 'Monitor cloud LLM service status',
   connection: 'Check connection status and settings',
-  debug: 'Debug tools and system information',
-  'event-logs': 'View system events and logs',
-  update: 'Check for updates and release notes',
-  'task-manager': 'Monitor system resources and processes',
-  'tab-management': 'Configure visible tabs and their order',
 };
 
 // Beta status for experimental features
-const BETA_TABS = new Set<TabType>(['task-manager', 'service-status', 'update', 'local-providers']);
+const BETA_TABS = new Set<TabType>(['local-providers']);
 
 const BetaLabel = () => (
   <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-purple-500/10 dark:bg-purple-500/20">
     <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">BETA</span>
   </div>
 );
-
-const AnimatedSwitch = ({ checked, onCheckedChange, id, label }: AnimatedSwitchProps) => {
-  return (
-    <div className="flex items-center gap-2">
-      <Switch
-        id={id}
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        className={classNames(
-          'relative inline-flex h-6 w-11 items-center rounded-full',
-          'transition-all duration-300 ease-[cubic-bezier(0.87,_0,_0.13,_1)]',
-          'bg-gray-200 dark:bg-gray-700',
-          'data-[state=checked]:bg-purple-500',
-          'focus:outline-none focus:ring-2 focus:ring-purple-500/20',
-          'cursor-pointer',
-          'group',
-        )}
-      >
-        <motion.span
-          className={classNames(
-            'absolute left-[2px] top-[2px]',
-            'inline-block h-5 w-5 rounded-full',
-            'bg-white shadow-lg',
-            'transition-shadow duration-300',
-            'group-hover:shadow-md group-active:shadow-sm',
-            'group-hover:scale-95 group-active:scale-90',
-          )}
-          initial={false}
-          transition={{
-            type: 'spring',
-            stiffness: 500,
-            damping: 30,
-            duration: 0.2,
-          }}
-          animate={{
-            x: checked ? '1.25rem' : '0rem',
-          }}
-        >
-          <motion.div
-            className="absolute inset-0 rounded-full bg-white"
-            initial={false}
-            animate={{
-              scale: checked ? 1 : 0.8,
-            }}
-            transition={{ duration: 0.2 }}
-          />
-        </motion.span>
-        <span className="sr-only">Toggle {label}</span>
-      </Switch>
-      <div className="flex items-center gap-2">
-        <label
-          htmlFor={id}
-          className="text-sm text-gray-500 dark:text-gray-400 select-none cursor-pointer whitespace-nowrap w-[88px]"
-        >
-          {label}
-        </label>
-      </div>
-    </div>
-  );
-};
 
 export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   // State
@@ -160,15 +53,12 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
   // Store values
   const tabConfiguration = useStore(tabConfigurationStore);
-  const developerMode = useStore(developerModeStore);
   const profile = useStore(profileStore) as Profile;
 
   // Status hooks
-  const { hasUpdate, currentVersion, acknowledgeUpdate } = useUpdateCheck();
   const { hasNewFeatures, unviewedFeatures, acknowledgeAllFeatures } = useFeatures();
   const { hasUnreadNotifications, unreadNotifications, markAllAsRead } = useNotifications();
   const { hasConnectionIssues, currentIssue, acknowledgeIssue } = useConnectionStatus();
-  const { hasActiveWarnings, activeIssues, acknowledgeAllIssues } = useDebugStatus();
 
   // Memoize the base tab configurations to avoid recalculation
   const baseTabConfig = useMemo(() => {
@@ -186,41 +76,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
     const notificationsDisabled = profile?.preferences?.notifications === false;
 
-    // In developer mode, show ALL tabs without restrictions
-    if (developerMode) {
-      const seenTabs = new Set<TabType>();
-      const devTabs: ExtendedTabConfig[] = [];
-
-      // Process tabs in order of priority: developer, user, default
-      const processTab = (tab: BaseTabConfig) => {
-        if (!seenTabs.has(tab.id)) {
-          seenTabs.add(tab.id);
-          devTabs.push({
-            id: tab.id,
-            visible: true,
-            window: 'developer',
-            order: tab.order || devTabs.length,
-          });
-        }
-      };
-
-      // Process tabs in priority order
-      tabConfiguration.developerTabs?.forEach((tab) => processTab(tab as BaseTabConfig));
-      tabConfiguration.userTabs.forEach((tab) => processTab(tab as BaseTabConfig));
-      DEFAULT_TAB_CONFIG.forEach((tab) => processTab(tab as BaseTabConfig));
-
-      // Add Tab Management tile
-      devTabs.push({
-        id: 'tab-management' as TabType,
-        visible: true,
-        window: 'developer',
-        order: devTabs.length,
-        isExtraDevTab: true,
-      });
-
-      return devTabs.sort((a, b) => a.order - b.order);
-    }
-
     // Optimize user mode tab filtering
     return tabConfiguration.userTabs
       .filter((tab) => {
@@ -235,7 +90,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
         return tab.visible && tab.window === 'user';
       })
       .sort((a, b) => a.order - b.order);
-  }, [tabConfiguration, developerMode, profile?.preferences?.notifications, baseTabConfig]);
+  }, [tabConfiguration, profile?.preferences?.notifications, baseTabConfig]);
 
   // Optimize animation performance with layout animations
   const gridLayoutVariants = {
@@ -293,65 +148,14 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
     }
   };
 
-  const handleDeveloperModeChange = (checked: boolean) => {
-    console.log('Developer mode changed:', checked);
-    setDeveloperMode(checked);
-  };
-
-  // Add effect to log developer mode changes
-  useEffect(() => {
-    console.log('Current developer mode:', developerMode);
-  }, [developerMode]);
-
-  const getTabComponent = (tabId: TabType | 'tab-management') => {
-    if (tabId === 'tab-management') {
-      return <TabManagement />;
-    }
-
-    switch (tabId) {
-      case 'profile':
-        return <ProfileTab />;
-      case 'settings':
-        return <SettingsTab />;
-      case 'notifications':
-        return <NotificationsTab />;
-      case 'features':
-        return <FeaturesTab />;
-      case 'data':
-        return <DataTab />;
-      case 'cloud-providers':
-        return <CloudProvidersTab />;
-      case 'local-providers':
-        return <LocalProvidersTab />;
-      case 'connection':
-        return <ConnectionsTab />;
-      case 'debug':
-        return <DebugTab />;
-      case 'event-logs':
-        return <EventLogsTab />;
-      case 'update':
-        return <UpdateTab />;
-      case 'task-manager':
-        return <TaskManagerTab />;
-      case 'service-status':
-        return <ServiceStatusTab />;
-      default:
-        return null;
-    }
-  };
-
   const getTabUpdateStatus = (tabId: TabType): boolean => {
     switch (tabId) {
-      case 'update':
-        return hasUpdate;
       case 'features':
         return hasNewFeatures;
       case 'notifications':
         return hasUnreadNotifications;
       case 'connection':
         return hasConnectionIssues;
-      case 'debug':
-        return hasActiveWarnings;
       default:
         return false;
     }
@@ -359,8 +163,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
   const getStatusMessage = (tabId: TabType): string => {
     switch (tabId) {
-      case 'update':
-        return `New update available (v${currentVersion})`;
       case 'features':
         return `${unviewedFeatures.length} new feature${unviewedFeatures.length === 1 ? '' : 's'} to explore`;
       case 'notifications':
@@ -371,12 +173,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
           : currentIssue === 'high-latency'
             ? 'High latency detected'
             : 'Connection issues detected';
-      case 'debug': {
-        const warnings = activeIssues.filter((i) => i.type === 'warning').length;
-        const errors = activeIssues.filter((i) => i.type === 'error').length;
-
-        return `${warnings} warning${warnings === 1 ? '' : 's'}, ${errors} error${errors === 1 ? '' : 's'}`;
-      }
       default:
         return '';
     }
@@ -389,9 +185,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
     // Acknowledge notifications based on tab
     switch (tabId) {
-      case 'update':
-        acknowledgeUpdate();
-        break;
       case 'features':
         acknowledgeAllFeatures();
         break;
@@ -400,9 +193,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
         break;
       case 'connection':
         acknowledgeIssue();
-        break;
-      case 'debug':
-        acknowledgeAllIssues();
         break;
     }
 
@@ -465,16 +255,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   </div>
 
                   <div className="flex items-center gap-6">
-                    {/* Mode Toggle */}
-                    <div className="flex items-center gap-2 min-w-[140px] border-r border-gray-200 dark:border-gray-800 pr-6">
-                      <AnimatedSwitch
-                        id="developer-mode"
-                        checked={developerMode}
-                        onCheckedChange={handleDeveloperModeChange}
-                        label={developerMode ? 'Developer Mode' : 'User Mode'}
-                      />
-                    </div>
-
                     {/* Avatar and Dropdown */}
                     <div className="border-l border-gray-200 dark:border-gray-800 pl-6">
                       <AvatarDropdown onSelectTab={handleTabClick} />
@@ -514,8 +294,6 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   >
                     {showTabManagement ? (
                       <TabManagement />
-                    ) : activeTab ? (
-                      getTabComponent(activeTab)
                     ) : (
                       <motion.div
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative"

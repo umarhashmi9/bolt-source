@@ -1,7 +1,7 @@
 import { atom, map } from 'nanostores';
 import { PROVIDER_LIST } from '~/shared/utils/constants';
 import type { IProviderConfig } from '~/shared/types/model';
-import type { TabVisibilityConfig, TabWindowConfig, UserTabConfig, DevTabConfig } from '~/settings/core/types';
+import type { TabVisibilityConfig, TabWindowConfig, UserTabConfig } from '~/settings/core/types';
 import { DEFAULT_TAB_CONFIG } from '~/settings/core/constants';
 import Cookies from 'js-cookie';
 import { toggleTheme } from '~/shared/stores/theme';
@@ -197,7 +197,6 @@ export const updatePromptId = (id: string) => {
 const getInitialTabConfiguration = (): TabWindowConfig => {
   const defaultConfig: TabWindowConfig = {
     userTabs: DEFAULT_TAB_CONFIG.filter((tab): tab is UserTabConfig => tab.window === 'user'),
-    developerTabs: DEFAULT_TAB_CONFIG.filter((tab): tab is DevTabConfig => tab.window === 'developer'),
   };
 
   if (!isBrowser) {
@@ -220,9 +219,6 @@ const getInitialTabConfiguration = (): TabWindowConfig => {
     // Ensure proper typing of loaded configuration
     return {
       userTabs: parsed.userTabs.filter((tab: TabVisibilityConfig): tab is UserTabConfig => tab.window === 'user'),
-      developerTabs: parsed.developerTabs.filter(
-        (tab: TabVisibilityConfig): tab is DevTabConfig => tab.window === 'developer',
-      ),
     };
   } catch (error) {
     console.warn('Failed to parse tab configuration:', error);
@@ -235,25 +231,13 @@ const getInitialTabConfiguration = (): TabWindowConfig => {
 export const tabConfigurationStore = map<TabWindowConfig>(getInitialTabConfiguration());
 
 // Helper function to update tab configuration
-export const updateTabConfiguration = (config: TabVisibilityConfig) => {
+export const updateTabConfiguration = () => {
   const currentConfig = tabConfigurationStore.get();
   console.log('Current tab configuration before update:', currentConfig);
-
-  const isUserTab = config.window === 'user';
-  const targetArray = isUserTab ? 'userTabs' : 'developerTabs';
-
-  // Only update the tab in its respective window
-  const updatedTabs = currentConfig[targetArray].map((tab) => (tab.id === config.id ? { ...config } : tab));
-
-  // If tab doesn't exist in this window yet, add it
-  if (!updatedTabs.find((tab) => tab.id === config.id)) {
-    updatedTabs.push(config);
-  }
 
   // Create new config, only updating the target window's tabs
   const newConfig: TabWindowConfig = {
     ...currentConfig,
-    [targetArray]: updatedTabs,
   };
 
   console.log('New tab configuration after update:', newConfig);
@@ -270,22 +254,10 @@ export const updateTabConfiguration = (config: TabVisibilityConfig) => {
 export const resetTabConfiguration = () => {
   const defaultConfig: TabWindowConfig = {
     userTabs: DEFAULT_TAB_CONFIG.filter((tab): tab is UserTabConfig => tab.window === 'user'),
-    developerTabs: DEFAULT_TAB_CONFIG.filter((tab): tab is DevTabConfig => tab.window === 'developer'),
   };
 
   tabConfigurationStore.set(defaultConfig);
   localStorage.setItem('bolt_tab_configuration', JSON.stringify(defaultConfig));
-};
-
-// Developer mode store with persistence
-export const developerModeStore = atom<boolean>(initialSettings.developerMode);
-
-export const setDeveloperMode = (value: boolean) => {
-  developerModeStore.set(value);
-
-  if (isBrowser) {
-    localStorage.setItem(SETTINGS_KEYS.DEVELOPER_MODE, JSON.stringify(value));
-  }
 };
 
 // First, let's define the SettingsStore interface

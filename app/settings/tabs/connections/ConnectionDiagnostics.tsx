@@ -42,15 +42,6 @@ export default function ConnectionDiagnostics() {
         supabaseConnection: localStorage.getItem('supabase_connection'),
       };
 
-      // Get diagnostic data from server
-      const response = await fetch('/api/system/diagnostics');
-
-      if (!response.ok) {
-        throw new Error(`Diagnostics API error: ${response.status}`);
-      }
-
-      const serverDiagnostics = await response.json();
-
       // === GitHub Checks ===
       const githubConnectionParsed = safeJsonParse(localStorageChecks.githubConnection);
       const githubToken = githubConnectionParsed?.token;
@@ -149,7 +140,6 @@ export default function ConnectionDiagnostics() {
           vercel: vercelUserCheck,
           supabase: supabaseCheck,
         },
-        serverDiagnostics,
       };
 
       setDiagnosticResults(results);
